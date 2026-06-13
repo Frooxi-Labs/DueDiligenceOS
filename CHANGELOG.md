@@ -7,6 +7,11 @@ changed and the **context** (why).
 
 ### 2026-06-13
 
+- **Tests.** Added Vitest with unit tests for conflict detection (`detectConflict`/`checkConsensus`,
+  incl. failed-agent-is-neutral) and agent output handling (`parseAgentOutput` fences/preamble,
+  `validateBusinessLogic` cross-field rules). 14 tests passing; production build green.
+  - *Context:* Locks down the pure decision logic that the live workflow depends on.
+
 - **Orchestration module.** Added `lib/orchestration/`: conflict detection (`detectConflict` /
   `checkConsensus`, with failed agents treated as neutral) and the workflow engine `runWorkflow` —
   atomic single-trigger guard, Band room init + participant add, the agent sequence where each
