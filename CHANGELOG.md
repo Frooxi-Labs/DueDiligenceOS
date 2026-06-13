@@ -7,6 +7,12 @@ changed and the **context** (why).
 
 ### 2026-06-13
 
+- **Domain types.** Added `types/index.ts`: agent types, workflow statuses, deal/evaluation/
+  negotiation/decision shapes, the SSE event union, and new `Finding`, `Mention`, and an
+  `agent.mentioned` event.
+  - *Context:* Shared contracts the whole system builds on. `Finding`/`Mention` and the
+    `agent.mentioned` event support per-claim findings and visible agent-to-agent handoffs.
+
 - **Database layer (Postgres + Drizzle).** Added the schema and database client.
   - *What:* `lib/db/schema.ts` (tables: `deal_briefs`, `band_rooms`, `agent_evaluations`,
     `findings`, `mentions`, `negotiation_rounds`, `final_decisions`, `workflow_events`,
