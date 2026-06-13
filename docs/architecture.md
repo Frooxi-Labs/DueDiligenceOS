@@ -1,5 +1,20 @@
 # DueDiligenceOS — Architecture
 
+## 0. Module-based design
+
+The codebase is organized into self-contained modules under `lib/`, each exposing a single public
+API via its `index.ts` barrel. Consumers import from the module root (`@/lib/band`), never from
+internal files, so any module can evolve — or be extracted into a shared package — independently.
+
+| Module | Responsibility | Depends on |
+|:-------|:---------------|:-----------|
+| `lib/band` | Band platform integration (rooms, participants, messages, mentions, events, context) | `types` |
+| `lib/providers` | LLM model routing (per-agent model + provider) | — |
+| `lib/agents` | Agent framework: base, registry, the specialists, output validation | `band`, `providers`, `types` |
+| `lib/orchestration` | Workflow engine, conflict detection, negotiation | `band`, `agents`, `persistence`, `realtime` |
+| `lib/realtime` | Event transport (Redis pub/sub → SSE) | `types` |
+| `lib/db` | Persistence (schema, client) | — |
+
 ## 1. Stack
 
 | Layer | Choice |

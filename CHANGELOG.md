@@ -7,6 +7,12 @@ changed and the **context** (why).
 
 ### 2026-06-13
 
+- **Module-based architecture.** Each `lib/` module exposes a single public API via its `index.ts`
+  barrel; consumers import from the module root, never internal files. Added `lib/band/index.ts`
+  and a module map in the architecture doc.
+  - *Context:* Clean module boundaries keep the system maintainable and let any module evolve or be
+    reused independently.
+
 - **Band integration layer.** Added `lib/band/BandClient.ts` (REST client: create room, add
   participants, post messages with targeted `@mentions`, post events, read room context, mark
   message state) and `lib/band/ContextService.ts` (format peers' findings + the opening deal
