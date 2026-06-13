@@ -5,6 +5,7 @@
 
 # ---- Internal planning (never publish) ----
 PLANNING.md
+DEFERRED.md
 
 # ---- Node / Next.js ----
 node_modules/
