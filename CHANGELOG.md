@@ -7,6 +7,20 @@ changed and the **context** (why).
 
 ### 2026-06-13
 
+- **Orchestration module.** Added `lib/orchestration/`: conflict detection (`detectConflict` /
+  `checkConsensus`, with failed agents treated as neutral) and the workflow engine `runWorkflow` —
+  atomic single-trigger guard, Band room init + participant add, the agent sequence where each
+  agent posts to the room and **hands off to the next via a targeted `@mention`** (recorded as a
+  mention edge + `agent.mentioned` event), per-agent persistence, a failed agent that degrades
+  instead of aborting, conflict detection, and the human-approval gate.
+  - *Context:* The deal lifecycle and gates live here; the agent-to-agent collaboration flows
+    through Band. This is the app glue tying band + agents + persistence + realtime together.
+
+- **Realtime module.** Added `lib/realtime/` — `broadcast`/`subscribe` for streaming workflow
+  events to the browser, behind an `EventTransport` seam (in-process now; Redis pub/sub drops in
+  for multi-instance deploys).
+  - *Context:* Lets the UI show the committee deliberating live.
+
 - **Agents module.** Added `lib/agents/`: Zod output schemas for the five specialists, business-
   logic validation, the agent definitions registry (per-agent prompts + Band-message formatters +
   `AGENT_SEQUENCE`), and a pure `runAgent(agentType, { deal, contextText })` runner with
