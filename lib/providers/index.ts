@@ -19,11 +19,11 @@ export const PROVIDER = 'aiml';
 
 /** Per-agent model. Different models on purpose (cross-model committee). */
 const MODELS: Record<AgentType, string> = {
-  market_analysis: process.env.MODEL_MARKET ?? 'gpt-4o-mini',
-  due_diligence: process.env.MODEL_DD ?? 'gemini-2.0-flash',
-  risk_assessment: process.env.MODEL_RISK ?? 'claude-3-5-sonnet-20241022',
-  legal_review: process.env.MODEL_LEGAL ?? 'claude-3-5-sonnet-20241022',
-  financial_underwriting: process.env.MODEL_FINANCE ?? 'gpt-4o',
+  archivist: process.env.MODEL_ARCHIVIST ?? 'gemini-2.0-flash', // long-context doc extraction
+  regulatory: process.env.MODEL_REGULATORY ?? 'claude-3-5-sonnet-20241022',
+  legal: process.env.MODEL_LEGAL ?? 'claude-3-5-sonnet-20241022',
+  financial: process.env.MODEL_FINANCIAL ?? 'gpt-4o',
+  synthesis: process.env.MODEL_SYNTHESIS ?? 'gpt-4o',
 };
 
 export function modelFor(agentType: AgentType): string {

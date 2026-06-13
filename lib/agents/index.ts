@@ -1,15 +1,15 @@
 /**
- * Agents module — the specialist committee members.
+ * Agents module — the due-diligence committee.
  *
- * Pure reasoning: each agent turns a deal + the prior room context into a
- * schema-validated evaluation. No Band or database side effects (the
- * orchestration module wires those), so the agents are reusable on their own.
- *
- * Public API: `runAgent`, `AGENTS`, `AGENT_SEQUENCE`, schemas, and validation.
+ * Pure reasoning: each agent turns the deal package + prior findings into a
+ * schema-validated output (Archivist → PropertyFact, Regulatory →
+ * ComplianceReport, Financial → FinancialModel, Legal → LegalRisk, Synthesis →
+ * DealMemo). No Band or database side effects — the orchestration module wires
+ * those — so the agents are reusable on their own.
  */
 export { runAgent, AgentExecutionError } from './run';
 export type { AgentRunResult } from './run';
 export { AGENTS, AGENT_SEQUENCE } from './definitions';
-export type { AgentDefinition } from './definitions';
-export { parseAgentOutput, validateBusinessLogic, BusinessLogicError } from './validation';
+export type { AgentDefinition, AgentPromptContext } from './definitions';
+export { parseAgentOutput, validateBusinessLogic, hasCriticalFinding, BusinessLogicError } from './validation';
 export * from './schemas';

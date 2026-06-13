@@ -1,6 +1,6 @@
-import type { AgentType, DealBrief } from '@/types';
+import type { AgentType } from '@/types';
 import { callLLM } from '@/lib/providers';
-import { AGENTS } from './definitions';
+import { AGENTS, type AgentPromptContext } from './definitions';
 import { parseAgentOutput, validateBusinessLogic } from './validation';
 import type { AgentOutput } from './schemas';
 
@@ -13,36 +13,32 @@ export class AgentExecutionError extends Error {
 
 export interface AgentRunResult {
   agentType: AgentType;
-  status: 'approve' | 'conditional' | 'reject';
-  confidence: number;
-  summary: string;
+  /** Full validated structured output (PropertyFact / ComplianceReport / …). */
+  raw: AgentOutput;
   /** Natural-language message to post into the Band room. */
   bandMessage: string;
-  /** Full validated structured output. */
-  raw: AgentOutput;
+  /** Short status for the UI roster. */
+  headline: string;
   model: string;
 }
 
 const MAX_ATTEMPTS = 3;
 
 /**
- * Run one agent over a deal + the prior context read from the Band room.
- * Pure reasoning: calls the LLM, parses, validates (schema + business logic),
- * retries with error feedback. No Band/DB side effects — the orchestration
- * module owns those.
+ * Run one agent. Pure reasoning: builds the prompt from context, calls the LLM,
+ * parses + validates, retries with error feedback. No Band/DB side effects.
  */
 export async function runAgent(
   agentType: AgentType,
-  input: { deal: DealBrief; contextText: string }
+  ctx: Omit<AgentPromptContext, 'lastError' | 'attempt'>
 ): Promise<AgentRunResult> {
   const def = AGENTS[agentType];
   let lastError: string | null = null;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
-      const prompt = def.buildPrompt(input.deal, input.contextText, lastError, attempt);
+      const prompt = def.buildPrompt({ ...ctx, lastError, attempt });
       const { content, model } = await callLLM(agentType, prompt);
-
       const parsed = parseAgentOutput(content);
       const result = def.schema.safeParse(parsed);
       if (!result.success) {
@@ -51,21 +47,16 @@ export async function runAgent(
       }
       const output = result.data as AgentOutput;
       validateBusinessLogic(output);
-
       return {
         agentType,
-        status: output.status,
-        confidence: output.confidence,
-        summary: output.summary,
-        bandMessage: def.formatBandMessage(output),
         raw: output,
+        bandMessage: def.formatBandMessage(output),
+        headline: def.headline(output),
         model,
       };
     } catch (err) {
       lastError = (err as Error).message;
-      if (attempt === MAX_ATTEMPTS) {
-        throw new AgentExecutionError(agentType, lastError);
-      }
+      if (attempt === MAX_ATTEMPTS) throw new AgentExecutionError(agentType, lastError);
     }
   }
   throw new AgentExecutionError(agentType, 'Unexpected exit from retry loop');

@@ -1,231 +1,156 @@
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import {
-  dealBriefs,
-  bandRooms,
-  agentEvaluations,
-  mentions as mentionsTable,
-  workflowEvents,
-} from '@/lib/db/schema';
-import { BandClient, getAgentConfigs, formatDealBriefMessage } from '@/lib/band';
-import { runAgent, AGENT_SEQUENCE } from '@/lib/agents';
+import { dealBriefs, bandRooms, agentEvaluations, mentions as mentionsTable, workflowEvents } from '@/lib/db/schema';
+import { BandClient, getAgentConfigs } from '@/lib/band';
+import { runAgent, type PropertyFact, type ComplianceReport, type LegalRisk, type FinancialModel } from '@/lib/agents';
 import { broadcast } from '@/lib/realtime';
-import { detectConflict } from './conflict';
-import type { AgentType, DealBrief, DealEvent, WorkflowStatus } from '@/types';
-
-/** Status string for an agent's evaluation phase. */
-const AGENT_PHASE_STATUS: Record<AgentType, WorkflowStatus> = {
-  market_analysis: 'market_analysis',
-  due_diligence: 'due_diligence',
-  risk_assessment: 'risk_assessment',
-  legal_review: 'legal_review',
-  financial_underwriting: 'financial_underwriting',
-};
-
-async function logEvent(
-  dealId: string,
-  eventType: string,
-  fields: { from?: WorkflowStatus; to?: WorkflowStatus; agent?: AgentType; payload?: Record<string, unknown> } = {}
-) {
-  await db.insert(workflowEvents).values({
-    deal_id: dealId,
-    event_type: eventType,
-    from_status: fields.from,
-    to_status: fields.to,
-    agent_type: fields.agent,
-    triggered_by: 'orchestrator',
-    payload: fields.payload ?? {},
-  });
-}
-
-async function setStatus(dealId: string, status: WorkflowStatus, from?: WorkflowStatus) {
-  await db.update(dealBriefs).set({ status, updated_at: new Date() }).where(eq(dealBriefs.id, dealId));
-  await logEvent(dealId, 'workflow.status', { from, to: status });
-  emit(dealId, { type: 'workflow.status', status });
-}
+import { detectContradictions, cascadeFromCompliance, compositeRiskScore } from './contradiction';
+import type { AgentType, DealRecord, DealEvent, WorkflowStatus } from '@/types';
 
 function emit(dealId: string, event: DealEvent) {
   broadcast(dealId, event);
 }
 
-/** Create the Band room, add all agents, post the deal brief. */
-async function initBandRoom(deal: DealBrief): Promise<string> {
+async function logEvent(dealId: string, eventType: string, payload: Record<string, unknown> = {}, agent?: AgentType) {
+  await db.insert(workflowEvents).values({ deal_id: dealId, event_type: eventType, agent_type: agent, triggered_by: 'orchestrator', payload });
+}
+
+async function setStatus(dealId: string, status: WorkflowStatus) {
+  await db.update(dealBriefs).set({ status, updated_at: new Date() }).where(eq(dealBriefs.id, dealId));
+  emit(dealId, { type: 'workflow.status', status });
+}
+
+async function persistEval(dealId: string, agent: AgentType, result: { headline: string; bandMessage: string; raw: unknown; model: string }) {
+  await db.insert(agentEvaluations).values({
+    deal_id: dealId,
+    agent_type: agent,
+    execution_phase: 'evaluation',
+    status: result.headline,
+    summary: result.bandMessage,
+    raw_output: result.raw as Record<string, unknown>,
+    model_used: result.model,
+    provider_used: 'aiml',
+    attempt_count: 1,
+  }).onConflictDoNothing();
+}
+
+async function recordMention(dealId: string, from: AgentType, to: AgentType, reason: string) {
+  await db.insert(mentionsTable).values({ deal_id: dealId, from_agent: from, to_agent: to, reason });
+  emit(dealId, { type: 'agent.mentioned', from, to, reason });
+}
+
+async function initBandRoom(deal: DealRecord): Promise<string> {
   const configs = getAgentConfigs();
-  const lead = new BandClient('market_analysis');
+  const lead = new BandClient('archivist');
   const roomId = await lead.createRoom();
-
-  // Add the other four agents as participants.
-  for (const agentType of AGENT_SEQUENCE) {
-    if (agentType === 'market_analysis') continue;
-    await lead.addParticipant(roomId, configs[agentType].agentId);
+  for (const a of ['regulatory', 'legal', 'financial', 'synthesis'] as AgentType[]) {
+    await lead.addParticipant(roomId, configs[a].agentId);
   }
-
-  const participantMap = Object.fromEntries(
-    (Object.keys(configs) as AgentType[]).map((a) => [a, configs[a].agentId])
-  ) as Record<string, string>;
-
   await db.insert(bandRooms).values({
     deal_id: deal.id,
     band_room_id: roomId,
-    participant_map: participantMap,
+    participant_map: Object.fromEntries((Object.keys(configs) as AgentType[]).map((a) => [a, configs[a].agentId])),
   });
-
-  await lead.postMessage(roomId, formatDealBriefMessage(deal), []);
   emit(deal.id, { type: 'room.initialized', band_room_id: roomId });
-  await logEvent(deal.id, 'room.initialized', { payload: { roomId } });
   return roomId;
 }
 
-/** Build a context block for an agent from the prior agents' room messages. */
-function buildContext(transcript: { agent: AgentType; message: string }[]): string {
-  if (transcript.length === 0) {
-    return '[No prior agent evaluations yet. You are the first to evaluate this deal.]';
-  }
-  return (
-    `PRIOR AGENT EVALUATIONS (${transcript.length}):\n\n` +
-    transcript
-      .map((t, i) => `[${i + 1}] ${t.agent.toUpperCase().replace(/_/g, ' ')}\n${t.message}\n`)
-      .join('\n') +
-    `\nEND OF PRIOR EVALUATIONS`
-  );
+/** Post an agent's message into the Band room, @mentioning specific recipients. */
+async function post(roomId: string, agent: AgentType, content: string, mentionTargets: AgentType[]) {
+  const band = new BandClient(agent);
+  return band.postMessage(roomId, content, mentionTargets);
 }
 
 /**
- * Drive a deal through the committee. Each agent posts to the Band room and
- * hands off to the next via a targeted @mention; collaboration flows through
- * Band, while this orchestrator owns ordering, persistence, and the gates.
+ * Drive a deal through the committee. Agents post to the Band room and hand off
+ * via targeted @mentions; this orchestrator owns ordering, contradiction
+ * detection, the cascade, and the human gate.
  */
 export async function runWorkflow(dealId: string): Promise<void> {
-  // Single-trigger guard: only proceed if still pending (atomic).
   const claimed = await db
     .update(dealBriefs)
-    .set({ status: 'room_initializing', updated_at: new Date() })
+    .set({ status: 'intake', updated_at: new Date() })
     .where(and(eq(dealBriefs.id, dealId), eq(dealBriefs.status, 'pending')))
     .returning({ id: dealBriefs.id });
-  if (claimed.length === 0) return; // already running or gone
+  if (claimed.length === 0) return;
 
-  const [deal] = await db.select().from(dealBriefs).where(eq(dealBriefs.id, dealId)).limit(1);
-  if (!deal) return;
-  const dealBrief = deal as unknown as DealBrief;
+  const [row] = await db.select().from(dealBriefs).where(eq(dealBriefs.id, dealId)).limit(1);
+  if (!row) return;
+  const deal = row as unknown as DealRecord;
 
   try {
-    emit(dealId, { type: 'workflow.status', status: 'room_initializing' });
-    const roomId = await initBandRoom(dealBrief);
+    const roomId = await initBandRoom(deal);
 
-    const transcript: { agent: AgentType; message: string }[] = [];
-    const configs = getAgentConfigs();
+    const run = async (agent: AgentType, ctx: Parameters<typeof runAgent>[1], mentionTargets: AgentType[]) => {
+      emit(dealId, { type: 'agent.processing', agent });
+      const result = await runAgent(agent, ctx);
+      await post(roomId, agent, result.bandMessage, mentionTargets);
+      await persistEval(dealId, agent, result);
+      emit(dealId, { type: 'band.message', agent, content: result.bandMessage });
+      emit(dealId, { type: 'agent.completed', agent, headline: result.headline, model: result.model });
+      await logEvent(dealId, 'agent.completed', { headline: result.headline }, agent);
+      return result;
+    };
 
-    for (let i = 0; i < AGENT_SEQUENCE.length; i++) {
-      const agentType = AGENT_SEQUENCE[i];
-      const nextAgent = AGENT_SEQUENCE[i + 1];
-      await setStatus(dealId, AGENT_PHASE_STATUS[agentType]);
-      emit(dealId, { type: 'agent.processing', agent: agentType });
-
-      const band = new BandClient(agentType);
-      try {
-        const result = await runAgent(agentType, { deal: dealBrief, contextText: buildContext(transcript) });
-
-        // Post to the room; hand off to the next agent via a targeted @mention.
-        const handoff = nextAgent
-          ? `\n\n@${configs[nextAgent].handle} — over to you.`
-          : '';
-        const messageId = await band.postMessage(
-          roomId,
-          result.bandMessage + handoff,
-          nextAgent ? [nextAgent] : []
-        );
-
-        await db.insert(agentEvaluations).values({
-          deal_id: dealId,
-          agent_type: agentType,
-          execution_phase: 'evaluation',
-          status: result.status,
-          confidence: String(result.confidence),
-          summary: result.summary,
-          raw_output: result.raw as Record<string, unknown>,
-          band_message_id: messageId,
-          model_used: result.model,
-          provider_used: 'aiml',
-          attempt_count: 1,
-        }).onConflictDoNothing();
-
-        if (nextAgent) {
-          const reason = `${agentType.replace(/_/g, ' ')} → ${nextAgent.replace(/_/g, ' ')} handoff`;
-          await db.insert(mentionsTable).values({
-            deal_id: dealId,
-            from_agent: agentType,
-            to_agent: nextAgent,
-            reason,
-            band_message_id: messageId,
-          });
-          emit(dealId, { type: 'agent.mentioned', from: agentType, to: nextAgent, reason });
-        }
-
-        transcript.push({ agent: agentType, message: result.bandMessage });
-        emit(dealId, {
-          type: 'agent.completed',
-          agent: agentType,
-          status: result.status,
-          confidence: result.confidence,
-          summary: result.summary,
-        });
-        emit(dealId, {
-          type: 'band.message',
-          agent: agentType,
-          content: result.bandMessage,
-          status: result.status,
-        });
-        await logEvent(dealId, 'agent.completed', { agent: agentType, payload: { status: result.status } });
-      } catch (err) {
-        const reason = (err as Error).message;
-        await db.insert(agentEvaluations).values({
-          deal_id: dealId,
-          agent_type: agentType,
-          execution_phase: 'evaluation',
-          status: 'failed',
-          confidence: '0',
-          summary: `Agent failed: ${reason}`,
-          raw_output: { error: reason },
-          attempt_count: 3,
-        }).onConflictDoNothing();
-        emit(dealId, { type: 'agent.failed', agent: agentType, reason });
-        await logEvent(dealId, 'agent.failed', { agent: agentType, payload: { reason } });
-        // Continue — a failed agent must not abort the committee.
-      }
+    // ── INTAKE — Archivist ──────────────────────────────────────────────
+    const archivist = await run('archivist', { deal }, ['regulatory', 'legal']);
+    const propertyFact = archivist.raw as PropertyFact;
+    await recordMention(dealId, 'archivist', 'regulatory', 'PropertyFact ready for compliance review');
+    if (propertyFact.missing_documents.length > 0) {
+      emit(dealId, { type: 'escalation.needed', missing: propertyFact.missing_documents });
+      await logEvent(dealId, 'escalation.needed', { missing: propertyFact.missing_documents }, 'archivist');
+      // Surfaced to the reviewer; the committee proceeds on available facts.
     }
 
-    // Conflict detection over the persisted evaluations.
-    const evals = await db
-      .select({ agent_type: agentEvaluations.agent_type, status: agentEvaluations.status })
-      .from(agentEvaluations)
-      .where(and(eq(agentEvaluations.deal_id, dealId), eq(agentEvaluations.execution_phase, 'evaluation')));
+    // ── ANALYSIS — Regulatory, then Legal ───────────────────────────────
+    await setStatus(dealId, 'analysis');
+    const regulatory = await run('regulatory', { deal, propertyFact }, ['financial', 'synthesis']);
+    const compliance = regulatory.raw as ComplianceReport;
 
-    const conflict = detectConflict(
-      evals.map((e) => ({ agent_type: e.agent_type as AgentType, status: (e.status ?? 'failed') as never }))
-    );
-    if (conflict.hasConflict) {
-      emit(dealId, { type: 'conflict.detected', rejecting_agents: conflict.rejectingAgents });
-      await logEvent(dealId, 'conflict.detected', { payload: { rejecting: conflict.rejectingAgents } });
-      // Negotiation is handled in a dedicated step; for now the conflict is
-      // surfaced to the human reviewer.
+    const legal = await run('legal', { deal, propertyFact, compliance }, ['synthesis']);
+    const legalRisk = legal.raw as LegalRisk;
+
+    // ── CONTRADICTION DETECTION (code-level, deterministic) ─────────────
+    const contradictions = detectContradictions(propertyFact, legalRisk);
+    for (const c of contradictions) {
+      emit(dealId, { type: 'contradiction.detected', title: c.title, detail: c.detail, agents: c.agents });
+      await logEvent(dealId, 'contradiction.detected', { title: c.title });
     }
 
-    const summary = composeExecutiveSummary(dealBrief, evals as { agent_type: string; status: string }[]);
-    await setStatus(dealId, 'awaiting_human', AGENT_PHASE_STATUS.financial_underwriting);
-    emit(dealId, { type: 'approval.required', summary });
-    await logEvent(dealId, 'approval.required');
+    // ── FINANCIAL — baseline, then cascade re-underwrite if Critical ────
+    await setStatus(dealId, 'financial');
+    const baselineRes = await run('financial', { deal, propertyFact, compliance }, ['synthesis']);
+    let financial = baselineRes.raw as FinancialModel;
+
+    const cascade = cascadeFromCompliance(compliance);
+    if (cascade) {
+      await recordMention(dealId, cascade.from, 'financial', cascade.trigger);
+      const revisedRes = await run(
+        'financial',
+        { deal, propertyFact, compliance, financialBaseline: financial, cascade: { trigger: cascade.trigger, delta: cascade.delta } },
+        ['synthesis']
+      );
+      const revised = revisedRes.raw as FinancialModel;
+      emit(dealId, { type: 'financial.recalculated', irr_before: financial.irr_pct, irr_after: revised.irr_pct, trigger: cascade.trigger });
+      await logEvent(dealId, 'financial.recalculated', { before: financial.irr_pct, after: revised.irr_pct });
+      financial = revised;
+    }
+
+    // ── SYNTHESIS + human gate ──────────────────────────────────────────
+    await setStatus(dealId, 'synthesis');
+    const synth = await run('synthesis', { deal, propertyFact, compliance, legal: legalRisk, financialBaseline: financial }, []);
+    const memo = synth.raw as { signal: 'red' | 'yellow' | 'green'; recommendation: string };
+
+    const composite = compositeRiskScore(propertyFact, compliance, legalRisk);
+    const summary = `${memo.recommendation}\n\nComposite risk score: ${composite}/100 · Signal: ${memo.signal.toUpperCase()}${contradictions.length ? ` · ${contradictions.length} contradiction(s) flagged` : ''}`;
+
+    await setStatus(dealId, 'awaiting_human');
+    emit(dealId, { type: 'approval.required', summary, composite_score: composite, signal: memo.signal });
+    await logEvent(dealId, 'approval.required', { composite, signal: memo.signal });
   } catch (err) {
     const reason = (err as Error).message;
     await setStatus(dealId, 'failed');
     emit(dealId, { type: 'workflow.failed', reason });
-    await logEvent(dealId, 'workflow.failed', { payload: { reason } });
+    await logEvent(dealId, 'workflow.failed', { reason });
   }
-}
-
-/** Deterministic executive summary — reliable for a live demo (no extra LLM call). */
-function composeExecutiveSummary(deal: DealBrief, evals: { agent_type: string; status: string }[]): string {
-  const lines = evals.map((e) => `• ${e.agent_type.toUpperCase().replace(/_/g, ' ')}: ${String(e.status).toUpperCase()}`);
-  const rejects = evals.filter((e) => e.status === 'reject').length;
-  const verdict = rejects > 0 ? 'Committee is split — reviewer decision required.' : 'Committee aligned — pending reviewer sign-off.';
-  return `Investment Committee Review — ${deal.title}\n\n${lines.join('\n')}\n\n${verdict}`;
 }

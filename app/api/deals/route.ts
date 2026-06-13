@@ -29,17 +29,13 @@ export async function POST(req: Request) {
     .insert(dealBriefs)
     .values({
       title: d.title,
-      property_type: d.property_type,
-      location: d.location,
-      size_sqft: d.size_sqft,
-      asking_price: String(d.asking_price),
-      occupancy_pct: String(d.occupancy_pct),
-      cap_rate_stabilized: String(d.cap_rate_stabilized),
+      acquisition_type: d.acquisition_type,
+      intended_use: d.intended_use,
+      purchase_price: String(d.purchase_price),
       financing_ltv: String(d.financing_ltv),
       financing_rate: String(d.financing_rate),
       hold_period_years: d.hold_period_years,
-      business_context: d.business_context,
-      additional_notes: d.additional_notes,
+      documents: d.documents,
       status: 'pending',
     })
     .returning({ id: dealBriefs.id });

@@ -1,25 +1,29 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { AgentStatus, AgentType, DealEvent } from '@/types';
+import type { AgentType, DealEvent, HumanDecision, Signal } from '@/types';
 
 export interface AgentCardState {
   status: 'idle' | 'processing' | 'done' | 'failed';
-  verdict?: AgentStatus;
-  confidence?: number;
-  summary?: string;
+  headline?: string;
+  model?: string;
 }
 
 export interface RoomMessage {
   agent: AgentType;
   content: string;
-  status: AgentStatus;
 }
 
-export interface Handoff {
-  from: AgentType;
-  to: AgentType;
-  reason: string;
+export interface Contradiction {
+  title: string;
+  detail: string;
+  agents: AgentType[];
+}
+
+export interface CascadeInfo {
+  irr_before: number;
+  irr_after: number;
+  trigger: string;
 }
 
 export interface WorkflowState {
@@ -27,20 +31,17 @@ export interface WorkflowState {
   bandRoomId?: string;
   agents: Record<AgentType, AgentCardState>;
   messages: RoomMessage[];
-  handoffs: Handoff[];
-  conflictAgents: AgentType[];
+  handoffs: { from: AgentType; to: AgentType; reason: string }[];
+  contradictions: Contradiction[];
+  cascade?: CascadeInfo;
+  missingDocs: string[];
   approvalSummary?: string;
-  decision?: 'approved' | 'rejected';
-  decisionConditions?: string[];
+  compositeScore?: number;
+  signal?: Signal;
+  decision?: HumanDecision;
 }
 
-const AGENTS: AgentType[] = [
-  'market_analysis',
-  'due_diligence',
-  'risk_assessment',
-  'legal_review',
-  'financial_underwriting',
-];
+const AGENTS: AgentType[] = ['archivist', 'regulatory', 'legal', 'financial', 'synthesis'];
 
 function initialState(): WorkflowState {
   return {
@@ -48,7 +49,8 @@ function initialState(): WorkflowState {
     agents: Object.fromEntries(AGENTS.map((a) => [a, { status: 'idle' }])) as Record<AgentType, AgentCardState>,
     messages: [],
     handoffs: [],
-    conflictAgents: [],
+    contradictions: [],
+    missingDocs: [],
   };
 }
 
@@ -61,27 +63,23 @@ function reduce(prev: WorkflowState, e: DealEvent): WorkflowState {
     case 'agent.processing':
       return { ...prev, agents: { ...prev.agents, [e.agent]: { ...prev.agents[e.agent], status: 'processing' } } };
     case 'agent.completed':
-      return {
-        ...prev,
-        agents: {
-          ...prev.agents,
-          [e.agent]: { status: 'done', verdict: e.status, confidence: e.confidence, summary: e.summary },
-        },
-      };
+      return { ...prev, agents: { ...prev.agents, [e.agent]: { status: 'done', headline: e.headline, model: e.model } } };
     case 'agent.failed':
-      return { ...prev, agents: { ...prev.agents, [e.agent]: { status: 'failed', summary: e.reason } } };
+      return { ...prev, agents: { ...prev.agents, [e.agent]: { status: 'failed', headline: e.reason } } };
     case 'agent.mentioned':
       return { ...prev, handoffs: [...prev.handoffs, { from: e.from, to: e.to, reason: e.reason }] };
     case 'band.message':
-      return { ...prev, messages: [...prev.messages, { agent: e.agent, content: e.content, status: e.status }] };
-    case 'conflict.detected':
-      return { ...prev, conflictAgents: e.rejecting_agents };
+      return { ...prev, messages: [...prev.messages, { agent: e.agent, content: e.content }] };
+    case 'escalation.needed':
+      return { ...prev, missingDocs: e.missing };
+    case 'contradiction.detected':
+      return { ...prev, contradictions: [...prev.contradictions, { title: e.title, detail: e.detail, agents: e.agents }] };
+    case 'financial.recalculated':
+      return { ...prev, cascade: { irr_before: e.irr_before, irr_after: e.irr_after, trigger: e.trigger } };
     case 'approval.required':
-      return { ...prev, status: 'awaiting_human', approvalSummary: e.summary };
-    case 'deal.approved':
-      return { ...prev, status: 'approved', decision: 'approved', decisionConditions: e.conditions };
-    case 'deal.rejected':
-      return { ...prev, status: 'rejected', decision: 'rejected' };
+      return { ...prev, status: 'awaiting_human', approvalSummary: e.summary, compositeScore: e.composite_score, signal: e.signal };
+    case 'deal.decided':
+      return { ...prev, status: 'decided', decision: e.decision };
     case 'workflow.failed':
       return { ...prev, status: 'failed' };
     default:
@@ -101,14 +99,10 @@ export function useDealWorkflow(dealId: string): WorkflowState {
     es.onmessage = (event) => {
       if (!event.data || event.data.startsWith(':')) return;
       try {
-        const parsed = JSON.parse(event.data) as DealEvent;
-        setState((prev) => reduce(prev, parsed));
+        setState((prev) => reduce(prev, JSON.parse(event.data) as DealEvent));
       } catch {
         /* ignore malformed frame */
       }
-    };
-    es.onerror = () => {
-      // EventSource auto-reconnects; nothing to do.
     };
     return () => {
       es.close();

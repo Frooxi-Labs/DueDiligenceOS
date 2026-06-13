@@ -35,11 +35,11 @@ export function getAgentConfigs(): Record<AgentType, BandAgentConfig> {
     displayName,
   });
   return {
-    market_analysis: mk('market_analysis', 'BAND_MARKET', 'Market Analysis'),
-    due_diligence: mk('due_diligence', 'BAND_DD', 'Due Diligence'),
-    risk_assessment: mk('risk_assessment', 'BAND_RISK', 'Risk Assessment'),
-    legal_review: mk('legal_review', 'BAND_LEGAL', 'Legal & Compliance'),
-    financial_underwriting: mk('financial_underwriting', 'BAND_FINANCE', 'Financial Underwriting'),
+    archivist: mk('archivist', 'BAND_ARCHIVIST', 'Archivist'),
+    regulatory: mk('regulatory', 'BAND_REGULATORY', 'Regulatory'),
+    legal: mk('legal', 'BAND_LEGAL', 'Legal'),
+    financial: mk('financial', 'BAND_FINANCIAL', 'Financial'),
+    synthesis: mk('synthesis', 'BAND_SYNTHESIS', 'Synthesis'),
   };
 }
 

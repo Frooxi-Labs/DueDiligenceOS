@@ -6,65 +6,59 @@ import type { DealInput } from '@/lib/deals';
 
 const SAMPLE: DealInput = {
   title: 'Riverside Medical Plaza',
-  property_type: 'Mixed-use medical / retail',
-  location: 'Austin, TX',
-  size_sqft: 84000,
-  asking_price: 28500000,
-  occupancy_pct: 92,
-  cap_rate_stabilized: 6.75,
+  acquisition_type: 'mixed_use',
+  intended_use: 'Mixed-use medical office + ground-floor retail',
+  purchase_price: 28500000,
   financing_ltv: 65,
   financing_rate: 6.5,
   hold_period_years: 7,
-  business_context:
-    'Stabilized medical office plaza with 9 occupied units. Anchor tenant is a regional health system on a 12-year NNN lease. Two retail units roll in 18 months. Seller is motivated due to a 1031 deadline.',
-  additional_notes: 'Built 2009. Roof replaced 2021. No known environmental issues.',
+  documents: `TITLE DEED — Riverside Medical Plaza, Lot 7 Block 2, Travis County, TX.
+Estate conveyed: fee simple absolute. Title record shows NO recorded easements.
+Ownership: conveyed 2019 from Riverside Holdings LLC to current seller.
+
+ZONING CERTIFICATE — Parcel zoned R-3 (residential, low-density). Current/intended
+use is mixed-use medical + retail. (Note: medical/retail use is NOT permitted under R-3.)
+
+PROPERTY INSPECTION — Built 2009, roof replaced 2021. 9 occupied units. Good condition.
+SELLER DISCLOSURE — No known environmental issues. Not in a FEMA flood zone.
+
+PURCHASE CONTRACT — Standard commercial APA. Section 4 references a recorded ACCESS
+EASEMENT in favor of the adjoining parcel (neighbor ingress/egress across the south drive).
+No survey attached.`,
 };
 
-const FIELDS: { key: keyof DealInput; label: string; type: 'text' | 'number' | 'area' }[] = [
-  { key: 'title', label: 'Deal title', type: 'text' },
-  { key: 'property_type', label: 'Property type', type: 'text' },
-  { key: 'location', label: 'Location', type: 'text' },
-  { key: 'size_sqft', label: 'Size (sq ft)', type: 'number' },
-  { key: 'asking_price', label: 'Asking price ($)', type: 'number' },
-  { key: 'occupancy_pct', label: 'Occupancy (%)', type: 'number' },
-  { key: 'cap_rate_stabilized', label: 'Stabilized cap rate (%)', type: 'number' },
-  { key: 'financing_ltv', label: 'Financing LTV (%)', type: 'number' },
-  { key: 'financing_rate', label: 'Interest rate (%)', type: 'number' },
-  { key: 'hold_period_years', label: 'Hold period (years)', type: 'number' },
-  { key: 'business_context', label: 'Business context', type: 'area' },
-  { key: 'additional_notes', label: 'Additional notes (optional)', type: 'area' },
-];
+const SELECT_OPTIONS = ['residential', 'commercial', 'mixed_use', 'development'] as const;
 
 export default function NewDealPage() {
   const router = useRouter();
-  const [values, setValues] = useState<Record<string, string>>({});
+  const [v, setV] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const set = (k: string, v: string) => setValues((p) => ({ ...p, [k]: v }));
-  const loadSample = () =>
-    setValues(Object.fromEntries(Object.entries(SAMPLE).map(([k, v]) => [k, String(v)])));
+  const set = (k: string, val: string) => setV((p) => ({ ...p, [k]: val }));
+  const loadSample = () => setV(Object.fromEntries(Object.entries(SAMPLE).map(([k, val]) => [k, String(val)])));
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
-    const payload: Record<string, unknown> = {};
-    for (const f of FIELDS) {
-      const raw = values[f.key] ?? '';
-      if (f.type === 'number') payload[f.key] = raw === '' ? undefined : Number(raw);
-      else if (raw !== '') payload[f.key] = raw;
-    }
+    const payload = {
+      title: v.title,
+      acquisition_type: v.acquisition_type || 'mixed_use',
+      intended_use: v.intended_use,
+      purchase_price: v.purchase_price ? Number(v.purchase_price) : undefined,
+      financing_ltv: v.financing_ltv ? Number(v.financing_ltv) : undefined,
+      financing_rate: v.financing_rate ? Number(v.financing_rate) : undefined,
+      hold_period_years: v.hold_period_years ? Number(v.hold_period_years) : undefined,
+      documents: v.documents,
+    };
     try {
       const res = await fetch('/api/deals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? `Request failed (${res.status})`);
-      }
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Failed (${res.status})`);
       const { id } = await res.json();
       router.push(`/deals/${id}`);
     } catch (err) {
@@ -73,51 +67,66 @@ export default function NewDealPage() {
     }
   }
 
+  const Field = ({ k, label, type = 'text' }: { k: string; label: string; type?: string }) => (
+    <div>
+      <label className="block text-sm text-neutral-400 mb-1">{label}</label>
+      <input
+        type={type}
+        step="any"
+        value={v[k] ?? ''}
+        onChange={(e) => set(k, e.target.value)}
+        className="w-full rounded-lg bg-neutral-900 border border-neutral-800 px-3 py-2 text-sm focus:border-neutral-600 outline-none"
+      />
+    </div>
+  );
+
   return (
     <div className="h-full overflow-auto df-scroll p-8">
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-semibold">New deal review</h1>
-          <button
-            type="button"
-            onClick={loadSample}
-            className="text-sm text-neutral-400 hover:text-white border border-neutral-700 rounded-md px-3 py-1.5"
-          >
+          <h1 className="text-2xl font-semibold">New due-diligence run</h1>
+          <button type="button" onClick={loadSample} className="text-sm text-neutral-400 hover:text-white border border-neutral-700 rounded-md px-3 py-1.5">
             Load sample
           </button>
         </div>
 
         <form onSubmit={submit} className="space-y-4">
-          {FIELDS.map((f) => (
-            <div key={f.key}>
-              <label className="block text-sm text-neutral-400 mb-1">{f.label}</label>
-              {f.type === 'area' ? (
-                <textarea
-                  rows={3}
-                  value={values[f.key] ?? ''}
-                  onChange={(e) => set(f.key, e.target.value)}
-                  className="w-full rounded-lg bg-neutral-900 border border-neutral-800 px-3 py-2 text-sm focus:border-neutral-600 outline-none"
-                />
-              ) : (
-                <input
-                  type={f.type}
-                  step="any"
-                  value={values[f.key] ?? ''}
-                  onChange={(e) => set(f.key, e.target.value)}
-                  className="w-full rounded-lg bg-neutral-900 border border-neutral-800 px-3 py-2 text-sm focus:border-neutral-600 outline-none"
-                />
-              )}
-            </div>
-          ))}
+          <Field k="title" label="Deal title" />
+          <div>
+            <label className="block text-sm text-neutral-400 mb-1">Acquisition type</label>
+            <select
+              value={v.acquisition_type ?? 'mixed_use'}
+              onChange={(e) => set('acquisition_type', e.target.value)}
+              className="w-full rounded-lg bg-neutral-900 border border-neutral-800 px-3 py-2 text-sm outline-none"
+            >
+              {SELECT_OPTIONS.map((o) => (
+                <option key={o} value={o}>{o.replace('_', ' ')}</option>
+              ))}
+            </select>
+          </div>
+          <Field k="intended_use" label="Intended use" />
+          <div className="grid grid-cols-2 gap-4">
+            <Field k="purchase_price" label="Purchase price ($)" type="number" />
+            <Field k="hold_period_years" label="Hold period (years)" type="number" />
+            <Field k="financing_ltv" label="Financing LTV (%)" type="number" />
+            <Field k="financing_rate" label="Interest rate (%)" type="number" />
+          </div>
+          <div>
+            <label className="block text-sm text-neutral-400 mb-1">
+              Deal documents <span className="text-neutral-600">(paste title deed, contract, inspection, disclosures…)</span>
+            </label>
+            <textarea
+              rows={10}
+              value={v.documents ?? ''}
+              onChange={(e) => set('documents', e.target.value)}
+              className="w-full rounded-lg bg-neutral-900 border border-neutral-800 px-3 py-2 text-sm font-mono focus:border-neutral-600 outline-none"
+            />
+          </div>
 
           {error && <p className="text-sm text-red-400">{error}</p>}
 
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full rounded-lg bg-white text-black font-medium py-3 hover:bg-neutral-200 transition disabled:opacity-50"
-          >
-            {submitting ? 'Convening the committee…' : 'Run the committee →'}
+          <button type="submit" disabled={submitting} className="w-full rounded-lg bg-white text-black font-medium py-3 hover:bg-neutral-200 transition disabled:opacity-50">
+            {submitting ? 'Convening the committee…' : 'Run due diligence →'}
           </button>
         </form>
       </div>
