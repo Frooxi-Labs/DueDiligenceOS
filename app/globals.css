@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+html, body {
+  height: 100%;
+  background: #040404;
+  color: #e8e8e6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Thin scrollbar */
+.df-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #333 transparent;
+}
+.df-scroll::-webkit-scrollbar { width: 4px; }
+.df-scroll::-webkit-scrollbar-track { background: transparent; }
+.df-scroll::-webkit-scrollbar-thumb { background: #333; border-radius: 99px; }
+
+/* Agent processing pulse */
+@keyframes agent-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.8); }
+}
+.agent-pulse { animation: agent-pulse 1.4s ease-in-out infinite; }
