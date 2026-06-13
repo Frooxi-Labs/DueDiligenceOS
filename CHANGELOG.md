@@ -7,6 +7,13 @@ changed and the **context** (why).
 
 ### 2026-06-13
 
+- **Providers module (LLM routing).** Added `lib/providers/index.ts` — a `fetch`-based client for
+  the AI/ML API (OpenAI-compatible gateway), routing each agent to its own model with timeouts and
+  retry/backoff. Added provider + per-agent model IDs to `.env.example`.
+  - *Context:* One key, many models. Each agent runs on a different model so the committee is
+    genuinely multi-model. No vendor SDK — the gateway is a plain HTTP endpoint — keeping deps
+    minimal and the call path obvious. Model IDs are env-overridable.
+
 - **Module-based architecture.** Each `lib/` module exposes a single public API via its `index.ts`
   barrel; consumers import from the module root, never internal files. Added `lib/band/index.ts`
   and a module map in the architecture doc.
