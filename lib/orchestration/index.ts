@@ -12,3 +12,5 @@
 export { runWorkflow } from './workflow';
 export { detectConflict, checkConsensus } from './conflict';
 export type { EvaluationSummary } from './conflict';
+export { applyHumanDecision } from './decision';
+export type { HumanDecisionInput } from './decision';

@@ -7,6 +7,14 @@ changed and the **context** (why).
 
 ### 2026-06-13
 
+- **API routes.** Added `POST /api/deals` (validate brief + create + trigger the workflow),
+  `GET /api/deals` (list), `GET /api/deals/[id]` (full state for hydrate/reconnect),
+  `GET /api/deals/[id]/stream` (SSE of the live deliberation), and `POST /api/deals/[id]/decide`
+  (reviewer's final decision). Added the shared `lib/deals` input schema and the
+  `applyHumanDecision` finalizer. Made the DB client lazy so the build never requires `DATABASE_URL`.
+  - *Context:* These wire the engine to the outside world — submit a deal, stream the committee
+    live, and close the human-in-the-loop gate. Build is green with all routes.
+
 - **Tests.** Added Vitest with unit tests for conflict detection (`detectConflict`/`checkConsensus`,
   incl. failed-agent-is-neutral) and agent output handling (`parseAgentOutput` fences/preamble,
   `validateBusinessLogic` cross-field rules). 14 tests passing; production build green.
