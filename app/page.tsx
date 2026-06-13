@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export default function Home() {
   return (
     <main className="min-h-full flex items-center justify-center p-8">
@@ -6,12 +8,17 @@ export default function Home() {
           Band of Agents · Track 3
         </p>
         <h1 className="text-4xl font-semibold mb-4">DueDiligenceOS</h1>
-        <p className="text-neutral-400 leading-relaxed">
-          Specialist AI agents — market, due-diligence, risk, legal, and financial —
-          collaborate through a Band room: they hand off work, surface disagreements,
-          and reach a human-approved decision on a real-estate deal.
+        <p className="text-neutral-400 leading-relaxed mb-8">
+          Five specialist AI agents — market, due-diligence, risk, legal, and financial —
+          collaborate through a Band room: they hand off work, surface disagreements, and reach a
+          decision you approve.
         </p>
-        <p className="text-neutral-600 text-sm mt-8">🚧 Early build.</p>
+        <Link
+          href="/deals/new"
+          className="inline-block rounded-lg bg-white text-black font-medium px-6 py-3 hover:bg-neutral-200 transition"
+        >
+          Start a deal review →
+        </Link>
       </div>
     </main>
   );

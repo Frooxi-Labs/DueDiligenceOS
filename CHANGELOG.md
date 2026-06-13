@@ -7,6 +7,13 @@ changed and the **context** (why).
 
 ### 2026-06-13
 
+- **Web UI.** Added the home page, the deal-intake form (`/deals/new`, with a "load sample"
+  prefill), the live deal room (`/deals/[id]` — agent roster with live status, the streaming room
+  feed, a conflict banner, and the approve/reject gate), and the `useDealWorkflow` SSE hook that
+  reduces the live event stream into UI state.
+  - *Context:* Makes the committee usable and watchable — submit a deal and see the agents
+    deliberate live, then make the call. Completes the end-to-end path through the app.
+
 - **API routes.** Added `POST /api/deals` (validate brief + create + trigger the workflow),
   `GET /api/deals` (list), `GET /api/deals/[id]` (full state for hydrate/reconnect),
   `GET /api/deals/[id]/stream` (SSE of the live deliberation), and `POST /api/deals/[id]/decide`
