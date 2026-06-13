@@ -132,7 +132,7 @@ export interface BandRoom {
 }
 
 // SSE event types pushed to the frontend
-export type DealFlowEvent =
+export type DealEvent =
   | { type: 'room.initialized'; band_room_id: string }
   | { type: 'agent.processing'; agent: AgentType }
   | { type: 'agent.completed'; agent: AgentType; status: AgentStatus; confidence: number; summary: string }
