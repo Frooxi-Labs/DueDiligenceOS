@@ -7,6 +7,14 @@ changed and the **context** (why).
 
 ### 2026-06-13
 
+- **Agents module.** Added `lib/agents/`: Zod output schemas for the five specialists, business-
+  logic validation, the agent definitions registry (per-agent prompts + Band-message formatters +
+  `AGENT_SEQUENCE`), and a pure `runAgent(agentType, { deal, contextText })` runner with
+  schema/business-logic validation and retry-with-feedback.
+  - *Context:* The committee's reasoning, as a self-contained, reusable module — given a deal and
+    the prior room context, an agent returns a validated evaluation. It has **no Band or database
+    side effects** (the orchestration module wires those), so the agents stand alone.
+
 - **Providers module (LLM routing).** Added `lib/providers/index.ts` — a `fetch`-based client for
   the AI/ML API (OpenAI-compatible gateway), routing each agent to its own model with timeouts and
   retry/backoff. Added provider + per-agent model IDs to `.env.example`.
