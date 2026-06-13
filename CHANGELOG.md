@@ -7,6 +7,14 @@ changed and the **context** (why).
 
 ### 2026-06-13
 
+- **Band integration layer.** Added `lib/band/BandClient.ts` (REST client: create room, add
+  participants, post messages with targeted `@mentions`, post events, read room context, mark
+  message state) and `lib/band/ContextService.ts` (format peers' findings + the opening deal
+  brief). Added Band agent credentials to `.env.example`.
+  - *Context:* This is how agents talk to each other through the Band room. The client supports
+    **targeted `@mentions`** (so one agent can hand off to a specific next agent) and is hardened
+    with per-request timeouts and retry-with-backoff so a slow Band call can't stall a live run.
+
 - **Domain types.** Added `types/index.ts`: agent types, workflow statuses, deal/evaluation/
   negotiation/decision shapes, the SSE event union, and new `Finding`, `Mention`, and an
   `agent.mentioned` event.
