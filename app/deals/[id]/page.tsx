@@ -17,7 +17,7 @@ const signalColor: Record<string, string> = { green: 'text-emerald-400', yellow:
 
 interface AuditEvent { id: string; event_type: string; agent_type?: string | null; created_at: string }
 interface DealMeta { title?: string; intended_use?: string; purchase_price?: string }
-interface ChatMsg { role: 'user' | 'assistant'; content: string }
+interface ChatMsg { role: 'user' | 'assistant'; content: string; agent?: AgentType }
 
 function nextStep(decision: HumanDecision, s: WorkflowState): { heading: string; intro: string; items: string[] } {
   const material = (s.topFindings ?? []).filter((f) => f.severity === 'critical' || f.severity === 'material');
@@ -78,7 +78,7 @@ export default function DealPage() {
     try {
       const res = await fetch(`/api/deals/${id}/chat`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: q }) });
       const data = await res.json();
-      setChatLog((p) => [...p, { role: 'assistant', content: data.answer ?? data.error ?? 'No response.' }]);
+      setChatLog((p) => [...p, { role: 'assistant', content: data.answer ?? data.error ?? 'No response.', agent: data.agent }]);
     } catch {
       setChatLog((p) => [...p, { role: 'assistant', content: 'Something went wrong.' }]);
     } finally {
@@ -231,8 +231,11 @@ export default function DealPage() {
           {/* Reviewer ↔ committee chat */}
           {chatLog.map((m, i) => (
             <div key={`c-${i}`} className={`fade-up flex ${m.role === 'user' ? 'justify-end' : 'gap-3'}`}>
-              {m.role === 'assistant' && <div className="w-7 h-7 rounded-lg bg-blue-900/60 flex items-center justify-center text-[10px] font-semibold text-blue-300 shrink-0">SY</div>}
-              <div className={`max-w-[80%] rounded-xl px-3 py-2 text-sm leading-relaxed ${m.role === 'user' ? 'bg-neutral-700 text-neutral-100 rounded-tr-sm' : 'bg-neutral-800/60 text-neutral-300 rounded-tl-sm'}`}>{m.content}</div>
+              {m.role === 'assistant' && <div className="w-7 h-7 rounded-lg bg-blue-900/60 flex items-center justify-center text-[10px] font-semibold text-blue-300 shrink-0">{(m.agent ? LABELS[m.agent] : 'Synthesis').slice(0, 2)}</div>}
+              <div className="min-w-0">
+                {m.role === 'assistant' && <span className="text-xs font-medium text-neutral-200">{m.agent ? LABELS[m.agent] : 'Synthesis'}</span>}
+                <div className={`max-w-[80%] rounded-xl px-3 py-2 text-sm leading-relaxed ${m.role === 'user' ? 'bg-neutral-700 text-neutral-100 rounded-tr-sm ml-auto' : 'mt-0.5 bg-neutral-800/60 text-neutral-300 rounded-tl-sm'}`}>{m.content}</div>
+              </div>
             </div>
           ))}
           {chatBusy && (
