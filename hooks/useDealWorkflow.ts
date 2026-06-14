@@ -8,7 +8,7 @@ export interface AgentCardState {
   headline?: string;
   model?: string;
 }
-export interface RoomMessage { agent?: AgentType; content: string; system?: boolean }
+export interface RoomMessage { agent?: AgentType; content: string; system?: boolean; event?: 'thought' | 'tool_call' | 'error' }
 export interface Contradiction { title: string; detail: string; agents: AgentType[] }
 export interface CascadeInfo { irr_before: number; irr_after: number; trigger: string }
 export interface DelegationInfo { id: string; from: AgentType; to: AgentType; intent: string; authority: string; status: 'open' | 'processing' | 'done' }
@@ -82,6 +82,12 @@ function reduce(prev: WorkflowState, e: DealEvent): WorkflowState {
     case 'room.system':
       if (prev.messages.some((m) => m.system && m.content === e.content)) return prev;
       return { ...prev, messages: [...prev.messages, { content: e.content, system: true }] };
+    case 'band.event': {
+      // Child-room events are handled by the live-fork stream; tool_result is Band-only.
+      if (e.room || e.kind === 'tool_result') return prev;
+      if (prev.messages.some((m) => m.event === e.kind && m.agent === e.agent && m.content === e.content)) return prev;
+      return { ...prev, messages: [...prev.messages, { agent: e.agent, content: e.content, event: e.kind }] };
+    }
     case 'escalation.needed':
       return { ...prev, missingDocs: e.missing };
     case 'contradiction.detected':

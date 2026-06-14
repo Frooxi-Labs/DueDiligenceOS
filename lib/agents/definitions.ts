@@ -26,6 +26,8 @@ export interface AgentPromptContext {
   financialBaseline?: FinancialModel;
   /** Present when Financial is re-underwriting due to a Critical upstream flag. */
   cascade?: { trigger: string; delta: string };
+  /** The live Band room conversation as this agent sees it (read via getContext). */
+  roomContext?: string;
   lastError: string | null;
   attempt: number;
 }

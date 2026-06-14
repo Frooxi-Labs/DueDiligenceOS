@@ -79,6 +79,7 @@ export type DealEvent =
   | { type: 'agent.mentioned'; from: AgentType; to: AgentType; reason: string }
   | { type: 'agent.recruited'; by: AgentType; agent: AgentType; reason: string }
   | { type: 'delegation'; id: string; from: AgentType; to: AgentType; intent: string; authority: string; status: 'open' | 'processing' | 'done' }
+  | { type: 'band.event'; agent: AgentType; kind: 'thought' | 'tool_call' | 'tool_result' | 'error'; content: string; room?: SimBranch }
   | { type: 'band.message'; agent: AgentType; content: string }
   | { type: 'room.system'; content: string }
   | { type: 'escalation.needed'; missing: string[] }

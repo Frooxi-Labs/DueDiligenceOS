@@ -243,7 +243,14 @@ export default function DealPage() {
           <div className="max-w-3xl mx-auto w-full space-y-3">
           {s.messages.length === 0 && <p className="text-sm text-neutral-600">Waiting for the committee to convene…</p>}
           {s.messages.map((m, i) => (
-            m.system || !m.agent ? (
+            m.event ? (
+              <div key={i} className="fade-up flex gap-2 items-center pl-10 opacity-70">
+                <span className="text-[11px] text-neutral-500">
+                  {m.event === 'thought' ? '💭' : m.event === 'error' ? '⚠️' : '🔧'} <span className="text-neutral-400">{m.agent ? LABELS[m.agent] : ''}</span>
+                  <span className={`ml-1 ${m.event === 'error' ? 'text-red-400/80' : 'italic'}`}>{m.event === 'tool_call' ? `reads the Band room · ${m.content}` : m.content}</span>
+                </span>
+              </div>
+            ) : m.system || !m.agent ? (
               <div key={i} className="fade-up flex justify-center py-1">
                 <span className="text-[11px] text-neutral-500 bg-neutral-800/40 rounded-full px-3 py-1">{m.content}</span>
               </div>

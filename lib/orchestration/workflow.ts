@@ -13,6 +13,46 @@ function emit(dealId: string, event: DealEvent) {
   broadcast(dealId, event);
 }
 
+/** Read the live Band room as THIS agent sees it (its mention-routed slice) — the
+ *  shared context the agent reasons over. Surfaces the read as Band tool events. */
+async function readRoom(dealId: string, roomId: string, agent: AgentType): Promise<string> {
+  emit(dealId, { type: 'band.event', agent, kind: 'tool_call', content: 'get_room_context()' });
+  try {
+    const band = new BandClient(agent);
+    await band.postEvent(roomId, 'Reading the room for shared context', 'tool_call', { tool: 'get_room_context' });
+    const msgs = await band.getContext(roomId);
+    const text = msgs.map((m) => `${m.sender_name ?? m.sender_id}: ${m.content}`).join('\n').slice(0, 4000);
+    emit(dealId, { type: 'band.event', agent, kind: 'tool_result', content: `read ${msgs.length} message(s) from the room` });
+    try { await band.postEvent(roomId, `Read ${msgs.length} message(s) of shared context`, 'tool_result', { count: msgs.length }); } catch { /* best-effort */ }
+    return text;
+  } catch {
+    emit(dealId, { type: 'band.event', agent, kind: 'tool_result', content: 'room context unavailable — using handoff payload' });
+    return '';
+  }
+}
+
+/** Post an agent's reasoning as a Band `thought` event (visible in the room). */
+async function think(dealId: string, roomId: string, agent: AgentType, content: string) {
+  emit(dealId, { type: 'band.event', agent, kind: 'thought', content });
+  try { await new BandClient(agent).postEvent(roomId, content, 'thought'); } catch { /* best-effort */ }
+}
+
+/** Post an agent error as a Band `error` event. */
+async function reportError(dealId: string, roomId: string, agent: AgentType, content: string) {
+  emit(dealId, { type: 'band.event', agent, kind: 'error', content });
+  try { await new BandClient(agent).postEvent(roomId, content, 'error'); } catch { /* best-effort */ }
+}
+
+/** Role-aware one-liner an agent "thinks" before it reasons over the room. */
+const THINKING: Record<AgentType, string> = {
+  archivist: 'Extracting property facts, encumbrances, and the missing-document checklist from the package.',
+  regulatory: 'Cross-checking zoning, permits, flood, and environmental flags against the property facts in the room.',
+  legal: "Reviewing title, contract terms, and easements against the Archivist's facts in the room.",
+  financial: "Underwriting NOI, DSCR, and IRR from the room's facts and compliance findings.",
+  synthesis: 'Reading the whole room to weigh every agent’s findings into the memo.',
+  environmental: 'Assessing contamination risk and whether a Phase I is warranted from the room context.',
+};
+
 async function logEvent(dealId: string, eventType: string, payload: Record<string, unknown> = {}, agent?: AgentType) {
   await db.insert(workflowEvents).values({ deal_id: dealId, event_type: eventType, agent_type: agent, triggered_by: 'orchestrator', payload });
 }
@@ -157,7 +197,16 @@ export async function runWorkflow(dealId: string): Promise<void> {
 
     const run = async (agent: AgentType, ctx: Parameters<typeof runAgent>[1], mentionTargets: AgentType[]) => {
       emit(dealId, { type: 'agent.processing', agent });
-      const result = await runAgent(agent, ctx);
+      // 1) Think out loud, then 2) READ the shared Band room, then 3) reason over it.
+      await think(dealId, roomId, agent, THINKING[agent]);
+      const roomContext = await readRoom(dealId, roomId, agent);
+      let result;
+      try {
+        result = await runAgent(agent, { ...ctx, roomContext });
+      } catch (err) {
+        await reportError(dealId, roomId, agent, `I couldn't complete my analysis: ${(err as Error).message}`);
+        throw err;
+      }
       await post(roomId, agent, result.bandMessage, mentionTargets);
       await persistEval(dealId, agent, result);
       emit(dealId, { type: 'band.message', agent, content: result.bandMessage });

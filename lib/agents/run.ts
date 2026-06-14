@@ -37,7 +37,13 @@ export async function runAgent(
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
-      const prompt = def.buildPrompt({ ...ctx, lastError, attempt });
+      const base = def.buildPrompt({ ...ctx, lastError, attempt });
+      // Lead with what the agent reads from the shared Band room — its primary
+      // context. The structured handoff payload (in `base`) accompanies it for
+      // precision. This is "read the room, then reason", not spoon-feeding.
+      const prompt = ctx.roomContext
+        ? `You are collaborating with other agents in a shared Band room. This is the live conversation so far — your SHARED CONTEXT. Read it and build on it; do not contradict an earlier agent without explicitly flagging the conflict:\n"""\n${ctx.roomContext}\n"""\n\n${base}`
+        : base;
       const { content, model } = await callLLM(agentType, prompt);
       const parsed = parseAgentOutput(content);
       const result = def.schema.safeParse(parsed);
