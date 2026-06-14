@@ -54,6 +54,18 @@ export interface DealRecord extends DealTerms {
   updated_at: string;
 }
 
+/** A simulated outcome for one human-decision branch (counterfactual fork). */
+export interface ForkProjection {
+  branch: HumanDecision;
+  projected_irr_pct: number;
+  residual_risk: 'low' | 'medium' | 'high';
+  time_to_close: string;
+  deal_survival: 'likely' | 'uncertain' | 'at risk';
+  rationale: string;
+  /** The Band child room this branch was deliberated in. */
+  child_room_id?: string;
+}
+
 // SSE events streamed to the browser.
 export type DealEvent =
   | { type: 'room.initialized'; band_room_id: string }
@@ -68,6 +80,7 @@ export type DealEvent =
   | { type: 'escalation.needed'; missing: string[] }
   | { type: 'contradiction.detected'; title: string; detail: string; agents: AgentType[] }
   | { type: 'financial.recalculated'; irr_before: number; irr_after: number; trigger: string }
+  | { type: 'fork.simulated'; projections: ForkProjection[] }
   | {
       type: 'approval.required';
       summary: string;

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { AgentType, DealEvent, HumanDecision, Signal } from '@/types';
+import type { AgentType, DealEvent, ForkProjection, HumanDecision, Signal } from '@/types';
 
 export interface AgentCardState {
   status: 'idle' | 'processing' | 'done' | 'failed';
@@ -33,6 +33,7 @@ export interface WorkflowState {
   decisionDocument?: string;
   recruited: { by: AgentType; agent: AgentType; reason: string }[];
   delegations: DelegationInfo[];
+  projections?: ForkProjection[];
   failureReason?: string;
 }
 
@@ -87,6 +88,8 @@ function reduce(prev: WorkflowState, e: DealEvent): WorkflowState {
       return { ...prev, contradictions: [...prev.contradictions, { title: e.title, detail: e.detail, agents: e.agents }] };
     case 'financial.recalculated':
       return { ...prev, cascade: { irr_before: e.irr_before, irr_after: e.irr_after, trigger: e.trigger } };
+    case 'fork.simulated':
+      return { ...prev, projections: e.projections };
     case 'approval.required':
       return { ...prev, status: 'awaiting_human', approvalSummary: e.summary, compositeScore: e.composite_score, signal: e.signal, recommendation: e.recommendation, topFindings: e.top_findings, conditions: e.conditions };
     case 'human.challenge':
@@ -145,6 +148,7 @@ function hydrate(d: HydrateDeal, a: HydrateAudit | null): WorkflowState {
     if (ev.event_type === 'delegation.done') { const d = st.delegations.find((x) => x.id === String(p.id)); if (d) d.status = 'done'; }
     if (ev.event_type === 'contradiction.detected') st.contradictions.push({ title: String(p.title ?? 'Contradiction'), detail: String(p.detail ?? ''), agents: (p.agents as AgentType[]) ?? [] });
     if (ev.event_type === 'financial.recalculated') st.cascade = { irr_before: Number(p.before), irr_after: Number(p.after), trigger: String(p.trigger ?? 'upstream finding') };
+    if (ev.event_type === 'fork.simulated' && Array.isArray(p.projections)) st.projections = p.projections as ForkProjection[];
     if (ev.event_type === 'approval.required') { st.compositeScore = p.composite as number | undefined; if (p.signal) st.signal = p.signal as Signal; }
     if (ev.event_type === 'decision.document') st.decisionDocument = String(p.content ?? '');
   }

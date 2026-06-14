@@ -4,13 +4,19 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useDealWorkflow, type WorkflowState } from '@/hooks/useDealWorkflow';
 import Markdown from '@/app/components/Markdown';
-import type { AgentType, HumanDecision } from '@/types';
+import type { AgentType, ForkProjection, HumanDecision } from '@/types';
 
 const LABELS: Record<AgentType, string> = {
   archivist: 'Archivist', regulatory: 'Regulatory', legal: 'Legal Risk', financial: 'Financial', synthesis: 'Synthesis', environmental: 'Environmental',
 };
 const ORDER: AgentType[] = ['archivist', 'regulatory', 'legal', 'financial', 'synthesis'];
 const signalColor: Record<string, string> = { green: 'text-emerald-400', yellow: 'text-amber-400', red: 'text-red-400' };
+const riskColor: Record<string, string> = { low: 'text-emerald-400', medium: 'text-amber-400', high: 'text-red-400' };
+const BRANCH_META: Record<HumanDecision, { label: string; btn: string }> = {
+  proceed: { label: 'Proceed with conditions', btn: 'bg-emerald-500 text-black hover:bg-emerald-400' },
+  remediate: { label: 'Request remediation', btn: 'bg-amber-500 text-black hover:bg-amber-400' },
+  renegotiate: { label: 'Flag for renegotiation', btn: 'bg-red-500/90 text-white hover:bg-red-500' },
+};
 
 interface AuditEvent { id: string; event_type: string; agent_type?: string | null; created_at: string; payload?: Record<string, unknown> }
 interface DealMeta { title?: string; intended_use?: string; purchase_price?: string }
@@ -38,9 +44,12 @@ export default function DealPage() {
   const [chatLog, setChatLog] = useState<ChatMsg[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [chatBusy, setChatBusy] = useState(false);
+  const [simBusy, setSimBusy] = useState(false);
+  const [localProjections, setLocalProjections] = useState<ForkProjection[] | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const shownDecision = s.decision ?? localDecision;
+  const projections = s.projections ?? localProjections;
   const challenge = !shownDecision && !dismissedChallenge ? localChallenge ?? s.challenge : null;
   const ns = shownDecision ? nextStep(shownDecision, s) : null;
   const deliberating = !['awaiting_human', 'decided', 'failed'].includes(s.status);
@@ -71,6 +80,17 @@ export default function DealPage() {
       if (data.challenged) { setLocalChallenge({ decision, message: data.message }); setDismissedChallenge(false); }
       else setLocalDecision(decision);
     } catch (e) { setDecideError((e as Error).message); } finally { setDeciding(false); }
+  }
+
+  async function simulate() {
+    if (simBusy) return;
+    setSimBusy(true); setDecideError(null);
+    try {
+      const res = await fetch(`/api/deals/${id}/simulate`, { method: 'POST' });
+      if (!res.ok) throw new Error(`Failed (${res.status})`);
+      const data = await res.json(); // also arrives via SSE; this is the fallback
+      setLocalProjections(data.projections ?? null);
+    } catch (e) { setDecideError((e as Error).message); } finally { setSimBusy(false); }
   }
 
   async function sendChat() {
@@ -276,11 +296,44 @@ export default function DealPage() {
                 ) : (
                   <>
                     <p className="text-xs text-neutral-500 mb-2">Reviewer decision required — the memo is held until you decide.</p>
-                    <div className="flex flex-col gap-2">
-                      <button onClick={() => decide('proceed')} disabled={deciding} className="rounded-lg bg-emerald-500 text-black font-medium px-4 py-2 hover:bg-emerald-400 disabled:opacity-50">Proceed with conditions</button>
-                      <button onClick={() => decide('remediate')} disabled={deciding} className="rounded-lg bg-amber-500 text-black font-medium px-4 py-2 hover:bg-amber-400 disabled:opacity-50">Request remediation</button>
-                      <button onClick={() => decide('renegotiate')} disabled={deciding} className="rounded-lg bg-red-500/90 text-white font-medium px-4 py-2 hover:bg-red-500 disabled:opacity-50">Flag for renegotiation</button>
-                    </div>
+                    <button onClick={simulate} disabled={simBusy} className="w-full mb-3 rounded-lg border border-indigo-500/50 bg-indigo-500/10 text-indigo-200 text-sm font-medium px-4 py-2 hover:bg-indigo-500/20 disabled:opacity-50">
+                      {simBusy ? 'Simulating the three futures…' : projections ? '↻ Re-simulate outcomes' : '⑂ Simulate the 3 outcomes'}
+                    </button>
+                    {projections ? (
+                      <div className="flex flex-col gap-2">
+                        {(['proceed', 'remediate', 'renegotiate'] as HumanDecision[]).map((br) => {
+                          const pr = projections.find((x) => x.branch === br);
+                          return (
+                            <div key={br} className="rounded-lg border border-neutral-700 bg-neutral-800/40 p-3">
+                              {pr ? (
+                                <>
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-sm font-medium text-neutral-100">{BRANCH_META[br].label}</span>
+                                    <span className="text-sm font-semibold tabular-nums">{pr.projected_irr_pct.toFixed(1)}% IRR</span>
+                                  </div>
+                                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-neutral-400 mb-2">
+                                    <span>risk <span className={riskColor[pr.residual_risk]}>{pr.residual_risk}</span></span>
+                                    <span>close {pr.time_to_close}</span>
+                                    <span>deal {pr.deal_survival}</span>
+                                    {pr.child_room_id && <span className="text-neutral-600" title={pr.child_room_id}>· forked room</span>}
+                                  </div>
+                                  <p className="text-xs text-neutral-400 mb-2">{pr.rationale}</p>
+                                </>
+                              ) : (
+                                <p className="text-xs text-neutral-500 mb-2">No projection for this branch.</p>
+                              )}
+                              <button onClick={() => decide(br)} disabled={deciding} className={`w-full rounded-lg font-medium px-3 py-1.5 text-sm disabled:opacity-50 ${BRANCH_META[br].btn}`}>Choose this</button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        <button onClick={() => decide('proceed')} disabled={deciding} className="rounded-lg bg-emerald-500 text-black font-medium px-4 py-2 hover:bg-emerald-400 disabled:opacity-50">Proceed with conditions</button>
+                        <button onClick={() => decide('remediate')} disabled={deciding} className="rounded-lg bg-amber-500 text-black font-medium px-4 py-2 hover:bg-amber-400 disabled:opacity-50">Request remediation</button>
+                        <button onClick={() => decide('renegotiate')} disabled={deciding} className="rounded-lg bg-red-500/90 text-white font-medium px-4 py-2 hover:bg-red-500 disabled:opacity-50">Flag for renegotiation</button>
+                      </div>
+                    )}
                     {decideError && <p className="mt-2 text-xs text-red-400">Could not record decision: {decideError}</p>}
                   </>
                 )}
