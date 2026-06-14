@@ -45,24 +45,26 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!synth) return NextResponse.json({ error: 'No memo yet — let the committee finish first.' }, { status: 409 });
   const sraw = (synth.raw ?? {}) as Record<string, unknown>;
 
-  const [fin] = await db
-    .select({ raw: agentEvaluations.raw_output })
-    .from(agentEvaluations)
-    .where(and(eq(agentEvaluations.deal_id, id), eq(agentEvaluations.agent_type, 'financial')))
-    .limit(1);
-
-  const events = await db
-    .select({ type: workflowEvents.event_type, payload: workflowEvents.payload })
-    .from(workflowEvents)
-    .where(eq(workflowEvents.deal_id, id))
-    .orderBy(desc(workflowEvents.created_at))
-    .limit(50);
+  // These three are independent of each other — run them in parallel.
+  const [[fin], events, panel] = await Promise.all([
+    db
+      .select({ raw: agentEvaluations.raw_output })
+      .from(agentEvaluations)
+      .where(and(eq(agentEvaluations.deal_id, id), eq(agentEvaluations.agent_type, 'financial')))
+      .limit(1),
+    db
+      .select({ type: workflowEvents.event_type, payload: workflowEvents.payload })
+      .from(workflowEvents)
+      .where(eq(workflowEvents.deal_id, id))
+      .orderBy(desc(workflowEvents.created_at))
+      .limit(50),
+    contextualPanel(id),
+  ]);
   const approval = events.find((e) => e.type === 'approval.required')?.payload as Record<string, unknown> | undefined;
   const recalc = events.find((e) => e.type === 'financial.recalculated')?.payload as Record<string, unknown> | undefined;
   const prior = (events.find((e) => e.type === 'fork.simulated')?.payload as { projections?: ForkProjection[] } | undefined)?.projections ?? [];
 
   const baselineIrr = Number(recalc?.after) || Number((fin?.raw as Record<string, unknown> | undefined)?.irr_pct) || 0;
-  const panel = await contextualPanel(id);
 
   // Reset any prior live state for this branch so a re-run starts clean.
   broadcast(id, { type: 'fork.started', branch });
@@ -87,7 +89,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       }
     );
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 502 });
+    console.error('[simulate] branch simulation failed:', (e as Error).message);
+    return NextResponse.json({ error: 'Simulation failed. Please try again.' }, { status: 502 });
   }
 
   // Merge with any previously simulated branches and broadcast the full set.

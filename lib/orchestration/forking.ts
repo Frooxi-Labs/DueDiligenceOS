@@ -3,9 +3,6 @@ import { BandClient, getAgentConfigs } from '@/lib/band';
 import { callLLM, callText } from '@/lib/providers';
 import type { AgentType, DealRecord, ForkProjection, SimBranch } from '@/types';
 
-/** The three branches the human gate can take. */
-export const BRANCHES: SimBranch[] = ['proceed', 'remediate', 'renegotiate'];
-
 const ProjectionSchema = z.object({
   projected_irr_pct: z.number(),
   residual_risk: z.enum(['low', 'medium', 'high']),
@@ -62,6 +59,7 @@ export async function simulateBranch(
   const challenger: AgentType = panel[1] ?? lead; // the one who pushes back in round 3
   const ctx = `DEAL: ${deal.title} — ${deal.intended_use}, $${Number(deal.purchase_price).toLocaleString()}, ${deal.financing_ltv}% LTV @ ${deal.financing_rate}%, ${deal.hold_period_years}-yr hold.
 Baseline IRR (before this decision): ${input.baselineIrr}% · composite risk ${input.composite}/100 · signal ${input.signal}
+Committee recommendation on the table: ${input.recommendation || 'n/a'}
 Key findings:\n${findings || '- none'}\nConditions precedent:\n${conditions || '- none'}`;
   const opts = { maxTokens: 350 };
   const configs = getAgentConfigs();

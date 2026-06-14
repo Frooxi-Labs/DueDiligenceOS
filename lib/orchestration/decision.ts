@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { dealBriefs, bandRooms, agentEvaluations, finalDecisions, workflowEvents } from '@/lib/db/schema';
 import { broadcast } from '@/lib/realtime';
@@ -32,6 +32,18 @@ async function getSynthesis(dealId: string) {
 async function roomId(dealId: string): Promise<string | null> {
   const [r] = await db.select({ id: bandRooms.band_room_id }).from(bandRooms).where(eq(bandRooms.deal_id, dealId)).limit(1);
   return r?.id ?? null;
+}
+
+/** The conditions the reviewer actually saw at the gate (memo + any negotiated). */
+async function gateConditions(dealId: string, fallback: string[]): Promise<string[]> {
+  const [ev] = await db
+    .select({ payload: workflowEvents.payload })
+    .from(workflowEvents)
+    .where(and(eq(workflowEvents.deal_id, dealId), eq(workflowEvents.event_type, 'approval.required')))
+    .orderBy(desc(workflowEvents.created_at))
+    .limit(1);
+  const conditions = (ev?.payload as { conditions?: string[] } | undefined)?.conditions;
+  return Array.isArray(conditions) && conditions.length ? conditions : fallback;
 }
 
 /** Post a Synthesis message into the Band room (best-effort — never blocks the decision). */
@@ -86,8 +98,9 @@ export async function applyHumanDecision(dealId: string, input: HumanDecisionInp
     return { challenged: true, message };
   }
 
-  // Finalize.
-  const conditions = s.conditions_precedent ?? [];
+  // Finalize. Persist the conditions the reviewer actually saw (memo + negotiated),
+  // not just the synthesis memo's — keeps the audit trail faithful to the gate.
+  const conditions = await gateConditions(dealId, s.conditions_precedent ?? []);
   await db.insert(finalDecisions).values({
     deal_id: dealId,
     final_status: input.decision,

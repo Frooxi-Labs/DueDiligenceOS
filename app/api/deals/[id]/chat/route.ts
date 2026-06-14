@@ -66,7 +66,8 @@ REVIEWER: ${parsed.data.message}`;
   try {
     answer = (await callText(agent, prompt, { maxTokens: 1200 })).trim();
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 502 });
+    console.error('[chat] agent reply failed:', (e as Error).message);
+    return NextResponse.json({ error: 'The agent could not respond. Please try again.' }, { status: 502 });
   }
 
   // Persist the exchange so it replays on reload (ordered: question, then answer).

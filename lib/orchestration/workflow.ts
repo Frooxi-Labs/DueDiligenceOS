@@ -325,7 +325,7 @@ export async function runWorkflow(dealId: string): Promise<void> {
       top_findings: memo.top_findings,
       conditions: allConditions,
     });
-    await logEvent(dealId, 'approval.required', { composite, signal: memo.signal });
+    await logEvent(dealId, 'approval.required', { composite, signal: memo.signal, conditions: allConditions });
   } catch (err) {
     const reason = (err as Error).message;
     console.error('[workflow] failed for deal', dealId, '-', reason);

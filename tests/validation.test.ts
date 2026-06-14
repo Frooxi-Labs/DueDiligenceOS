@@ -12,6 +12,8 @@ describe('parseAgentOutput', () => {
     expect(parseAgentOutput('{\n"chain":[\n{"o":"A"}\n{"o":"B"}\n]\n}')).toEqual({ chain: [{ o: 'A' }, { o: 'B' }] }));
   it('repairs a missing comma between object members', () =>
     expect(parseAgentOutput('{\n"a":"x"\n"b":"y"\n}')).toEqual({ a: 'x', b: 'y' }));
+  it('throws a descriptive error when JSON inside braces is unrepairable', () =>
+    expect(() => parseAgentOutput('{ } extra }')).toThrow(/Could not parse JSON/));
 });
 
 describe('validateBusinessLogic', () => {
