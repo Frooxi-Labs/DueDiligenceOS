@@ -98,6 +98,30 @@ Project realistic numbers for THIS scenario (don't just echo the baseline). Retu
   // Round 3 — someone pushes back (the argument): challenge the weakest assumption.
   await say(challenger, `Push back: challenge the weakest assumption in Financial's underwrite or ${lead}'s framing, from your perspective, and say what would change your mind.`, `I'd push back — the ${proj.residual_risk} residual risk may be understated given the open findings.`);
 
+  // Round 3.5 — the room can CALL IN another agent who isn't present, if it needs one.
+  const ROSTER: AgentType[] = ['archivist', 'regulatory', 'legal', 'financial', 'synthesis', 'environmental'];
+  const present = new Set<AgentType>([...panel, 'financial', 'synthesis']);
+  const candidates = ROSTER.filter((a) => !present.has(a));
+  let recruited: AgentType | undefined;
+  if (candidates.length) {
+    try {
+      const { content } = await callLLM(
+        'synthesis',
+        `In this ${branch.toUpperCase()} what-if room the panel is: ${[...present].join(', ')}. Conversation so far:\n${render(transcript)}\nIs a perspective missing that only one of these absent specialists could give: ${candidates.join(', ')}? Only call one in if genuinely needed. Return ONLY JSON: {"call": "<agent or none>", "ask": "<one-line question for them>"}`,
+        { json: true, maxTokens: 200 }
+      );
+      const parsed = JSON.parse(stripFences(content)) as { call?: string; ask?: string };
+      if (parsed.call && candidates.includes(parsed.call as AgentType)) {
+        recruited = parsed.call as AgentType;
+        const ask = String(parsed.ask ?? 'your specialist read on this path');
+        transcript.push({ agent: lead, content: `We're missing a perspective here — let me pull in ${recruited}. ${ask}` });
+        await say(recruited, `You've been called into this room for a perspective the panel is missing. ${ask} Give your specialist input.`, `From a ${recruited} standpoint, this path warrants a closer look at the open items before closing.`);
+      }
+    } catch {
+      /* no consult */
+    }
+  }
+
   // Round 4 — the Deal Director rules.
   await say('synthesis', `Weigh the exchange and give your verdict: is this path advisable, and what's the single biggest watch-item?`, `On balance, ${branch} carries ${proj.residual_risk} residual risk; weigh it against the timeline before committing.`);
 
@@ -107,7 +131,7 @@ Project realistic numbers for THIS scenario (don't just echo the baseline). Retu
     const configs = getAgentConfigs();
     const owner = new BandClient(lead);
     childRoomId = await owner.createRoom();
-    const participants = Array.from(new Set<AgentType>([...panel, 'financial', 'synthesis'])).filter((a) => a !== lead);
+    const participants = Array.from(new Set<AgentType>([...panel, 'financial', 'synthesis', ...(recruited ? [recruited] : [])])).filter((a) => a !== lead);
     for (const p of participants) await owner.addParticipant(childRoomId, configs[p].agentId);
     const ids = transcript.map((t) => t.agent);
     for (let i = 0; i < transcript.length; i++) {

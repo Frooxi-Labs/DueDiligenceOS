@@ -277,13 +277,16 @@ export default function DealPage() {
                 <span className="text-xs font-medium text-neutral-200">Synthesis</span>
                 <div className="mt-0.5 text-sm text-neutral-300 leading-relaxed df-msg">Want to see what your decision would lead to? I&apos;ll open a side room and have the team work through each path before you commit.</div>
                 <div className="mt-2 flex flex-col gap-2 max-w-md">
-                  {(['proceed', 'remediate', 'renegotiate'] as HumanDecision[]).map((br) => (
-                    <button key={br} onClick={() => simulate(br)} disabled={!!simBranch} className="flex items-center gap-2 rounded-lg border border-neutral-700 bg-neutral-800/40 px-3 py-2 text-left text-sm text-neutral-200 hover:border-neutral-500 hover:bg-neutral-800/70 disabled:opacity-50">
-                      <span className={`w-2 h-2 rounded-full shrink-0 ${SIM_DOT[br]}`} />
-                      <span className="flex-1">{SIM_LABEL[br]}</span>
-                      <span className="text-[11px] text-neutral-500">{simBranch === br ? 'simulating…' : 'simulate →'}</span>
-                    </button>
-                  ))}
+                  {(['proceed', 'remediate', 'renegotiate'] as HumanDecision[]).map((br) => {
+                    const created = !!projections?.some((p) => p.branch === br);
+                    return (
+                      <button key={br} onClick={() => (created ? router.push(`/deals/${id}?room=${br}`) : simulate(br))} disabled={!!simBranch} className="flex items-center gap-2 rounded-lg border border-neutral-700 bg-neutral-800/40 px-3 py-2 text-left text-sm text-neutral-200 hover:border-neutral-500 hover:bg-neutral-800/70 disabled:opacity-50">
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${SIM_DOT[br]}`} />
+                        <span className="flex-1">{SIM_LABEL[br]}</span>
+                        <span className={`text-[11px] ${created ? 'text-indigo-300' : 'text-neutral-500'}`}>{simBranch === br ? 'simulating…' : created ? 'view room →' : 'simulate →'}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
