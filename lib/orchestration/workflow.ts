@@ -5,6 +5,7 @@ import { BandClient, getAgentConfigs } from '@/lib/band';
 import { runAgent, type PropertyFact, type ComplianceReport, type LegalRisk, type FinancialModel, type DealMemo } from '@/lib/agents';
 import { broadcast } from '@/lib/realtime';
 import { detectContradictions, cascadeFromCompliance, compositeRiskScore } from './contradiction';
+import { negotiateContradiction } from './negotiation';
 import type { AgentType, DealRecord, DealEvent, WorkflowStatus } from '@/types';
 
 function emit(dealId: string, event: DealEvent) {
@@ -112,9 +113,23 @@ export async function runWorkflow(dealId: string): Promise<void> {
 
     // ── CONTRADICTION DETECTION (code-level, deterministic) ─────────────
     const contradictions = detectContradictions(propertyFact, legalRisk);
+    const negotiatedConditions: string[] = [];
     for (const c of contradictions) {
       emit(dealId, { type: 'contradiction.detected', title: c.title, detail: c.detail, agents: c.agents });
       await logEvent(dealId, 'contradiction.detected', { title: c.title, detail: c.detail, agents: c.agents });
+
+      // Band-mediated negotiation: the two agents debate the conflict in the room.
+      try {
+        const neg = await negotiateContradiction(c);
+        for (const t of neg.turns) {
+          await post(roomId, t.agent, t.content, [t.to]);
+          emit(dealId, { type: 'band.message', agent: t.agent, content: t.content });
+          await logEvent(dealId, 'negotiation.turn', { agent: t.agent, content: t.content }, t.agent);
+        }
+        negotiatedConditions.push(neg.resolution);
+      } catch (err) {
+        await logEvent(dealId, 'negotiation.failed', { reason: (err as Error).message });
+      }
     }
 
     // ── FINANCIAL — baseline, then cascade re-underwrite if Critical ────
@@ -144,6 +159,9 @@ export async function runWorkflow(dealId: string): Promise<void> {
     const composite = compositeRiskScore(propertyFact, compliance, legalRisk);
     const summary = `${memo.recommendation}\n\nComposite risk score: ${composite}/100 · Signal: ${memo.signal.toUpperCase()}${contradictions.length ? ` · ${contradictions.length} contradiction(s) flagged` : ''}`;
 
+    // Fold any negotiation resolutions into the memo's conditions precedent.
+    const allConditions = [...memo.conditions_precedent, ...negotiatedConditions];
+
     await setStatus(dealId, 'awaiting_human');
     emit(dealId, {
       type: 'approval.required',
@@ -152,7 +170,7 @@ export async function runWorkflow(dealId: string): Promise<void> {
       signal: memo.signal,
       recommendation: memo.recommendation,
       top_findings: memo.top_findings,
-      conditions: memo.conditions_precedent,
+      conditions: allConditions,
     });
     await logEvent(dealId, 'approval.required', { composite, signal: memo.signal });
   } catch (err) {

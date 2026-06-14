@@ -89,7 +89,7 @@ interface HydrateDeal {
   decision?: { final_status: string } | null;
 }
 interface HydrateAudit {
-  events?: { event_type: string; payload?: Record<string, unknown> }[];
+  events?: { event_type: string; payload?: Record<string, unknown>; created_at: string }[];
 }
 
 function hydrate(d: HydrateDeal, a: HydrateAudit | null): WorkflowState {
@@ -97,11 +97,13 @@ function hydrate(d: HydrateDeal, a: HydrateAudit | null): WorkflowState {
   if (d.deal) st.status = d.deal.status;
   if (d.room?.band_room_id) st.bandRoomId = d.room.band_room_id;
 
-  const evals = [...(d.evaluations ?? [])].sort((x, y) => +new Date(x.created_at) - +new Date(y.created_at));
-  for (const e of evals) {
+  // Collect room messages from agent evaluations + negotiation turns, ordered by time.
+  const msgs: { agent: AgentType; content: string; ts: number }[] = [];
+
+  for (const e of d.evaluations ?? []) {
     const at = e.agent_type as AgentType;
     if (st.agents[at]) st.agents[at] = { status: e.status === 'failed' ? 'failed' : 'done', headline: e.status };
-    if (e.summary) st.messages.push({ agent: at, content: e.summary });
+    if (e.summary) msgs.push({ agent: at, content: e.summary, ts: +new Date(e.created_at) });
     const raw = (e.raw_output ?? {}) as Record<string, unknown>;
     if (at === 'synthesis') {
       st.recommendation = raw.recommendation as string | undefined;
@@ -114,10 +116,13 @@ function hydrate(d: HydrateDeal, a: HydrateAudit | null): WorkflowState {
 
   for (const ev of a?.events ?? []) {
     const p = (ev.payload ?? {}) as Record<string, unknown>;
+    if (ev.event_type === 'negotiation.turn') msgs.push({ agent: p.agent as AgentType, content: String(p.content ?? ''), ts: +new Date(ev.created_at) });
     if (ev.event_type === 'contradiction.detected') st.contradictions.push({ title: String(p.title ?? 'Contradiction'), detail: String(p.detail ?? ''), agents: (p.agents as AgentType[]) ?? [] });
     if (ev.event_type === 'financial.recalculated') st.cascade = { irr_before: Number(p.before), irr_after: Number(p.after), trigger: String(p.trigger ?? 'upstream finding') };
     if (ev.event_type === 'approval.required') { st.compositeScore = p.composite as number | undefined; if (p.signal) st.signal = p.signal as Signal; }
   }
+
+  st.messages = msgs.sort((x, y) => x.ts - y.ts).map(({ agent, content }) => ({ agent, content }));
 
   if (d.decision?.final_status) st.decision = d.decision.final_status as HumanDecision;
   return st;

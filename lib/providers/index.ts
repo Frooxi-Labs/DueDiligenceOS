@@ -53,6 +53,8 @@ interface CallOpts {
   temperature?: number;
   maxTokens?: number;
   system?: string;
+  /** Force JSON-object output (default true). Set false for free-text turns. */
+  json?: boolean;
 }
 
 /** Low-level: call a specific model with a message list. */
@@ -71,9 +73,10 @@ async function callModel(model: string, messages: ChatMessage[], opts: CallOpts 
           // Generous budget: "thinking" models (e.g. Gemini 2.5) spend tokens on
           // reasoning before the JSON, so a low cap truncates the output.
           max_tokens: opts.maxTokens ?? 4000,
-          // Force valid-JSON output (every caller wants JSON). Prompts mention
-          // "JSON", which providers require for this mode.
-          response_format: { type: 'json_object' },
+          // Force valid-JSON output for structured callers (default). Free-text
+          // turns (e.g. negotiation) pass json:false. Prompts mention "JSON",
+          // which providers require for this mode.
+          ...(opts.json === false ? {} : { response_format: { type: 'json_object' } }),
           // NB: don't also send top_p — some models (Anthropic via AI/ML) reject
           // temperature + top_p together.
         }),
@@ -102,6 +105,12 @@ export async function extractWithAI(text: string, systemPrompt: string): Promise
     ],
     { temperature: 0.1, maxTokens: 900 }
   );
+}
+
+/** Free-text (non-JSON) call on an agent's model — used for negotiation turns. */
+export async function callText(agentType: AgentType, prompt: string, opts: CallOpts = {}): Promise<string> {
+  const model = modelFor(agentType);
+  return callModel(model, [{ role: 'user', content: prompt }], { temperature: 0.4, maxTokens: 500, ...opts, json: false });
 }
 
 /** Route a prompt to an agent's configured model. */
