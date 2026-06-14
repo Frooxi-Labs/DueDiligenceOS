@@ -15,7 +15,8 @@ export const FindingSchema = z.object({
 // ── Archivist: structured facts extracted from the deal documents ────────────
 export const PropertyFactSchema = z.object({
   agent: z.literal('archivist'),
-  legal_description: z.string(),
+  // Tolerate the model returning null when a field isn't in the documents.
+  legal_description: z.string().nullish().transform((v) => v ?? 'Not specified in the documents'),
   lot_size_sqft: z.number().nullable().default(null),
   ownership_chain: z.array(z.object({ owner: z.string(), instrument: z.string().optional() })).default([]),
   encumbrances: z

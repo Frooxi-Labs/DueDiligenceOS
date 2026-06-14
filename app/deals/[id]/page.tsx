@@ -45,6 +45,9 @@ export default function DealPage() {
   const shownDecision = s.decision ?? localDecision;
   const challenge = !shownDecision && !dismissedChallenge ? localChallenge ?? s.challenge : null;
   const ns = shownDecision ? nextStep(shownDecision, s) : null;
+  // The reviewer can ask questions once the committee has reported (or failed),
+  // not mid-deliberation.
+  const deliberating = !['awaiting_human', 'decided', 'failed'].includes(s.status);
 
   useEffect(() => { if (id) fetch(`/api/deals/${id}`).then((r) => r.json()).then((d) => setDeal(d.deal ?? null)).catch(() => {}); }, [id]);
   useEffect(() => { if (id) fetch(`/api/deals/${id}/audit`).then((r) => r.json()).then((d) => setAudit(d.events ?? [])).catch(() => {}); }, [id, s.status, s.messages.length]);
@@ -242,17 +245,18 @@ export default function DealPage() {
 
         {/* Composer — always visible */}
         <div className="px-6 py-3 shrink-0">
-          <div className="rounded-2xl px-4 py-2.5 flex items-end gap-2" style={{ background: '#212121' }}>
+          <div className={`rounded-2xl px-4 py-2.5 flex items-end gap-2 ${deliberating ? 'opacity-60' : ''}`} style={{ background: '#212121' }}>
             <textarea
               rows={1}
               value={chatInput}
+              disabled={deliberating}
               onChange={(e) => setChatInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } }}
-              placeholder="Ask the committee about this deal…"
-              className="flex-1 resize-none bg-transparent text-sm outline-none text-neutral-100"
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (!deliberating) sendChat(); } }}
+              placeholder={deliberating ? 'The committee is deliberating — you can ask questions once the memo is ready…' : 'Ask the committee about this deal…'}
+              className="flex-1 resize-none bg-transparent text-sm outline-none text-neutral-100 disabled:cursor-not-allowed"
               style={{ maxHeight: 120 }}
             />
-            <button onClick={sendChat} disabled={!chatInput.trim() || chatBusy} className="w-7 h-7 rounded-full flex items-center justify-center disabled:opacity-30" style={{ background: '#fff', color: '#1a1a1a' }}>
+            <button onClick={sendChat} disabled={!chatInput.trim() || chatBusy || deliberating} className="w-7 h-7 rounded-full flex items-center justify-center disabled:opacity-30" style={{ background: '#fff', color: '#1a1a1a' }}>
               <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 12L12 1M12 1H4M12 1V9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </button>
           </div>
