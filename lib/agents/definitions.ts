@@ -74,8 +74,10 @@ Start with { and end with }.`;
     },
     formatBandMessage(o) {
       const pf = o as PropertyFact;
-      const miss = pf.missing_documents.length ? ` Missing docs: ${pf.missing_documents.join(', ')}.` : '';
-      return `PropertyFact extracted. ${pf.legal_description}. Easements recorded: ${pf.no_easements_recorded ? 'none' : 'yes'}.${miss} @Regulatory @Legal — facts are in the room.`;
+      const miss = pf.missing_documents.length
+        ? ` One gap before we go further — I couldn't find these in the package: ${pf.missing_documents.join(', ')}.`
+        : '';
+      return `${pf.summary}${miss}`;
     },
     headline(o) {
       const pf = o as PropertyFact;
@@ -101,9 +103,7 @@ Return ONLY JSON: { "agent": "regulatory", "risk_score": <0-100>, "zoning_permit
 Start with { and end with }.`;
     },
     formatBandMessage(o) {
-      const r = o as ComplianceReport;
-      const crit = r.findings.filter((f) => f.severity === 'critical');
-      return `Compliance risk ${r.risk_score}/100. Zoning ${r.zoning_permitted ? 'permitted' : 'CONFLICT'}. ${crit.length ? `Critical: ${crit[0].title}. @Financial — re-underwrite with this.` : 'No critical flags.'} ${r.summary}`;
+      return (o as ComplianceReport).summary;
     },
     headline(o) {
       return `risk ${(o as ComplianceReport).risk_score}/100`;
@@ -134,8 +134,7 @@ Return ONLY JSON: { "agent": "legal", "title_clean": <bool>, "easement_found_in_
 Start with { and end with }.`;
     },
     formatBandMessage(o) {
-      const l = o as LegalRisk;
-      return `Title ${l.title_clean ? 'clean' : 'has issues'}. Easement in contract: ${l.easement_found_in_contract ? 'YES' : 'no'}. ${l.findings[0] ? `Top: ${l.findings[0].title}.` : ''} @Synthesis. ${l.summary}`;
+      return (o as LegalRisk).summary;
     },
     headline(o) {
       return (o as LegalRisk).title_clean ? 'title clean' : 'title issues';
@@ -161,7 +160,7 @@ Start with { and end with }.`;
     },
     formatBandMessage(o) {
       const f = o as FinancialModel;
-      return `${f.phase === 'revised' ? '↻ Re-underwritten' : 'Underwriting'}: IRR ${f.irr_pct.toFixed(1)}%, signal ${f.signal}${f.dcr ? `, DCR ${f.dcr.toFixed(2)}` : ''}. ${f.triggered_by ? `(triggered by ${f.triggered_by})` : ''} ${f.summary}`;
+      return `${f.phase === 'revised' ? 'I re-ran the numbers. ' : ''}${f.summary}`;
     },
     headline(o) {
       return `IRR ${(o as FinancialModel).irr_pct.toFixed(1)}%`;
@@ -188,8 +187,7 @@ Return ONLY JSON: { "agent": "synthesis", "signal": "green|yellow|red", "top_fin
 Start with { and end with }.`;
     },
     formatBandMessage(o) {
-      const m = o as DealMemo;
-      return `Deal memo ready — signal ${m.signal.toUpperCase()}, ${m.top_findings.length} key findings, ${m.conditions_precedent.length} conditions precedent. Awaiting reviewer decision.`;
+      return (o as DealMemo).recommendation;
     },
     headline(o) {
       return `${(o as DealMemo).signal} memo`;
