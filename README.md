@@ -6,6 +6,8 @@
 
 Built for the **Band of Agents Hackathon** · Track 3 — Regulated & High-Stakes Workflows
 
+📄 **[Read the judge's guide → PITCH.md](PITCH.md)** — problem, agent roles, and exactly how Band coordinates the committee.
+
 </div>
 
 ---
@@ -16,22 +18,26 @@ Real-estate due diligence is slow and error-prone because five-to-ten specialist
 
 ## What it does
 
-DueDiligenceOS runs the committee as five Band agents in one shared room:
+DueDiligenceOS runs the committee as Band agents in one shared room per deal — each on a different model provider, one on a different framework:
 
-| Agent | Responsibility |
-|:------|:---------------|
-| **Market Analysis** | Location, demand, comparables, market positioning |
-| **Due Diligence** | Physical condition, environmental, deferred maintenance |
-| **Risk Assessment** | Occupancy, tenant credit, downside scenarios |
-| **Legal & Compliance** | Title, easements, zoning, contract terms |
-| **Financial Underwriting** | NOI, cap rate, DCR, IRR, sensitivity |
+| Agent | Provider / framework | Responsibility |
+|:------|:---------------------|:---------------|
+| **Archivist** | Gemini (TS) | Extracts property facts, encumbrances, and the missing-document checklist |
+| **Regulatory** | Claude (TS) | Zoning, permits, flood/FEMA, environmental flags, code violations |
+| **Legal Risk** | Claude (TS) | Title, contract terms, easements, liens, reps & warranties |
+| **Financial** | GPT (TS) | NOI, cap rate, DSCR, IRR, sensitivity — re-underwrites on a cascade |
+| **Synthesis (Deal Director)** | GPT (TS) | Weighs every finding into the memo; triggers the human gate |
+| **Environmental** *(recruited)* | **LangGraph (Python)** | Contamination / Phase I–II — pulled in only when a deal needs it |
 
 They don't just run in parallel — they **collaborate through Band**:
 
-- **Hand off through the room.** An agent finishes, then `@mentions` the specific next agent with a reason; that agent acts _because of_ the mention.
-- **Disagree and negotiate in the room.** When an agent rejects, it `@mentions` the dissenting agents; they respond in-thread and converge on conditions — and consensus is read from what they actually post.
-- **Stay legible.** Reasoning and handoffs are posted as Band events, so the whole deliberation is visible and auditable.
-- **Defer to a human.** The committee composes a deal memo and **holds** for a human decision (approve with conditions / request remediation / reject). The decision is stamped into a permanent, auditable record.
+- **Read the room.** Before reasoning, each agent calls Band `getContext` to pull the shared room conversation, then builds on it — it is not spoon-fed context out of band.
+- **Hand off through the room.** An agent finishes, then `@mentions` the specific next agent; that agent acts _because of_ the mention.
+- **Delegate with task state.** The cascade is a Band `task` event (intent + authority) that the assignee marks `processing` → `processed` — accountable work, not a chat line.
+- **Think out loud.** Agents post Band `thought` / `tool_call` / `error` events, so their reasoning (and their reads of the room) are visible and auditable in Band itself.
+- **Disagree and negotiate in the room.** A detected contradiction triggers a real multi-turn debate between the two agents, in the room, converging on a condition.
+- **Discover and recruit.** When a deal needs a specialist, an agent pulls a new participant into the room mid-workflow (`addParticipant`) — including the cross-framework LangGraph agent.
+- **Defer to a human.** The committee composes a deal memo and **holds** for a human decision (proceed / remediate / renegotiate / reject), stamped into a permanent audit trail.
 
 ## How Band is used
 
