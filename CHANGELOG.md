@@ -7,6 +7,16 @@ changed and the **context** (why).
 
 ### 2026-06-14
 
+- **UI shell + chat-style room.** Added a collapsible **sidebar** (recent deals with live status
+  dots, new-run, delete), a rounded app panel with **page-transition animations**, and restyled the
+  deal room as a **chat-style feed** (message bubbles with fade-in + a live "analysing…" typing
+  indicator). Added `DELETE /api/deals/[id]` for the sidebar.
+  - *Context:* Makes the live deliberation legible and demo-ready — the collaboration reads like a
+    conversation between agents.
+- **Document upload.** The intake form now accepts **multiple uploaded files** (text-based deal
+  documents) that are read into the deal package, alongside paste — matching the Archivist's
+  document-intake role.
+
 - **Audit trail view.** Added `GET /api/deals/[id]/audit` and a collapsible audit-trail panel on
   the deal page — a chronological log of every workflow event (with agent + timestamp).
   - *Context:* Traceability is a core Track-3 requirement: every agent decision and step is

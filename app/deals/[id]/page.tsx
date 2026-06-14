@@ -102,13 +102,33 @@ export default function DealPage() {
         </div>
       )}
 
-      {/* Live room feed */}
+      {/* Live room feed — chat style */}
       <div className="flex-1 overflow-auto df-scroll rounded-xl border border-neutral-800 bg-neutral-900/30 p-4 space-y-3">
         {s.messages.length === 0 && <p className="text-sm text-neutral-600">Waiting for the committee to convene…</p>}
         {s.messages.map((m, i) => (
-          <div key={i} className="text-sm">
-            <span className="font-medium text-neutral-200">{LABELS[m.agent]}</span>
-            <p className="text-neutral-400 leading-relaxed">{m.content}</p>
+          <div key={i} className="fade-up flex gap-3">
+            <div className="w-7 h-7 rounded-lg bg-neutral-800 flex items-center justify-center text-[10px] font-semibold text-neutral-300 shrink-0">
+              {LABELS[m.agent].slice(0, 2)}
+            </div>
+            <div className="min-w-0">
+              <span className="text-xs font-medium text-neutral-200">{LABELS[m.agent]}</span>
+              <div className="mt-0.5 rounded-xl rounded-tl-sm bg-neutral-800/60 px-3 py-2 text-sm text-neutral-300 leading-relaxed">
+                {m.content}
+              </div>
+            </div>
+          </div>
+        ))}
+        {ORDER.filter((a) => s.agents[a].status === 'processing').map((a) => (
+          <div key={`t-${a}`} className="fade-up flex gap-3 items-center">
+            <div className="w-7 h-7 rounded-lg bg-neutral-800 flex items-center justify-center text-[10px] font-semibold text-neutral-400 shrink-0">
+              {LABELS[a].slice(0, 2)}
+            </div>
+            <div className="flex items-center gap-1 rounded-xl bg-neutral-800/40 px-3 py-2">
+              <span className="text-xs text-neutral-500 mr-1">{LABELS[a]} is analysing</span>
+              {[0, 1, 2].map((d) => (
+                <span key={d} className="w-1.5 h-1.5 rounded-full bg-neutral-500 thinking-dot" style={{ animationDelay: `${d * 0.15}s` }} />
+              ))}
+            </div>
           </div>
         ))}
       </div>

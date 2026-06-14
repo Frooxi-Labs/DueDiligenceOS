@@ -30,3 +30,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   return NextResponse.json({ deal, room: room ?? null, evaluations, handoffs, negotiations, decision: decision ?? null });
 }
+
+/** Delete a deal (child rows cascade). */
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  await db.delete(dealBriefs).where(eq(dealBriefs.id, id));
+  return NextResponse.json({ ok: true });
+}

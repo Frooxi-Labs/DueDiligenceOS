@@ -38,6 +38,21 @@ export default function NewDealPage() {
   const set = (k: string, val: string) => setV((p) => ({ ...p, [k]: val }));
   const loadSample = () => setV(Object.fromEntries(Object.entries(SAMPLE).map(([k, val]) => [k, String(val)])));
 
+  const [uploaded, setUploaded] = useState<string[]>([]);
+
+  async function handleFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    const parts: string[] = [];
+    const names: string[] = [];
+    for (const file of Array.from(files)) {
+      const text = await file.text(); // text-based docs (.txt, .md, .csv); paste PDFs as text
+      parts.push(`===== ${file.name} =====\n${text}`);
+      names.push(file.name);
+    }
+    setV((p) => ({ ...p, documents: [p.documents, ...parts].filter(Boolean).join('\n\n') }));
+    setUploaded((prev) => [...prev, ...names]);
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
@@ -112,13 +127,29 @@ export default function NewDealPage() {
             <Field k="financing_rate" label="Interest rate (%)" type="number" />
           </div>
           <div>
-            <label className="block text-sm text-neutral-400 mb-1">
-              Deal documents <span className="text-neutral-600">(paste title deed, contract, inspection, disclosures…)</span>
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm text-neutral-400">
+                Deal documents <span className="text-neutral-600">(title deed, contract, inspection, disclosures…)</span>
+              </label>
+              <label className="text-xs text-neutral-400 hover:text-white border border-neutral-700 rounded-md px-3 py-1.5 cursor-pointer">
+                Upload files
+                <input
+                  type="file"
+                  multiple
+                  accept=".txt,.md,.csv,.json,text/*"
+                  className="hidden"
+                  onChange={(e) => handleFiles(e.target.files)}
+                />
+              </label>
+            </div>
+            {uploaded.length > 0 && (
+              <p className="text-[11px] text-neutral-500 mb-1">Added: {uploaded.join(', ')}</p>
+            )}
             <textarea
               rows={10}
               value={v.documents ?? ''}
               onChange={(e) => set('documents', e.target.value)}
+              placeholder="Upload files above, or paste the deal package text here…"
               className="w-full rounded-lg bg-neutral-900 border border-neutral-800 px-3 py-2 text-sm font-mono focus:border-neutral-600 outline-none"
             />
           </div>
