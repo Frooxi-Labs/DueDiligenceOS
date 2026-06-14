@@ -107,7 +107,7 @@ export default function DealPage() {
     w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
   }
 
-  const activityCount = s.contradictions.length + s.recruited.length + (s.cascade ? 1 : 0) + (s.missingDocs.length ? 1 : 0) + (s.status === 'failed' ? 1 : 0);
+  const activityCount = s.contradictions.length + s.recruited.length + s.delegations.length + (s.cascade ? 1 : 0) + (s.missingDocs.length ? 1 : 0) + (s.status === 'failed' ? 1 : 0);
 
   return (
     <div className="h-full flex overflow-hidden">
@@ -288,6 +288,16 @@ export default function DealPage() {
             </div>
           ) : (
             <div className="flex-1 overflow-auto df-scroll p-4 space-y-3">
+              {s.delegations.map((d) => (
+                <div key={d.id} className="rounded-lg border border-indigo-500/40 bg-indigo-500/10 px-3 py-2 text-xs">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <p className="text-indigo-300 font-medium">⇄ Delegated task</p>
+                    <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded ${d.status === 'done' ? 'bg-emerald-500/20 text-emerald-400' : d.status === 'processing' ? 'bg-amber-500/20 text-amber-400 agent-pulse' : 'bg-neutral-700/40 text-neutral-400'}`}>{d.status}</span>
+                  </div>
+                  <p className="text-neutral-300">{LABELS[d.from]} → {LABELS[d.to]}: {d.intent}</p>
+                  <p className="text-neutral-500 mt-1">Authority: {d.authority}</p>
+                </div>
+              ))}
               {s.cascade && (
                 <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs"><p className="text-amber-300 font-medium mb-0.5">↻ Cascading recalculation</p>IRR <span className="text-neutral-400 line-through">{s.cascade.irr_before.toFixed(1)}%</span> <span className="text-white font-semibold">→ {s.cascade.irr_after.toFixed(1)}%</span><p className="text-neutral-500 mt-1">Triggered by {s.cascade.trigger}</p></div>
               )}

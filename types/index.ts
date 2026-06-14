@@ -62,6 +62,7 @@ export type DealEvent =
   | { type: 'agent.failed'; agent: AgentType; reason: string }
   | { type: 'agent.mentioned'; from: AgentType; to: AgentType; reason: string }
   | { type: 'agent.recruited'; by: AgentType; agent: AgentType; reason: string }
+  | { type: 'delegation'; id: string; from: AgentType; to: AgentType; intent: string; authority: string; status: 'open' | 'processing' | 'done' }
   | { type: 'band.message'; agent: AgentType; content: string }
   | { type: 'room.system'; content: string }
   | { type: 'escalation.needed'; missing: string[] }

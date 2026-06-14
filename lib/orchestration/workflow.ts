@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { dealBriefs, bandRooms, agentEvaluations, mentions as mentionsTable, workflowEvents } from '@/lib/db/schema';
@@ -73,6 +74,52 @@ async function say(dealId: string, roomId: string, agent: AgentType, content: st
 async function systemSay(dealId: string, content: string) {
   emit(dealId, { type: 'room.system', content });
   await db.insert(workflowEvents).values({ deal_id: dealId, event_type: 'room.system', triggered_by: 'orchestrator', payload: { content } });
+}
+
+/**
+ * Structured, accountable delegation — not a chat message. The delegator posts a
+ * Band `task` event encoding intent + authority, the assignee marks the request
+ * `processing` then `processed`, and the lifecycle (open → processing → done) is
+ * streamed and persisted. Turns a handoff into a tracked obligation.
+ */
+async function delegate<T>(
+  dealId: string,
+  roomId: string,
+  from: AgentType,
+  to: AgentType,
+  intent: string,
+  authority: string,
+  work: () => Promise<T>,
+): Promise<T> {
+  const id = randomUUID();
+  const content = `${intent} You're authorized to ${authority}.`;
+  const fromBand = new BandClient(from);
+  let msgId = '';
+  try {
+    // Visible, mention-routed handoff message…
+    msgId = await fromBand.postMessage(roomId, content, [to]);
+    // …plus a structured task event encoding intent + authority (governance layer).
+    await fromBand.postEvent(roomId, intent, 'task', { intent, authority, to });
+  } catch {
+    /* best-effort: a transport hiccup must not abort the underwrite */
+  }
+  emit(dealId, { type: 'band.message', agent: from, content });
+  await db.insert(workflowEvents).values({ deal_id: dealId, event_type: 'room.agent', agent_type: from, triggered_by: from, payload: { agent: from, content } });
+  emit(dealId, { type: 'delegation', id, from, to, intent, authority, status: 'open' });
+  await db.insert(workflowEvents).values({ deal_id: dealId, event_type: 'delegation.opened', agent_type: to, triggered_by: from, payload: { id, from, to, intent, authority } });
+
+  // The assignee accepts the task (Band processing state).
+  const toBand = new BandClient(to);
+  if (msgId) { try { await toBand.markProcessing(roomId, msgId); } catch { /* best-effort */ } }
+  emit(dealId, { type: 'delegation', id, from, to, intent, authority, status: 'processing' });
+
+  const result = await work();
+
+  // …and marks it done (Band processed state).
+  if (msgId) { try { await toBand.markProcessed(roomId, msgId); } catch { /* best-effort */ } }
+  emit(dealId, { type: 'delegation', id, from, to, intent, authority, status: 'done' });
+  await db.insert(workflowEvents).values({ deal_id: dealId, event_type: 'delegation.done', agent_type: to, triggered_by: to, payload: { id, from, to, intent } });
+  return result;
 }
 
 /** Decide whether an Environmental specialist should be recruited, and why. */
@@ -229,13 +276,24 @@ export async function runWorkflow(dealId: string): Promise<void> {
 
     const cascade = cascadeFromCompliance(compliance);
     if (cascade) {
-      await recordMention(dealId, cascade.from, 'financial', cascade.trigger);
-      const revisedRes = await run(
+      // Structured delegation: the upstream agent assigns Financial an accountable
+      // re-underwrite task (intent + authority), tracked through Band's task states.
+      const revised = await delegate(
+        dealId,
+        roomId,
+        cascade.from,
         'financial',
-        { deal, propertyFact, compliance, financialBaseline: financial, cascade: { trigger: cascade.trigger, delta: cascade.delta } },
-        ['synthesis']
+        `Re-underwrite the deal — ${cascade.trigger}.`,
+        `remove the affected assumption (${cascade.delta})`,
+        async () => {
+          const revisedRes = await run(
+            'financial',
+            { deal, propertyFact, compliance, financialBaseline: financial, cascade: { trigger: cascade.trigger, delta: cascade.delta } },
+            ['synthesis']
+          );
+          return revisedRes.raw as FinancialModel;
+        }
       );
-      const revised = revisedRes.raw as FinancialModel;
       emit(dealId, { type: 'financial.recalculated', irr_before: financial.irr_pct, irr_after: revised.irr_pct, trigger: cascade.trigger });
       await logEvent(dealId, 'financial.recalculated', { before: financial.irr_pct, after: revised.irr_pct, trigger: cascade.trigger });
       financial = revised;

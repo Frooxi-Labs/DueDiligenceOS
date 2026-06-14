@@ -96,11 +96,15 @@ export class BandClient {
     return data.id;
   }
 
-  /** Add another agent as a participant. */
+  /** Add another agent as a participant (idempotent — Band 409s on a re-add). */
   async addParticipant(roomId: string, participantAgentId: string): Promise<void> {
-    await this.request('POST', `/agent/chats/${roomId}/participants`, {
-      participant: { participant_id: participantAgentId },
-    });
+    try {
+      await this.request('POST', `/agent/chats/${roomId}/participants`, {
+        participant: { participant_id: participantAgentId },
+      });
+    } catch (err) {
+      if (!String((err as Error).message).includes('409')) throw err;
+    }
   }
 
   /**

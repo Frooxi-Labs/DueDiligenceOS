@@ -11,6 +11,7 @@ export interface AgentCardState {
 export interface RoomMessage { agent?: AgentType; content: string; system?: boolean }
 export interface Contradiction { title: string; detail: string; agents: AgentType[] }
 export interface CascadeInfo { irr_before: number; irr_after: number; trigger: string }
+export interface DelegationInfo { id: string; from: AgentType; to: AgentType; intent: string; authority: string; status: 'open' | 'processing' | 'done' }
 
 export interface WorkflowState {
   status: string;
@@ -31,6 +32,7 @@ export interface WorkflowState {
   challenge?: { decision: HumanDecision; message: string };
   decisionDocument?: string;
   recruited: { by: AgentType; agent: AgentType; reason: string }[];
+  delegations: DelegationInfo[];
   failureReason?: string;
 }
 
@@ -45,6 +47,7 @@ function initialState(): WorkflowState {
     contradictions: [],
     missingDocs: [],
     recruited: [],
+    delegations: [],
   };
 }
 
@@ -65,6 +68,11 @@ function reduce(prev: WorkflowState, e: DealEvent): WorkflowState {
     case 'agent.recruited':
       if (prev.recruited.some((r) => r.agent === e.agent)) return prev;
       return { ...prev, recruited: [...prev.recruited, { by: e.by, agent: e.agent, reason: e.reason }] };
+    case 'delegation': {
+      const next: DelegationInfo = { id: e.id, from: e.from, to: e.to, intent: e.intent, authority: e.authority, status: e.status };
+      const exists = prev.delegations.some((d) => d.id === e.id);
+      return { ...prev, delegations: exists ? prev.delegations.map((d) => (d.id === e.id ? next : d)) : [...prev.delegations, next] };
+    }
     case 'band.message':
       // Dedupe — hydration + SSE replay can deliver the same message.
       if (prev.messages.some((m) => m.agent === e.agent && m.content === e.content)) return prev;
@@ -133,6 +141,8 @@ function hydrate(d: HydrateDeal, a: HydrateAudit | null): WorkflowState {
     if (ev.event_type === 'negotiation.turn' || ev.event_type === 'room.agent') msgs.push({ agent: p.agent as AgentType, content: String(p.content ?? ''), ts: +new Date(ev.created_at) });
     if (ev.event_type === 'room.system') msgs.push({ content: String(p.content ?? ''), ts: +new Date(ev.created_at), system: true });
     if (ev.event_type === 'agent.recruited') st.recruited.push({ by: p.by as AgentType, agent: p.agent as AgentType, reason: String(p.reason ?? '') });
+    if (ev.event_type === 'delegation.opened') st.delegations.push({ id: String(p.id), from: p.from as AgentType, to: p.to as AgentType, intent: String(p.intent ?? ''), authority: String(p.authority ?? ''), status: 'open' });
+    if (ev.event_type === 'delegation.done') { const d = st.delegations.find((x) => x.id === String(p.id)); if (d) d.status = 'done'; }
     if (ev.event_type === 'contradiction.detected') st.contradictions.push({ title: String(p.title ?? 'Contradiction'), detail: String(p.detail ?? ''), agents: (p.agents as AgentType[]) ?? [] });
     if (ev.event_type === 'financial.recalculated') st.cascade = { irr_before: Number(p.before), irr_after: Number(p.after), trigger: String(p.trigger ?? 'upstream finding') };
     if (ev.event_type === 'approval.required') { st.compositeScore = p.composite as number | undefined; if (p.signal) st.signal = p.signal as Signal; }
