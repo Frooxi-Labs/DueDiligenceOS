@@ -73,8 +73,8 @@ async function callModel(model: string, messages: ChatMessage[], opts: CallOpts 
         }),
         signal: AbortSignal.timeout(TIMEOUT_MS),
       });
-      if (res.status >= 500 || res.status === 429) throw new Error(`AI/ML API → ${res.status}`);
-      if (!res.ok) throw new Error(`AI/ML API → ${res.status}: ${await res.text()}`);
+      if (res.status >= 500 || res.status === 429) throw new Error(`AI/ML API (${model}) → ${res.status}`);
+      if (!res.ok) throw new Error(`AI/ML API (model "${model}") → ${res.status}: ${await res.text()}`);
       const json = await res.json();
       return json?.choices?.[0]?.message?.content ?? '';
     } catch (err) {
