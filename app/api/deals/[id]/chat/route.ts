@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { dealBriefs, agentEvaluations, bandRooms } from '@/lib/db/schema';
+import { dealBriefs, agentEvaluations, bandRooms, workflowEvents } from '@/lib/db/schema';
 import { callText } from '@/lib/providers';
 import { BandClient, getAgentConfigs } from '@/lib/band';
 import type { AgentType } from '@/types';
@@ -66,6 +66,10 @@ REVIEWER: ${parsed.data.message}`;
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 502 });
   }
+
+  // Persist the exchange so it replays on reload (ordered: question, then answer).
+  await db.insert(workflowEvents).values({ deal_id: id, event_type: 'chat.user', triggered_by: 'human', payload: { content: parsed.data.message } });
+  await db.insert(workflowEvents).values({ deal_id: id, event_type: 'chat.message', agent_type: agent, triggered_by: agent, payload: { agent, content: answer } });
 
   // Best-effort: record the exchange in the Band room, posted as the answering agent.
   try {

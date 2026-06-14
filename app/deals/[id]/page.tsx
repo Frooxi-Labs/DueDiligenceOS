@@ -12,7 +12,7 @@ const LABELS: Record<AgentType, string> = {
 const ORDER: AgentType[] = ['archivist', 'regulatory', 'legal', 'financial', 'synthesis'];
 const signalColor: Record<string, string> = { green: 'text-emerald-400', yellow: 'text-amber-400', red: 'text-red-400' };
 
-interface AuditEvent { id: string; event_type: string; agent_type?: string | null; created_at: string }
+interface AuditEvent { id: string; event_type: string; agent_type?: string | null; created_at: string; payload?: Record<string, unknown> }
 interface DealMeta { title?: string; intended_use?: string; purchase_price?: string }
 interface ChatMsg { role: 'user' | 'assistant'; content: string; agent?: AgentType }
 
@@ -50,6 +50,16 @@ export default function DealPage() {
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' }); }, [s.messages.length, chatLog.length, s.recommendation]);
   // Surface the memo (with the decision controls) the moment it's ready.
   useEffect(() => { if (s.status === 'awaiting_human') { setRightTab('memo'); setLogsOpen(true); } }, [s.status]);
+  // Restore the reviewer↔committee chat from persisted events (reload / old deals).
+  useEffect(() => {
+    if (!audit || chatLog.length > 0) return;
+    const restored = audit
+      .filter((e) => e.event_type === 'chat.user' || e.event_type === 'chat.message')
+      .map((e): ChatMsg => (e.event_type === 'chat.user'
+        ? { role: 'user', content: String(e.payload?.content ?? '') }
+        : { role: 'assistant', content: String(e.payload?.content ?? ''), agent: e.payload?.agent as AgentType }));
+    if (restored.length) setChatLog(restored);
+  }, [audit]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function decide(decision: HumanDecision, confirmed = false) {
     setDeciding(true); setDecideError(null);
@@ -274,7 +284,7 @@ export default function DealPage() {
               <div className="pt-2">
                 <p className="text-[11px] font-semibold uppercase tracking-widest text-neutral-600 mb-2">Audit trail</p>
                 {!audit || audit.length === 0 ? <p className="text-xs text-neutral-600">No events yet.</p> : (
-                  <ol className="space-y-1.5">{audit.map((e) => (<li key={e.id} className="text-[11px] flex gap-2"><span className="text-neutral-600 tabular-nums shrink-0">{new Date(e.created_at).toLocaleTimeString()}</span><span className="text-neutral-400">{e.event_type}</span>{e.agent_type && <span className="text-neutral-600">· {e.agent_type}</span>}</li>))}</ol>
+                  <ol className="space-y-1.5">{audit.filter((e) => !e.event_type.startsWith('chat.')).map((e) => (<li key={e.id} className="text-[11px] flex gap-2"><span className="text-neutral-600 tabular-nums shrink-0">{new Date(e.created_at).toLocaleTimeString()}</span><span className="text-neutral-400">{e.event_type}</span>{e.agent_type && <span className="text-neutral-600">· {e.agent_type}</span>}</li>))}</ol>
                 )}
               </div>
             </div>
