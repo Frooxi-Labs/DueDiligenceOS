@@ -51,18 +51,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     .limit(1);
   const findings = JSON.stringify(row?.raw ?? {}, null, 1).slice(0, 2500);
 
-  const prompt = `You are ${PERSONA[agent]} on a real-estate due-diligence committee, answering the reviewer's question about THIS deal.
-Answer in the first person, in your own voice, using ONLY your findings below (and the deal facts). If it's outside your remit, say which agent to ask. Be concise (2-5 sentences), plain text.
+  const prompt = `You are ${PERSONA[agent]} on a real-estate due-diligence committee, helping the reviewer with THIS deal.
+Be genuinely helpful: you can ANSWER questions AND, when asked, DRAFT documents — emails to the seller, remediation letters, summaries, condition lists — grounded in the committee's findings and the deal facts below. Produce exactly what the reviewer asks; do not refuse a reasonable request. If you need a detail that isn't in the findings, make a sensible assumption and note it briefly. Write in the first person, in your own voice. Keep prose answers concise; for drafted documents, use a clean, professional format. Plain text.
 
 DEAL: ${deal.title} — ${deal.intended_use}, $${Number(deal.purchase_price).toLocaleString()}, ${deal.financing_ltv}% LTV @ ${deal.financing_rate}%, ${deal.hold_period_years}-yr hold.
-YOUR FINDINGS (JSON):
+COMMITTEE FINDINGS (JSON):
 ${findings}
 
-REVIEWER QUESTION: ${parsed.data.message}`;
+REVIEWER: ${parsed.data.message}`;
 
   let answer: string;
   try {
-    answer = (await callText(agent, prompt, { maxTokens: 600 })).trim();
+    answer = (await callText(agent, prompt, { maxTokens: 1200 })).trim();
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 502 });
   }
