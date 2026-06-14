@@ -7,6 +7,11 @@ changed and the **context** (why).
 
 ### 2026-06-14
 
+- **Dashboard.** Designed the home page: headline + stats (total / active / needs-decision /
+  decided), the five-agent committee overview, a how-it-works guide, and a recent-runs list with
+  status badges linking into each live room.
+  - *Context:* A real landing/overview so the project reads as a product and runs are easy to find.
+
 - **Chat-style deal intake.** Replaced the intake form with a chat composer — type a description
   and/or **attach documents** (PDF/TXT/MD), then send. A new `POST /api/deals/extract` reads the
   package (PDFs parsed server-side to text via `pdf-parse`), an LLM pulls the structured deal terms,
