@@ -71,6 +71,9 @@ async function callModel(model: string, messages: ChatMessage[], opts: CallOpts 
           // Generous budget: "thinking" models (e.g. Gemini 2.5) spend tokens on
           // reasoning before the JSON, so a low cap truncates the output.
           max_tokens: opts.maxTokens ?? 4000,
+          // Force valid-JSON output (every caller wants JSON). Prompts mention
+          // "JSON", which providers require for this mode.
+          response_format: { type: 'json_object' },
           // NB: don't also send top_p — some models (Anthropic via AI/ML) reject
           // temperature + top_p together.
         }),

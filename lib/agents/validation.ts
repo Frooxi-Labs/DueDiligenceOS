@@ -35,8 +35,13 @@ export function parseAgentOutput(raw: string): unknown {
   if (start === -1 || end === -1) {
     throw new Error(`Output contains no JSON object. Preview: "${cleaned.substring(0, 150)}"`);
   }
-  cleaned = cleaned.substring(start, end + 1);
-  return JSON.parse(cleaned);
+  const slice = cleaned.substring(start, end + 1);
+  try {
+    return JSON.parse(slice);
+  } catch {
+    // Repair the most common LLM slip: trailing commas before } or ].
+    return JSON.parse(slice.replace(/,(\s*[}\]])/g, '$1'));
+  }
 }
 
 /** True if a report carries a deal-breaking (Critical) finding — drives the cascade. */
