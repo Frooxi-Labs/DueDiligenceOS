@@ -82,3 +82,9 @@ html, body {
 .df-msg h1, .df-msg h2, .df-msg h3 { font-weight: 600; margin: 0.8em 0 0.3em; color: #e5e5e5; }
 .df-msg strong { color: #e5e5e5; }
 .df-msg code { background: #ffffff14; padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.9em; }
+
+/* Accordion (file-tree) smooth expand/collapse */
+@keyframes accordion-down { from { height: 0; opacity: 0; } to { height: var(--radix-accordion-content-height); opacity: 1; } }
+@keyframes accordion-up { from { height: var(--radix-accordion-content-height); opacity: 1; } to { height: 0; opacity: 0; } }
+.animate-accordion-down { animation: accordion-down 0.2s ease-out; }
+.animate-accordion-up { animation: accordion-up 0.2s ease-out; }

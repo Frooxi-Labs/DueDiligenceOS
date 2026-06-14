@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import Sidebar from './components/Sidebar';
@@ -16,7 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${inter.variable} h-full`}>
       <body className="h-full flex antialiased overflow-hidden" style={{ background: '#040404', fontFamily: 'var(--font-inter), system-ui, sans-serif' }}>
-        <Sidebar />
+        <Suspense fallback={<div style={{ width: 240, flexShrink: 0, background: '#040404' }} />}><Sidebar /></Suspense>
         <main
           className="flex-1 my-[10px] mr-[10px] rounded-[18px] overflow-hidden flex flex-col relative min-w-0"
           style={{ background: '#141414' }}

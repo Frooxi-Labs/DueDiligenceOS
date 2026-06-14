@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useDealWorkflow, type WorkflowState } from '@/hooks/useDealWorkflow';
 import Markdown from '@/app/components/Markdown';
 import type { AgentType, ForkProjection, HumanDecision } from '@/types';
@@ -31,6 +31,8 @@ function nextStep(decision: HumanDecision, s: WorkflowState): { heading: string;
 
 export default function DealPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const s = useDealWorkflow(id);
   const [deciding, setDeciding] = useState(false);
   const [localDecision, setLocalDecision] = useState<HumanDecision | null>(null);
@@ -49,7 +51,9 @@ export default function DealPage() {
   const [bandBusy, setBandBusy] = useState(false);
   const [bandCheck, setBandCheck] = useState<{ message_count: number; participants_polled: number } | null>(null);
   const [openRoom, setOpenRoom] = useState<HumanDecision | null>(null);
-  const [activeRoom, setActiveRoom] = useState<'parent' | HumanDecision>('parent');
+  const roomParam = searchParams.get('room');
+  const activeRoom: 'parent' | HumanDecision =
+    roomParam === 'proceed' || roomParam === 'remediate' || roomParam === 'renegotiate' ? roomParam : 'parent';
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const shownDecision = s.decision ?? localDecision;
@@ -147,39 +151,12 @@ export default function DealPage() {
 
   return (
     <div className="h-full flex overflow-hidden">
-      {/* ── Rooms rail: parent room + simulated child rooms (file tree) ── */}
-      <aside className="w-52 shrink-0 border-r border-neutral-800 flex flex-col bg-neutral-900/20">
-        <div className="px-3 h-12 flex items-center border-b border-neutral-800">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-neutral-500">Rooms</p>
-        </div>
-        <div className="flex-1 overflow-auto df-scroll p-2">
-          <button onClick={() => setActiveRoom('parent')} className={`w-full text-left rounded-md px-2 py-1.5 flex items-center gap-2 text-sm ${activeRoom === 'parent' ? 'bg-neutral-800 text-white' : 'text-neutral-300 hover:bg-neutral-800/50'}`}>
-            <span className="shrink-0">🗂️</span><span className="truncate">{deal?.title ?? 'Committee room'}</span>
-          </button>
-          {projections && projections.length > 0 && (
-            <div className="mt-1 ml-3 border-l border-neutral-800 pl-2 space-y-0.5">
-              <p className="text-[10px] uppercase tracking-widest text-neutral-600 px-1 py-1">Simulated branches</p>
-              {(['proceed', 'remediate', 'renegotiate'] as HumanDecision[]).map((br) => {
-                const pr = projections.find((x) => x.branch === br);
-                if (!pr) return null;
-                return (
-                  <button key={br} onClick={() => setActiveRoom(br)} className={`w-full text-left rounded-md px-2 py-1.5 ${activeRoom === br ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:bg-neutral-800/50'}`}>
-                    <span className="flex items-center gap-1.5 text-sm"><span className="text-indigo-400 shrink-0">💬</span><span className="truncate capitalize">{br}</span></span>
-                    <span className="block text-[10px] text-neutral-600 pl-5 tabular-nums">{pr.projected_irr_pct.toFixed(1)}% IRR{pr.child_room_id ? ` · ${pr.child_room_id.slice(0, 6)}` : ''}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </aside>
-
       {/* ── Main: conversation ───────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0">
         <header className="px-6 pt-5 pb-3 shrink-0">
           {inChildRoom ? (
             <>
-              <button onClick={() => setActiveRoom('parent')} className="text-xs text-neutral-400 hover:text-white mb-1">← Committee room</button>
+              <button onClick={() => router.push(`/deals/${id}`)} className="text-xs text-neutral-400 hover:text-white mb-1">← Committee room</button>
               <h1 className="text-lg font-semibold capitalize">{activeRoom} — simulated branch</h1>
               <p className="text-xs text-neutral-500">Counterfactual Band child room{activeProjection?.child_room_id ? <span className="font-mono ml-1">· {activeProjection.child_room_id.slice(0, 8)}</span> : ''}</p>
             </>

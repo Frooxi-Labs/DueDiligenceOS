@@ -1,13 +1,18 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { Tree, Folder, File } from '@/components/ui/file-tree';
+import ChatRoomIcon from './ChatRoomIcon';
+import type { ForkProjection, HumanDecision } from '@/types';
 
 interface DealItem {
   id: string;
   title: string;
   status: string;
 }
+
+const BRANCH_ORDER: HumanDecision[] = ['proceed', 'remediate', 'renegotiate'];
 
 function statusDot(status: string): string {
   if (status === 'decided') return '#22c55e';
@@ -24,10 +29,16 @@ function statusPulse(status: string): boolean {
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [collapsed, setCollapsed] = useState(false);
   const [deals, setDeals] = useState<DealItem[]>([]);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [branches, setBranches] = useState<ForkProjection[]>([]);
+
+  const seg = pathname.startsWith('/deals/') ? pathname.split('/')[2] : null;
+  const activeDealId = seg && seg !== 'new' ? seg : null;
+  const roomParam = searchParams.get('room');
 
   useEffect(() => {
     fetch('/api/deals')
@@ -35,6 +46,15 @@ export default function Sidebar() {
       .then((data) => setDeals(Array.isArray(data) ? data : data.deals ?? []))
       .catch(() => {});
   }, [pathname]);
+
+  // Load the simulated branch rooms for the active deal (nested under it in the tree).
+  useEffect(() => {
+    if (!activeDealId) { setBranches([]); return; }
+    fetch(`/api/deals/${activeDealId}/projections`)
+      .then((r) => r.json())
+      .then((d) => setBranches(Array.isArray(d.projections) ? d.projections : []))
+      .catch(() => setBranches([]));
+  }, [activeDealId, pathname]);
 
   async function handleDelete(e: React.MouseEvent, dealId: string) {
     e.preventDefault();
@@ -104,32 +124,76 @@ export default function Sidebar() {
         {!collapsed && deals.length > 0 && (
           <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#555' }}>Recent deals</p>
         )}
-        <div className="space-y-0.5">
-          {deals.map((deal) => {
-            const dot = statusDot(deal.status);
-            const pulse = statusPulse(deal.status);
-            const isActive = pathname === `/deals/${deal.id}`;
-            const isDeleting = deletingId === deal.id;
-            return (
-              <div key={deal.id} className="relative group" onMouseEnter={() => setHoveredId(deal.id)} onMouseLeave={() => setHoveredId(null)}>
-                <Link
-                  href={`/deals/${deal.id}`}
-                  title={collapsed ? deal.title : undefined}
-                  className="flex items-center rounded-lg transition-colors"
-                  style={{ gap: collapsed ? 0 : 8, padding: collapsed ? '8px' : '8px 12px', justifyContent: collapsed ? 'center' : 'flex-start', background: isActive ? '#1c1c1c' : 'transparent', color: isActive ? '#e8e8e6' : '#9b9a97', opacity: isDeleting ? 0.4 : 1 }}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: dot, animation: pulse ? 'agent-pulse 1.5s ease-in-out infinite' : 'none' }} />
-                  {!collapsed && <span className="text-[12px] truncate flex-1 pr-5">{deal.title}</span>}
+
+        {/* Collapsed: simple chat-icon links. */}
+        {collapsed ? (
+          <div className="space-y-0.5">
+            {deals.map((deal) => {
+              const isActive = pathname === `/deals/${deal.id}`;
+              return (
+                <Link key={deal.id} href={`/deals/${deal.id}`} title={deal.title} className="flex items-center justify-center rounded-lg p-2" style={{ background: isActive ? '#1c1c1c' : 'transparent', color: isActive ? '#e8e8e6' : '#7a7a78' }}>
+                  <ChatRoomIcon className="w-4 h-4" />
                 </Link>
-                {!collapsed && hoveredId === deal.id && !isDeleting && (
-                  <button onClick={(e) => handleDelete(e, deal.id)} title="Delete" className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1" style={{ color: '#555', background: 'none', border: 'none', cursor: 'pointer' }}>
-                    <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M2 2l7 7M9 2L2 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        ) : (
+          /* Expanded: a file tree — each deal is a room, simulated branches nest under it. */
+          <Tree
+            key={`${activeDealId ?? 'none'}|${roomParam ?? ''}`}
+            initialExpandedItems={activeDealId ? [activeDealId] : []}
+            initialSelectedId={activeDealId ? (roomParam ? `${activeDealId}:${roomParam}` : activeDealId) : undefined}
+            indicator
+          >
+            {deals.map((deal) => {
+              const dot = statusDot(deal.status);
+              const pulse = statusPulse(deal.status);
+              const isActiveDeal = deal.id === activeDealId;
+              const dealBranches = isActiveDeal ? branches : [];
+              return (
+                <div key={deal.id} className="relative group" onMouseEnter={() => setHoveredId(deal.id)} onMouseLeave={() => setHoveredId(null)}>
+                  <Folder
+                    value={deal.id}
+                    element={deal.title}
+                    onSelect={() => router.push(`/deals/${deal.id}`)}
+                    icon={
+                      <span className="relative flex items-center justify-center shrink-0" style={{ width: 16, height: 16 }}>
+                        <ChatRoomIcon className="w-4 h-4 text-blue-400" />
+                        <span className="absolute -right-0.5 -bottom-0.5 w-1.5 h-1.5 rounded-full ring-2" style={{ background: dot, ['--tw-ring-color' as string]: '#040404', animation: pulse ? 'agent-pulse 1.5s ease-in-out infinite' : 'none' }} />
+                      </span>
+                    }
+                    style={{ opacity: deletingId === deal.id ? 0.4 : 1 }}
+                  >
+                    {dealBranches.length > 0 ? (
+                      BRANCH_ORDER.map((br) => {
+                        const pr = dealBranches.find((x) => x.branch === br);
+                        if (!pr) return null;
+                        return (
+                          <File
+                            key={br}
+                            value={`${deal.id}:${br}`}
+                            onSelect={() => router.push(`/deals/${deal.id}?room=${br}`)}
+                            fileIcon={<span className="text-indigo-400 text-xs shrink-0">💬</span>}
+                          >
+                            <span className="capitalize truncate">{br}</span>
+                            <span className="ml-auto text-[10px] text-neutral-600 tabular-nums">{pr.projected_irr_pct.toFixed(1)}%</span>
+                          </File>
+                        );
+                      })
+                    ) : (
+                      <span className="block px-1.5 py-1 text-[11px] text-neutral-600">{isActiveDeal ? 'No simulated branches yet' : 'Open to view rooms'}</span>
+                    )}
+                  </Folder>
+                  {hoveredId === deal.id && deletingId !== deal.id && (
+                    <button onClick={(e) => handleDelete(e, deal.id)} title="Delete" className="absolute right-1.5 top-1.5 z-10 rounded p-1" style={{ color: '#555', background: '#040404', border: 'none', cursor: 'pointer' }}>
+                      <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M2 2l7 7M9 2L2 9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </Tree>
+        )}
       </div>
 
       {!collapsed && (
