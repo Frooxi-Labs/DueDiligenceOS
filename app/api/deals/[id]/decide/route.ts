@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 const DecisionSchema = z.object({
   decision: z.enum(['proceed', 'remediate', 'renegotiate']),
-  conditions: z.array(z.string()).optional(),
+  confirmed: z.boolean().optional(),
   notes: z.string().optional(),
 });
 
@@ -25,6 +25,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: 'Validation failed', issues: parsed.error.issues }, { status: 422 });
   }
 
-  await applyHumanDecision(id, parsed.data);
-  return NextResponse.json({ ok: true });
+  const result = await applyHumanDecision(id, parsed.data);
+  return NextResponse.json(result);
 }

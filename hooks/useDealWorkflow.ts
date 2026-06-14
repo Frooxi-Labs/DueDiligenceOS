@@ -28,6 +28,8 @@ export interface WorkflowState {
   topFindings?: { title: string; detail: string; severity: string }[];
   conditions?: string[];
   decision?: HumanDecision;
+  challenge?: { decision: HumanDecision; message: string };
+  decisionDocument?: string;
   failureReason?: string;
 }
 
@@ -71,8 +73,12 @@ function reduce(prev: WorkflowState, e: DealEvent): WorkflowState {
       return { ...prev, cascade: { irr_before: e.irr_before, irr_after: e.irr_after, trigger: e.trigger } };
     case 'approval.required':
       return { ...prev, status: 'awaiting_human', approvalSummary: e.summary, compositeScore: e.composite_score, signal: e.signal, recommendation: e.recommendation, topFindings: e.top_findings, conditions: e.conditions };
+    case 'human.challenge':
+      return { ...prev, challenge: { decision: e.decision, message: e.message } };
+    case 'decision.document':
+      return { ...prev, decisionDocument: e.content };
     case 'deal.decided':
-      return { ...prev, status: 'decided', decision: e.decision };
+      return { ...prev, status: 'decided', decision: e.decision, challenge: undefined };
     case 'workflow.failed':
       return { ...prev, status: 'failed', failureReason: e.reason };
     default:
@@ -120,6 +126,7 @@ function hydrate(d: HydrateDeal, a: HydrateAudit | null): WorkflowState {
     if (ev.event_type === 'contradiction.detected') st.contradictions.push({ title: String(p.title ?? 'Contradiction'), detail: String(p.detail ?? ''), agents: (p.agents as AgentType[]) ?? [] });
     if (ev.event_type === 'financial.recalculated') st.cascade = { irr_before: Number(p.before), irr_after: Number(p.after), trigger: String(p.trigger ?? 'upstream finding') };
     if (ev.event_type === 'approval.required') { st.compositeScore = p.composite as number | undefined; if (p.signal) st.signal = p.signal as Signal; }
+    if (ev.event_type === 'decision.document') st.decisionDocument = String(p.content ?? '');
   }
 
   st.messages = msgs.sort((x, y) => x.ts - y.ts).map(({ agent, content }) => ({ agent, content }));

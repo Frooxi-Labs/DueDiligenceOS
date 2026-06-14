@@ -74,6 +74,8 @@ export type DealEvent =
       top_findings: { title: string; detail: string; severity: Severity }[];
       conditions: string[];
     }
+  | { type: 'human.challenge'; decision: HumanDecision; message: string }
+  | { type: 'decision.document'; decision: HumanDecision; content: string }
   | { type: 'deal.decided'; decision: HumanDecision; conditions: string[] }
   | { type: 'workflow.status'; status: WorkflowStatus }
   | { type: 'workflow.failed'; reason: string };
