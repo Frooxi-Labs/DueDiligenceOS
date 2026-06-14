@@ -62,8 +62,14 @@ export default function NewDealPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
+  // Grow the textarea to fit its content on any input change (typed OR set
+  // programmatically, e.g. "Load sample"), capped at 180px.
   useEffect(() => {
-    if (!input && taRef.current) taRef.current.style.height = 'auto';
+    const ta = taRef.current;
+    if (!ta) return;
+    ta.style.height = 'auto';
+    ta.style.height = `${Math.min(ta.scrollHeight, 180)}px`;
+    if (input) ta.focus();
   }, [input]);
 
   async function send() {
