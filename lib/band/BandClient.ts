@@ -117,15 +117,14 @@ export class BandClient {
       targets = (Object.values(this.allConfigs) as BandAgentConfig[]).filter((c) => c.agentType !== this.agentType);
     }
 
-    // Band expects mentions as { id }; the @handle prefix lives in the content.
+    // Send mentions ONLY as the structured array — Band renders these as chips.
+    // (Putting @handles in the content too would double every mention.)
     const mentions = targets.map((c) => ({ id: c.agentId }));
-    const prefix = targets.map((c) => (c.handle.startsWith('@') ? c.handle : `@${c.handle}`)).join(' ');
-    const fullContent = prefix ? `${prefix}\n\n${content}` : content;
 
     const data = await this.request<{ id?: string }>(
       'POST',
       `/agent/chats/${roomId}/messages`,
-      { message: { content: fullContent, mentions } }
+      { message: { content, mentions } }
     );
     return data?.id ?? '';
   }

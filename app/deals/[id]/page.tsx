@@ -21,8 +21,12 @@ export default function DealPage() {
   const { id } = useParams<{ id: string }>();
   const s = useDealWorkflow(id);
   const [deciding, setDeciding] = useState(false);
+  const [localDecision, setLocalDecision] = useState<HumanDecision | null>(null);
+  const [decideError, setDecideError] = useState<string | null>(null);
   const [logsOpen, setLogsOpen] = useState(true);
   const [audit, setAudit] = useState<AuditEvent[] | null>(null);
+
+  const shownDecision = s.decision ?? localDecision;
 
   // Refresh the audit trail as the run progresses / completes.
   useEffect(() => {
@@ -32,8 +36,16 @@ export default function DealPage() {
 
   async function decide(decision: HumanDecision) {
     setDeciding(true);
-    await fetch(`/api/deals/${id}/decide`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ decision }) }).catch(() => {});
-    setDeciding(false);
+    setDecideError(null);
+    try {
+      const res = await fetch(`/api/deals/${id}/decide`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ decision }) });
+      if (!res.ok) throw new Error(`Failed (${res.status})`);
+      setLocalDecision(decision); // optimistic — don't rely solely on the SSE echo
+    } catch (e) {
+      setDecideError((e as Error).message);
+    } finally {
+      setDeciding(false);
+    }
   }
 
   const activityCount = s.contradictions.length + (s.cascade ? 1 : 0) + (s.missingDocs.length ? 1 : 0) + (s.status === 'failed' ? 1 : 0);
@@ -90,7 +102,7 @@ export default function DealPage() {
         </div>
 
         {/* Human gate */}
-        {s.status === 'awaiting_human' && !s.decision && (
+        {s.status === 'awaiting_human' && !shownDecision && (
           <div className="mt-4 rounded-xl border border-neutral-700 bg-neutral-900 p-4">
             {s.signal && (
               <p className="mb-2 text-sm">
@@ -104,11 +116,12 @@ export default function DealPage() {
               <button onClick={() => decide('remediate')} disabled={deciding} className="rounded-lg bg-amber-500 text-black font-medium px-4 py-2 hover:bg-amber-400 disabled:opacity-50">Request remediation</button>
               <button onClick={() => decide('renegotiate')} disabled={deciding} className="rounded-lg bg-red-500/90 text-white font-medium px-4 py-2 hover:bg-red-500 disabled:opacity-50">Flag for renegotiation</button>
             </div>
+            {decideError && <p className="mt-2 text-xs text-red-400">Could not record decision: {decideError}</p>}
           </div>
         )}
-        {s.decision && (
+        {shownDecision && (
           <div className="mt-4 rounded-xl border border-neutral-700 bg-neutral-900 p-4 text-sm">
-            Reviewer decision recorded: <span className="text-white font-medium">{s.decision.replace(/_/g, ' ')}</span>
+            Reviewer decision recorded: <span className="text-white font-medium capitalize">{shownDecision}</span>
           </div>
         )}
       </div>
