@@ -25,11 +25,11 @@ export const PROVIDER = 'aiml';
  * your AI/ML dashboard (e.g. `claude-3-5-sonnet-20241022`).
  */
 const MODELS: Record<AgentType, string> = {
-  archivist: process.env.MODEL_ARCHIVIST ?? 'google/gemini-2.0-flash', // long-context extraction
-  regulatory: process.env.MODEL_REGULATORY ?? 'gpt-4o-mini',
-  legal: process.env.MODEL_LEGAL ?? 'gpt-4o-mini',
-  financial: process.env.MODEL_FINANCIAL ?? 'gpt-4o',
-  synthesis: process.env.MODEL_SYNTHESIS ?? 'gpt-4o-mini',
+  archivist: process.env.MODEL_ARCHIVIST ?? 'google/gemini-2.0-flash', // Google — long-context extraction
+  regulatory: process.env.MODEL_REGULATORY ?? 'anthropic/claude-sonnet-4-6-20260218', // Anthropic
+  legal: process.env.MODEL_LEGAL ?? 'anthropic/claude-sonnet-4-6-20260218', // Anthropic — contradiction nuance
+  financial: process.env.MODEL_FINANCIAL ?? 'gpt-4o', // OpenAI
+  synthesis: process.env.MODEL_SYNTHESIS ?? 'gpt-4o-mini', // OpenAI
 };
 
 export function modelFor(agentType: AgentType): string {
