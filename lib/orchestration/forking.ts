@@ -64,13 +64,39 @@ export async function simulateBranch(
 Baseline IRR (before this decision): ${input.baselineIrr}% · composite risk ${input.composite}/100 · signal ${input.signal}
 Key findings:\n${findings || '- none'}\nConditions precedent:\n${conditions || '- none'}`;
   const opts = { maxTokens: 350 };
+  const configs = getAgentConfigs();
+
+  // 1) Create the Band child room FIRST and seat the panel — the conversation
+  //    happens THROUGH Band, message by message, not reconstructed afterwards.
+  let childRoomId: string | undefined;
+  const joined = new Set<AgentType>([lead]);
+  try {
+    const owner = new BandClient(lead);
+    childRoomId = await owner.createRoom();
+    for (const p of Array.from(new Set<AgentType>([...panel, 'financial', 'synthesis'])).filter((a) => a !== lead)) {
+      await owner.addParticipant(childRoomId, configs[p].agentId);
+      joined.add(p);
+    }
+  } catch {
+    childRoomId = undefined; // Band unreachable — still stream to the UI below
+  }
 
   const transcript: { agent: AgentType; content: string }[] = [];
-  const push = (agent: AgentType, content: string) => {
+  // Post a turn INTO the Band room as it's spoken, then stream it to the UI.
+  const post = async (agent: AgentType, content: string, mentionPref: AgentType) => {
+    if (childRoomId) {
+      let target = joined.has(mentionPref) ? mentionPref : 'synthesis';
+      if (target === agent) target = agent === 'synthesis' ? lead : 'synthesis';
+      try {
+        await new BandClient(agent).postMessage(childRoomId, content, [target]);
+      } catch {
+        /* best-effort */
+      }
+    }
     transcript.push({ agent, content });
     hooks.onMessage?.(agent, content);
   };
-  const say = async (agent: AgentType, instruction: string, fallback: string) => {
+  const say = async (agent: AgentType, instruction: string, fallback: string, mentionPref: AgentType) => {
     hooks.onThinking?.(agent);
     let content: string;
     try {
@@ -78,11 +104,11 @@ Key findings:\n${findings || '- none'}\nConditions precedent:\n${conditions || '
     } catch {
       content = fallback;
     }
-    push(agent, content);
+    await post(agent, content, mentionPref);
   };
 
   // Round 1 — the lead specialist frames the path and its key risk.
-  await say(lead, `Give your specialist read on what this path requires from your discipline and the single biggest risk.`, `From a ${lead} standpoint, this path needs the open findings handled carefully before closing.`);
+  await say(lead, `Give your specialist read on what this path requires from your discipline and the single biggest risk.`, `From a ${lead} standpoint, this path needs the open findings handled carefully before closing.`, 'financial');
 
   // Round 2 — Financial underwrites the branch and puts the numbers on the table.
   hooks.onThinking?.('financial');
@@ -100,29 +126,38 @@ Project realistic numbers for THIS scenario (don't just echo the baseline). Retu
   } catch {
     proj = { projected_irr_pct: input.baselineIrr, residual_risk: 'medium', time_to_close: '30-60 days', deal_survival: 'uncertain', rationale: 'Projection unavailable; showing the current baseline for this branch.' };
   }
-  push('financial', `On a ${branch.toUpperCase()} path I re-underwrite to ${proj.projected_irr_pct}% IRR — residual risk ${proj.residual_risk}, close in ${proj.time_to_close}, deal ${proj.deal_survival}. ${proj.rationale}`);
+  await post('financial', `On a ${branch.toUpperCase()} path I re-underwrite to ${proj.projected_irr_pct}% IRR — residual risk ${proj.residual_risk}, close in ${proj.time_to_close}, deal ${proj.deal_survival}. ${proj.rationale}`, challenger);
 
   // Round 3 — someone pushes back (the argument): challenge the weakest assumption.
-  await say(challenger, `Push back: challenge the weakest assumption in Financial's underwrite or ${lead}'s framing, from your perspective, and say what would change your mind.`, `I'd push back — the ${proj.residual_risk} residual risk may be understated given the open findings.`);
+  await say(challenger, `Push back: challenge the weakest assumption in Financial's underwrite or ${lead}'s framing, from your perspective, and say what would change your mind.`, `I'd push back — the ${proj.residual_risk} residual risk may be understated given the open findings.`, 'synthesis');
 
   // Round 3.5 — the room can CALL IN another agent who isn't present, if it needs one.
   const ROSTER: AgentType[] = ['archivist', 'regulatory', 'legal', 'financial', 'synthesis', 'environmental'];
-  const present = new Set<AgentType>([...panel, 'financial', 'synthesis']);
-  const candidates = ROSTER.filter((a) => !present.has(a));
-  let recruited: AgentType | undefined;
+  const candidates = ROSTER.filter((a) => !joined.has(a));
   if (candidates.length) {
     try {
       const { content } = await callLLM(
         'synthesis',
-        `In this ${branch.toUpperCase()} what-if room the panel is: ${[...present].join(', ')}. Conversation so far:\n${render(transcript)}\nIs a perspective missing that only one of these absent specialists could give: ${candidates.join(', ')}? Only call one in if genuinely needed. Return ONLY JSON: {"call": "<agent or none>", "ask": "<one-line question for them>"}`,
+        `In this ${branch.toUpperCase()} what-if room the panel is: ${[...joined].join(', ')}. Conversation so far:\n${render(transcript)}\nIs a perspective missing that only one of these absent specialists could give: ${candidates.join(', ')}? Only call one in if genuinely needed. Return ONLY JSON: {"call": "<agent or none>", "ask": "<one-line question for them>"}`,
         { json: true, maxTokens: 200 }
       );
       const parsed = JSON.parse(stripFences(content)) as { call?: string; ask?: string };
       if (parsed.call && candidates.includes(parsed.call as AgentType)) {
-        recruited = parsed.call as AgentType;
+        const recruited = parsed.call as AgentType;
         const ask = String(parsed.ask ?? 'your specialist read on this path');
-        push(lead, `We're missing a perspective here — let me pull in ${recruited}. ${ask}`);
-        await say(recruited, `You've been called into this room for a perspective the panel is missing. ${ask} Give your specialist input.`, `From a ${recruited} standpoint, this path warrants a closer look at the open items before closing.`);
+        // Genuinely add the called agent to the Band room mid-conversation.
+        if (childRoomId) {
+          try {
+            await new BandClient(lead).addParticipant(childRoomId, configs[recruited].agentId);
+            joined.add(recruited);
+          } catch {
+            /* best-effort */
+          }
+        } else {
+          joined.add(recruited);
+        }
+        await post(lead, `We're missing a perspective here — let me pull in ${recruited}. ${ask}`, recruited);
+        await say(recruited, `You've been called into this room for a perspective the panel is missing. ${ask} Give your specialist input.`, `From a ${recruited} standpoint, this path warrants a closer look at the open items before closing.`, 'synthesis');
       }
     } catch {
       /* no consult */
@@ -130,25 +165,7 @@ Project realistic numbers for THIS scenario (don't just echo the baseline). Retu
   }
 
   // Round 4 — the Deal Director rules.
-  await say('synthesis', `Weigh the exchange and give your verdict: is this path advisable, and what's the single biggest watch-item?`, `On balance, ${branch} carries ${proj.residual_risk} residual risk; weigh it against the timeline before committing.`);
-
-  // Post the whole deliberation into a real Band child room (mention-routed).
-  let childRoomId: string | undefined;
-  try {
-    const configs = getAgentConfigs();
-    const owner = new BandClient(lead);
-    childRoomId = await owner.createRoom();
-    const participants = Array.from(new Set<AgentType>([...panel, 'financial', 'synthesis', ...(recruited ? [recruited] : [])])).filter((a) => a !== lead);
-    for (const p of participants) await owner.addParticipant(childRoomId, configs[p].agentId);
-    const ids = transcript.map((t) => t.agent);
-    for (let i = 0; i < transcript.length; i++) {
-      const t = transcript[i];
-      const next = ids[i + 1] ?? lead;
-      await new BandClient(t.agent).postMessage(childRoomId, t.content, [next === t.agent ? 'synthesis' : next]);
-    }
-  } catch {
-    /* best-effort — the simulation result stands even if Band is unreachable */
-  }
+  await say('synthesis', `Weigh the exchange and give your verdict: is this path advisable, and what's the single biggest watch-item?`, `On balance, ${branch} carries ${proj.residual_risk} residual risk; weigh it against the timeline before committing.`, lead);
 
   return { branch, child_room_id: childRoomId, ...proj, transcript };
 }
