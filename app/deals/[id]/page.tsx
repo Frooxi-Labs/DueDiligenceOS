@@ -17,6 +17,12 @@ const BRANCH_META: Record<HumanDecision, { label: string; btn: string }> = {
   remediate: { label: 'Request remediation', btn: 'bg-amber-500 text-black hover:bg-amber-400' },
   renegotiate: { label: 'Flag for renegotiation', btn: 'bg-red-500/90 text-white hover:bg-red-500' },
 };
+const SIM_LABEL: Record<HumanDecision, string> = {
+  proceed: 'If we proceed with conditions',
+  remediate: 'If we request seller remediation',
+  renegotiate: 'If we renegotiate the deal',
+};
+const SIM_DOT: Record<HumanDecision, string> = { proceed: 'bg-emerald-400', remediate: 'bg-amber-400', renegotiate: 'bg-red-400' };
 
 interface AuditEvent { id: string; event_type: string; agent_type?: string | null; created_at: string; payload?: Record<string, unknown> }
 interface DealMeta { title?: string; intended_use?: string; purchase_price?: string }
@@ -46,11 +52,10 @@ export default function DealPage() {
   const [chatLog, setChatLog] = useState<ChatMsg[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [chatBusy, setChatBusy] = useState(false);
-  const [simBusy, setSimBusy] = useState(false);
+  const [simBranch, setSimBranch] = useState<HumanDecision | null>(null);
   const [localProjections, setLocalProjections] = useState<ForkProjection[] | null>(null);
   const [bandBusy, setBandBusy] = useState(false);
   const [bandCheck, setBandCheck] = useState<{ message_count: number; participants_polled: number } | null>(null);
-  const [openRoom, setOpenRoom] = useState<HumanDecision | null>(null);
   const roomParam = searchParams.get('room');
   const activeRoom: 'parent' | HumanDecision =
     roomParam === 'proceed' || roomParam === 'remediate' || roomParam === 'renegotiate' ? roomParam : 'parent';
@@ -92,15 +97,16 @@ export default function DealPage() {
     } catch (e) { setDecideError((e as Error).message); } finally { setDeciding(false); }
   }
 
-  async function simulate() {
-    if (simBusy) return;
-    setSimBusy(true); setDecideError(null);
+  async function simulate(branch: HumanDecision) {
+    if (simBranch) return;
+    setSimBranch(branch); setDecideError(null);
     try {
-      const res = await fetch(`/api/deals/${id}/simulate`, { method: 'POST' });
+      const res = await fetch(`/api/deals/${id}/simulate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ branch }) });
       if (!res.ok) throw new Error(`Failed (${res.status})`);
       const data = await res.json(); // also arrives via SSE; this is the fallback
       setLocalProjections(data.projections ?? null);
-    } catch (e) { setDecideError((e as Error).message); } finally { setSimBusy(false); }
+      router.push(`/deals/${id}?room=${branch}`); // open the freshly-created child room
+    } catch (e) { setDecideError((e as Error).message); } finally { setSimBranch(null); }
   }
 
   async function verifyBand() {
@@ -263,6 +269,26 @@ export default function DealPage() {
             </div>
           )}
 
+          {/* Counterfactual prompt — simulate a path before committing */}
+          {s.recommendation && !shownDecision && activeRoom === 'parent' && (
+            <div className="fade-up flex gap-3">
+              <div className="w-7 h-7 rounded-lg bg-neutral-800 flex items-center justify-center text-[10px] font-semibold text-neutral-300 shrink-0">SY</div>
+              <div className="min-w-0 flex-1">
+                <span className="text-xs font-medium text-neutral-200">Synthesis</span>
+                <div className="mt-0.5 text-sm text-neutral-300 leading-relaxed df-msg">Want to see what your decision would lead to? I&apos;ll open a side room and have the team work through each path before you commit.</div>
+                <div className="mt-2 flex flex-col gap-2 max-w-md">
+                  {(['proceed', 'remediate', 'renegotiate'] as HumanDecision[]).map((br) => (
+                    <button key={br} onClick={() => simulate(br)} disabled={!!simBranch} className="flex items-center gap-2 rounded-lg border border-neutral-700 bg-neutral-800/40 px-3 py-2 text-left text-sm text-neutral-200 hover:border-neutral-500 hover:bg-neutral-800/70 disabled:opacity-50">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${SIM_DOT[br]}`} />
+                      <span className="flex-1">{SIM_LABEL[br]}</span>
+                      <span className="text-[11px] text-neutral-500">{simBranch === br ? 'simulating…' : 'simulate →'}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           {chatLog.map((m, i) => (
             m.role === 'user' ? (
               <div key={`c-${i}`} className="fade-up flex justify-end">
@@ -291,8 +317,8 @@ export default function DealPage() {
         <div className="px-6 py-3 shrink-0">
           <div className="max-w-3xl mx-auto">
           {inChildRoom ? (
-            <button onClick={() => decide(activeRoom as HumanDecision)} disabled={deciding || !!shownDecision} className="w-full rounded-xl bg-indigo-500/90 text-white font-medium px-4 py-2.5 text-sm hover:bg-indigo-500 disabled:opacity-50">
-              {shownDecision ? `Decision recorded: ${shownDecision}` : `Choose “${activeRoom}” for this deal`}
+            <button onClick={() => decide(activeRoom as HumanDecision)} disabled={deciding || !!shownDecision} className={`w-full rounded-xl font-medium px-4 py-2.5 text-sm disabled:opacity-50 ${BRANCH_META[activeRoom as HumanDecision].btn}`}>
+              {shownDecision ? `Decision recorded: ${shownDecision}` : `Commit this decision — ${BRANCH_META[activeRoom as HumanDecision].label}`}
             </button>
           ) : (
           <div className={`rounded-2xl px-4 py-2.5 flex items-end gap-2 ${deliberating ? 'opacity-60' : ''}`} style={{ background: '#212121' }}>
@@ -360,65 +386,7 @@ export default function DealPage() {
                   </div>
                 ) : (
                   <>
-                    <p className="text-xs text-neutral-500 mb-2">Reviewer decision required — the memo is held until you decide.</p>
-                    <button onClick={simulate} disabled={simBusy} className="w-full mb-2 rounded-lg border border-indigo-500/50 bg-indigo-500/10 text-indigo-200 text-sm font-medium px-4 py-2 hover:bg-indigo-500/20 disabled:opacity-50">
-                      {simBusy ? 'Simulating the three futures…' : projections ? '↻ Re-simulate outcomes' : '⑂ Simulate the 3 outcomes'}
-                    </button>
-                    {projections && <p className="text-[11px] text-neutral-500 mb-3">Each option was deliberated in its own Band child room — expand to see the agents talk, then <span className="text-neutral-300">choose one</span> to commit.</p>}
-                    {projections ? (
-                      <div className="flex flex-col gap-2">
-                        {(['proceed', 'remediate', 'renegotiate'] as HumanDecision[]).map((br) => {
-                          const pr = projections.find((x) => x.branch === br);
-                          return (
-                            <div key={br} className="rounded-lg border border-neutral-700 bg-neutral-800/40 p-3">
-                              {pr ? (
-                                <>
-                                  <div className="flex items-center justify-between mb-1">
-                                    <span className="text-sm font-medium text-neutral-100">{BRANCH_META[br].label}</span>
-                                    <span className="text-sm font-semibold tabular-nums">{pr.projected_irr_pct.toFixed(1)}% IRR</span>
-                                  </div>
-                                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-neutral-400 mb-2">
-                                    <span>risk <span className={riskColor[pr.residual_risk]}>{pr.residual_risk}</span></span>
-                                    <span>close {pr.time_to_close}</span>
-                                    <span>deal {pr.deal_survival}</span>
-                                  </div>
-                                  <p className="text-xs text-neutral-400 mb-2">{pr.rationale}</p>
-                                  {pr.transcript && pr.transcript.length > 0 && (
-                                    <>
-                                      <button onClick={() => setOpenRoom(openRoom === br ? null : br)} className="text-[11px] text-indigo-300 hover:text-indigo-200 mb-2">
-                                        {openRoom === br ? '▾ hide room' : '▸ view room'}
-                                        {pr.child_room_id && <span className="font-mono text-neutral-600"> · {pr.child_room_id.slice(0, 8)}</span>}
-                                        <span className="text-neutral-600"> · {pr.transcript.length} messages</span>
-                                      </button>
-                                      {openRoom === br && (
-                                        <div className="mb-2 space-y-2 rounded-md border border-neutral-800 bg-neutral-900/50 p-2">
-                                          <p className="text-[10px] uppercase tracking-widest text-neutral-600">Band child room</p>
-                                          {pr.transcript.map((t, ti) => (
-                                            <div key={ti} className="flex gap-2">
-                                              <div className="w-5 h-5 rounded bg-neutral-800 flex items-center justify-center text-[8px] font-semibold text-neutral-300 shrink-0">{LABELS[t.agent].slice(0, 2)}</div>
-                                              <div className="min-w-0"><span className="text-[10px] font-medium text-neutral-300">{LABELS[t.agent]}</span><p className="text-[11px] text-neutral-400 leading-snug">{t.content}</p></div>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </>
-                                  )}
-                                </>
-                              ) : (
-                                <p className="text-xs text-neutral-500 mb-2">No projection for this branch.</p>
-                              )}
-                              <button onClick={() => decide(br)} disabled={deciding} className={`w-full rounded-lg font-medium px-3 py-1.5 text-sm disabled:opacity-50 ${BRANCH_META[br].btn}`}>Choose this</button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="flex flex-col gap-2">
-                        <button onClick={() => decide('proceed')} disabled={deciding} className="rounded-lg bg-emerald-500 text-black font-medium px-4 py-2 hover:bg-emerald-400 disabled:opacity-50">Proceed with conditions</button>
-                        <button onClick={() => decide('remediate')} disabled={deciding} className="rounded-lg bg-amber-500 text-black font-medium px-4 py-2 hover:bg-amber-400 disabled:opacity-50">Request remediation</button>
-                        <button onClick={() => decide('renegotiate')} disabled={deciding} className="rounded-lg bg-red-500/90 text-white font-medium px-4 py-2 hover:bg-red-500 disabled:opacity-50">Flag for renegotiation</button>
-                      </div>
-                    )}
+                    <p className="text-xs text-neutral-500">Reviewer decision required — the memo is held until you decide. Open a path from the chat to simulate its outcome in a side room, then commit it from there.</p>
                     {decideError && <p className="mt-2 text-xs text-red-400">Could not record decision: {decideError}</p>}
                   </>
                 )}

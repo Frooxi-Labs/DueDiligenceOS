@@ -197,10 +197,15 @@ export async function runWorkflow(dealId: string): Promise<void> {
       // streams each reply the instant it lands — so the room never looks frozen.
       try {
         const neg = await negotiateContradiction(c, {
-          onThinking: (agent) => emit(dealId, { type: 'agent.processing', agent }),
+          onThinking: (agent) => {
+            // Only the current speaker should show "analysing" — clear the others.
+            for (const other of c.agents) if (other !== agent) emit(dealId, { type: 'agent.completed', agent: other, headline: 'reconciling contradiction' });
+            emit(dealId, { type: 'agent.processing', agent });
+          },
           onTurn: async (t) => {
             await post(roomId, t.agent, t.content, [t.to]);
             emit(dealId, { type: 'band.message', agent: t.agent, content: t.content });
+            emit(dealId, { type: 'agent.completed', agent: t.agent, headline: 'reconciling contradiction' });
             await logEvent(dealId, 'negotiation.turn', { agent: t.agent, content: t.content }, t.agent);
           },
         });
