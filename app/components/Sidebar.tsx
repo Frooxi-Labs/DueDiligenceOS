@@ -14,18 +14,6 @@ interface DealItem {
 
 const BRANCH_ORDER: HumanDecision[] = ['proceed', 'remediate', 'renegotiate'];
 
-function statusDot(status: string): string {
-  if (status === 'decided') return '#22c55e';
-  if (status === 'awaiting_human') return '#f59e0b';
-  if (status === 'failed') return '#ef4444';
-  if (status === 'pending') return '#555';
-  return '#3b82f6'; // running phases
-}
-
-function statusPulse(status: string): boolean {
-  return !['decided', 'failed', 'pending'].includes(status);
-}
-
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -146,8 +134,6 @@ export default function Sidebar() {
             indicator
           >
             {deals.map((deal) => {
-              const dot = statusDot(deal.status);
-              const pulse = statusPulse(deal.status);
               const isActiveDeal = deal.id === activeDealId;
               const dealBranches = isActiveDeal ? branches : [];
               return (
@@ -156,12 +142,7 @@ export default function Sidebar() {
                     value={deal.id}
                     element={deal.title}
                     onSelect={() => router.push(`/deals/${deal.id}`)}
-                    icon={
-                      <span className="relative flex items-center justify-center shrink-0" style={{ width: 16, height: 16 }}>
-                        <ChatRoomIcon className="w-4 h-4 text-blue-400" />
-                        <span className="absolute -right-0.5 -bottom-0.5 w-1.5 h-1.5 rounded-full ring-2" style={{ background: dot, ['--tw-ring-color' as string]: '#040404', animation: pulse ? 'agent-pulse 1.5s ease-in-out infinite' : 'none' }} />
-                      </span>
-                    }
+                    icon={<ChatRoomIcon className="w-4 h-4 shrink-0 text-white" />}
                     style={{ opacity: deletingId === deal.id ? 0.4 : 1 }}
                   >
                     {dealBranches.length > 0 ? (
@@ -173,7 +154,7 @@ export default function Sidebar() {
                             key={br}
                             value={`${deal.id}:${br}`}
                             onSelect={() => router.push(`/deals/${deal.id}?room=${br}`)}
-                            fileIcon={<span className="text-indigo-400 text-xs shrink-0">💬</span>}
+                            fileIcon={<span className="w-1.5 shrink-0" />}
                           >
                             <span className="capitalize truncate">{br}</span>
                             <span className="ml-auto text-[10px] text-neutral-600 tabular-nums">{pr.projected_irr_pct.toFixed(1)}%</span>

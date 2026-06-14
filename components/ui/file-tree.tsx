@@ -4,7 +4,7 @@
 // an animated, accessible tree built on Radix Accordion + framer-motion.
 import * as AccordionPrimitive from '@radix-ui/react-accordion';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronRight, FileIcon, FolderIcon, FolderOpenIcon } from 'lucide-react';
+import { FileIcon, FolderIcon, FolderOpenIcon } from 'lucide-react';
 import React, { createContext, forwardRef, useCallback, useContext, useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -94,7 +94,6 @@ const Folder = forwardRef<HTMLButtonElement, FolderProps>(
             onSelect?.();
           }}
         >
-          <ChevronRight className={cn('size-3.5 shrink-0 text-neutral-500 transition-transform duration-200', open && 'rotate-90')} />
           {icon ?? (open ? <FolderOpenIcon className="size-4 shrink-0 text-blue-400" /> : <FolderIcon className="size-4 shrink-0 text-blue-400" />)}
           <span className="truncate">{element}</span>
         </AccordionPrimitive.Trigger>

@@ -77,7 +77,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         conditions: (sraw.conditions_precedent as string[]) ?? [],
       },
       branch,
-      panel
+      panel,
+      {
+        onThinking: (agent) => broadcast(id, { type: 'fork.thinking', branch, agent }),
+        onMessage: (agent, content) => broadcast(id, { type: 'fork.message', branch, agent, content }),
+      }
     );
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 502 });

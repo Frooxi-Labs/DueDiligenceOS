@@ -82,6 +82,8 @@ export type DealEvent =
   | { type: 'escalation.needed'; missing: string[] }
   | { type: 'contradiction.detected'; title: string; detail: string; agents: AgentType[] }
   | { type: 'financial.recalculated'; irr_before: number; irr_after: number; trigger: string }
+  | { type: 'fork.thinking'; branch: HumanDecision; agent: AgentType }
+  | { type: 'fork.message'; branch: HumanDecision; agent: AgentType; content: string }
   | { type: 'fork.simulated'; projections: ForkProjection[] }
   | {
       type: 'approval.required';

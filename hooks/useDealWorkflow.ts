@@ -34,6 +34,7 @@ export interface WorkflowState {
   recruited: { by: AgentType; agent: AgentType; reason: string }[];
   delegations: DelegationInfo[];
   projections?: ForkProjection[];
+  liveFork?: { branch: HumanDecision; messages: { agent: AgentType; content: string }[]; thinking?: AgentType };
   failureReason?: string;
 }
 
@@ -88,8 +89,16 @@ function reduce(prev: WorkflowState, e: DealEvent): WorkflowState {
       return { ...prev, contradictions: [...prev.contradictions, { title: e.title, detail: e.detail, agents: e.agents }] };
     case 'financial.recalculated':
       return { ...prev, cascade: { irr_before: e.irr_before, irr_after: e.irr_after, trigger: e.trigger } };
+    case 'fork.thinking': {
+      const messages = prev.liveFork?.branch === e.branch ? prev.liveFork.messages : [];
+      return { ...prev, liveFork: { branch: e.branch, messages, thinking: e.agent } };
+    }
+    case 'fork.message': {
+      const messages = prev.liveFork?.branch === e.branch ? prev.liveFork.messages : [];
+      return { ...prev, liveFork: { branch: e.branch, messages: [...messages, { agent: e.agent, content: e.content }], thinking: undefined } };
+    }
     case 'fork.simulated':
-      return { ...prev, projections: e.projections };
+      return { ...prev, projections: e.projections, liveFork: undefined };
     case 'approval.required':
       return { ...prev, status: 'awaiting_human', approvalSummary: e.summary, compositeScore: e.composite_score, signal: e.signal, recommendation: e.recommendation, topFindings: e.top_findings, conditions: e.conditions };
     case 'human.challenge':

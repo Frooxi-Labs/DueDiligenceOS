@@ -43,10 +43,16 @@ const render = (turns: { agent: AgentType; content: string }[]) => turns.map((t)
  * (a fixed, short turn sequence — no loops). `panel` is the list of specialists
  * the orchestrator picked from who actually flagged findings on this deal.
  */
+export interface SimHooks {
+  onThinking?: (agent: AgentType) => void;
+  onMessage?: (agent: AgentType, content: string) => void;
+}
+
 export async function simulateBranch(
   input: SimulationInput,
   branch: HumanDecision,
-  panel: AgentType[]
+  panel: AgentType[],
+  hooks: SimHooks = {}
 ): Promise<ForkProjection> {
   const { deal } = input;
   const findings = input.topFindings.map((f) => `- [${f.severity}] ${f.title}: ${f.detail}`).join('\n').slice(0, 1500);
@@ -59,7 +65,27 @@ Baseline IRR (before this decision): ${input.baselineIrr}% · composite risk ${i
 Key findings:\n${findings || '- none'}\nConditions precedent:\n${conditions || '- none'}`;
   const opts = { maxTokens: 350 };
 
-  // Financial underwrites the branch → the structured numbers.
+  const transcript: { agent: AgentType; content: string }[] = [];
+  const push = (agent: AgentType, content: string) => {
+    transcript.push({ agent, content });
+    hooks.onMessage?.(agent, content);
+  };
+  const say = async (agent: AgentType, instruction: string, fallback: string) => {
+    hooks.onThinking?.(agent);
+    let content: string;
+    try {
+      content = (await callText(agent, `You are the ${agent} agent in a forked "what-if" room simulating the ${branch.toUpperCase()} decision (${BRANCH_FRAME[branch]}) for ${deal.title}.\n${ctx}\n${transcript.length ? `Conversation so far:\n${render(transcript)}\n` : ''}${instruction} Be specific and concise (1-2 sentences). Plain text.`, opts)).trim();
+    } catch {
+      content = fallback;
+    }
+    push(agent, content);
+  };
+
+  // Round 1 — the lead specialist frames the path and its key risk.
+  await say(lead, `Give your specialist read on what this path requires from your discipline and the single biggest risk.`, `From a ${lead} standpoint, this path needs the open findings handled carefully before closing.`);
+
+  // Round 2 — Financial underwrites the branch and puts the numbers on the table.
+  hooks.onThinking?.('financial');
   let proj: z.infer<typeof ProjectionSchema>;
   try {
     const { content } = await callLLM(
@@ -74,26 +100,7 @@ Project realistic numbers for THIS scenario (don't just echo the baseline). Retu
   } catch {
     proj = { projected_irr_pct: input.baselineIrr, residual_risk: 'medium', time_to_close: '30-60 days', deal_survival: 'uncertain', rationale: 'Projection unavailable; showing the current baseline for this branch.' };
   }
-
-  const transcript: { agent: AgentType; content: string }[] = [];
-  const say = async (agent: AgentType, instruction: string, fallback: string) => {
-    let content: string;
-    try {
-      content = (await callText(agent, `You are the ${agent} agent in a forked "what-if" room simulating the ${branch.toUpperCase()} decision (${BRANCH_FRAME[branch]}) for ${deal.title}.\n${ctx}\n${transcript.length ? `Conversation so far:\n${render(transcript)}\n` : ''}${instruction} Be specific and concise (1-2 sentences). Plain text.`, opts)).trim();
-    } catch {
-      content = fallback;
-    }
-    transcript.push({ agent, content });
-  };
-
-  // Round 1 — the lead specialist frames the path and its key risk.
-  await say(lead, `Give your specialist read on what this path requires from your discipline and the single biggest risk.`, `From a ${lead} standpoint, this path needs the open findings handled carefully before closing.`);
-
-  // Round 2 — Financial puts the numbers on the table and reacts to the lead.
-  transcript.push({
-    agent: 'financial',
-    content: `On a ${branch.toUpperCase()} path I re-underwrite to ${proj.projected_irr_pct}% IRR — residual risk ${proj.residual_risk}, close in ${proj.time_to_close}, deal ${proj.deal_survival}. ${proj.rationale}`,
-  });
+  push('financial', `On a ${branch.toUpperCase()} path I re-underwrite to ${proj.projected_irr_pct}% IRR — residual risk ${proj.residual_risk}, close in ${proj.time_to_close}, deal ${proj.deal_survival}. ${proj.rationale}`);
 
   // Round 3 — someone pushes back (the argument): challenge the weakest assumption.
   await say(challenger, `Push back: challenge the weakest assumption in Financial's underwrite or ${lead}'s framing, from your perspective, and say what would change your mind.`, `I'd push back — the ${proj.residual_risk} residual risk may be understated given the open findings.`);
@@ -114,7 +121,7 @@ Project realistic numbers for THIS scenario (don't just echo the baseline). Retu
       if (parsed.call && candidates.includes(parsed.call as AgentType)) {
         recruited = parsed.call as AgentType;
         const ask = String(parsed.ask ?? 'your specialist read on this path');
-        transcript.push({ agent: lead, content: `We're missing a perspective here — let me pull in ${recruited}. ${ask}` });
+        push(lead, `We're missing a perspective here — let me pull in ${recruited}. ${ask}`);
         await say(recruited, `You've been called into this room for a perspective the panel is missing. ${ask} Give your specialist input.`, `From a ${recruited} standpoint, this path warrants a closer look at the open items before closing.`);
       }
     } catch {

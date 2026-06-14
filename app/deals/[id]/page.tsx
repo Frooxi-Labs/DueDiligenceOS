@@ -64,7 +64,8 @@ export default function DealPage() {
   const shownDecision = s.decision ?? localDecision;
   const projections = s.projections ?? localProjections;
   const activeProjection = activeRoom === 'parent' ? null : projections?.find((p) => p.branch === activeRoom) ?? null;
-  const inChildRoom = activeRoom !== 'parent' && !!activeProjection;
+  const live = s.liveFork && s.liveFork.branch === activeRoom ? s.liveFork : null;
+  const inChildRoom = activeRoom !== 'parent' && (!!activeProjection || !!live || simBranch === activeRoom);
   const challenge = !shownDecision && !dismissedChallenge ? localChallenge ?? s.challenge : null;
   const ns = shownDecision ? nextStep(shownDecision, s) : null;
   const deliberating = !['awaiting_human', 'decided', 'failed'].includes(s.status);
@@ -72,7 +73,7 @@ export default function DealPage() {
 
   useEffect(() => { if (id) fetch(`/api/deals/${id}`).then((r) => r.json()).then((d) => setDeal(d.deal ?? null)).catch(() => {}); }, [id]);
   useEffect(() => { if (id) fetch(`/api/deals/${id}/audit`).then((r) => r.json()).then((d) => setAudit(d.events ?? [])).catch(() => {}); }, [id, s.status, s.messages.length]);
-  useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' }); }, [s.messages.length, chatLog.length, s.recommendation]);
+  useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' }); }, [s.messages.length, chatLog.length, s.recommendation, s.liveFork?.messages.length, s.liveFork?.thinking, activeRoom]);
   // Surface the memo (with the decision controls) the moment it's ready.
   useEffect(() => { if (s.status === 'awaiting_human') { setRightTab('memo'); setLogsOpen(true); } }, [s.status]);
   // Restore the reviewer↔committee chat from persisted events (reload / old deals).
@@ -100,12 +101,12 @@ export default function DealPage() {
   async function simulate(branch: HumanDecision) {
     if (simBranch) return;
     setSimBranch(branch); setDecideError(null);
+    router.push(`/deals/${id}?room=${branch}`); // open the room now; the debate streams in live
     try {
       const res = await fetch(`/api/deals/${id}/simulate`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ branch }) });
       if (!res.ok) throw new Error(`Failed (${res.status})`);
-      const data = await res.json(); // also arrives via SSE; this is the fallback
+      const data = await res.json(); // final set also arrives via SSE; this is the fallback
       setLocalProjections(data.projections ?? null);
-      router.push(`/deals/${id}?room=${branch}`); // open the freshly-created child room
     } catch (e) { setDecideError((e as Error).message); } finally { setSimBranch(null); }
   }
 
@@ -192,19 +193,26 @@ export default function DealPage() {
         )}
 
         <div ref={scrollRef} className="flex-1 overflow-auto df-scroll px-6 pb-2">
-          {inChildRoom && activeProjection ? (
+          {inChildRoom ? (
             <div className="max-w-3xl mx-auto w-full space-y-3">
-              <div className="rounded-xl border border-indigo-500/30 bg-indigo-500/5 p-3">
-                <p className="text-[10px] uppercase tracking-widest text-indigo-300/80 mb-1">What-if · {activeRoom}</p>
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-300">
-                  <span className="font-semibold tabular-nums">{activeProjection.projected_irr_pct.toFixed(1)}% IRR</span>
-                  <span>risk <span className={riskColor[activeProjection.residual_risk]}>{activeProjection.residual_risk}</span></span>
-                  <span>close {activeProjection.time_to_close}</span>
-                  <span>deal {activeProjection.deal_survival}</span>
+              {activeProjection ? (
+                <div className="rounded-xl border border-indigo-500/30 bg-indigo-500/5 p-3">
+                  <p className="text-[10px] uppercase tracking-widest text-indigo-300/80 mb-1">What-if · {activeRoom}</p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-300">
+                    <span className="font-semibold tabular-nums">{activeProjection.projected_irr_pct.toFixed(1)}% IRR</span>
+                    <span>risk <span className={riskColor[activeProjection.residual_risk]}>{activeProjection.residual_risk}</span></span>
+                    <span>close {activeProjection.time_to_close}</span>
+                    <span>deal {activeProjection.deal_survival}</span>
+                  </div>
+                  <p className="text-xs text-neutral-400 mt-2">{activeProjection.rationale}</p>
                 </div>
-                <p className="text-xs text-neutral-400 mt-2">{activeProjection.rationale}</p>
-              </div>
-              {(activeProjection.transcript ?? []).map((t, i) => (
+              ) : (
+                <div className="rounded-xl border border-indigo-500/30 bg-indigo-500/5 p-3">
+                  <p className="text-[10px] uppercase tracking-widest text-indigo-300/80 mb-1">What-if · {activeRoom}</p>
+                  <p className="text-xs text-neutral-400">The team is working through this path live…</p>
+                </div>
+              )}
+              {(live ? live.messages : activeProjection?.transcript ?? []).map((t, i) => (
                 <div key={i} className="fade-up flex gap-3">
                   <div className="w-7 h-7 rounded-lg bg-neutral-800 flex items-center justify-center text-[10px] font-semibold text-neutral-300 shrink-0">{LABELS[t.agent].slice(0, 2)}</div>
                   <div className="min-w-0 flex-1">
@@ -213,9 +221,17 @@ export default function DealPage() {
                   </div>
                 </div>
               ))}
-              <div className="flex justify-center pt-1">
-                <span className="text-[11px] text-neutral-600 bg-neutral-800/40 rounded-full px-3 py-1">End of simulated branch · choose this path from the memo panel to commit</span>
-              </div>
+              {live?.thinking && (
+                <div className="fade-up flex gap-3 items-center">
+                  <div className="w-7 h-7 rounded-lg bg-neutral-800 flex items-center justify-center text-[10px] font-semibold text-neutral-400 shrink-0">{LABELS[live.thinking].slice(0, 2)}</div>
+                  <div className="flex items-center gap-1 px-1 py-1"><span className="text-xs text-neutral-500 mr-1">{LABELS[live.thinking]} is analysing</span>{[0, 1, 2].map((d) => <span key={d} className="w-1.5 h-1.5 rounded-full bg-neutral-500 thinking-dot" style={{ animationDelay: `${d * 0.15}s` }} />)}</div>
+                </div>
+              )}
+              {!live && activeProjection && (
+                <div className="flex justify-center pt-1">
+                  <span className="text-[11px] text-neutral-600 bg-neutral-800/40 rounded-full px-3 py-1">End of simulated branch · commit this path below</span>
+                </div>
+              )}
             </div>
           ) : (
           <div className="max-w-3xl mx-auto w-full space-y-3">
@@ -320,8 +336,8 @@ export default function DealPage() {
         <div className="px-6 py-3 shrink-0">
           <div className="max-w-3xl mx-auto">
           {inChildRoom ? (
-            <button onClick={() => decide(activeRoom as HumanDecision)} disabled={deciding || !!shownDecision} className={`w-full rounded-xl font-medium px-4 py-2.5 text-sm disabled:opacity-50 ${BRANCH_META[activeRoom as HumanDecision].btn}`}>
-              {shownDecision ? `Decision recorded: ${shownDecision}` : `Commit this decision — ${BRANCH_META[activeRoom as HumanDecision].label}`}
+            <button onClick={() => decide(activeRoom as HumanDecision)} disabled={deciding || !!shownDecision || !!live} className={`w-full rounded-xl font-medium px-4 py-2.5 text-sm disabled:opacity-50 ${BRANCH_META[activeRoom as HumanDecision].btn}`}>
+              {shownDecision ? `Decision recorded: ${shownDecision}` : live ? 'Simulating this path…' : `Commit this decision — ${BRANCH_META[activeRoom as HumanDecision].label}`}
             </button>
           ) : (
           <div className={`rounded-2xl px-4 py-2.5 flex items-end gap-2 ${deliberating ? 'opacity-60' : ''}`} style={{ background: '#212121' }}>
