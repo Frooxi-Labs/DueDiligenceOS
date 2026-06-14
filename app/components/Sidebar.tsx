@@ -38,12 +38,14 @@ export default function Sidebar() {
 
   // Load the simulated branch rooms for the active deal (nested under it in the tree).
   useEffect(() => {
-    setPending(new Set());
-    if (!activeDealId) { setBranches([]); return; }
+    let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset the tree when the active deal changes
+    if (!activeDealId) { setBranches([]); setPending(new Set()); return; }
     fetch(`/api/deals/${activeDealId}/projections`)
       .then((r) => r.json())
-      .then((d) => setBranches(Array.isArray(d.projections) ? d.projections : []))
-      .catch(() => setBranches([]));
+      .then((d) => { if (!cancelled) { setBranches(Array.isArray(d.projections) ? d.projections : []); setPending(new Set()); } })
+      .catch(() => { if (!cancelled) setBranches([]); });
+    return () => { cancelled = true; };
   }, [activeDealId]);
 
   // Live: child rooms appear the moment they're created, no refresh needed.

@@ -5,7 +5,7 @@
 import * as AccordionPrimitive from '@radix-ui/react-accordion';
 import { AnimatePresence, motion } from 'framer-motion';
 import { FileIcon, FolderIcon, FolderOpenIcon } from 'lucide-react';
-import React, { createContext, forwardRef, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, forwardRef, useCallback, useContext, useState } from 'react';
 import { cn } from '@/lib/utils';
 
 export interface TreeViewElement {
@@ -35,12 +35,11 @@ const useTree = () => {
 type TreeProps = React.HTMLAttributes<HTMLDivElement> & {
   initialSelectedId?: string;
   indicator?: boolean;
-  elements?: TreeViewElement[];
   initialExpandedItems?: string[];
 };
 
 const Tree = forwardRef<HTMLDivElement, TreeProps>(
-  ({ className, elements, initialSelectedId, initialExpandedItems, indicator = true, children, ...props }, ref) => {
+  ({ className, initialSelectedId, initialExpandedItems, indicator = true, children, ...props }, ref) => {
     const [selectedId, setSelectedId] = useState<string | undefined>(initialSelectedId);
     const [expandedItems, setExpandedItems] = useState<string[] | undefined>(initialExpandedItems);
 
@@ -48,11 +47,6 @@ const Tree = forwardRef<HTMLDivElement, TreeProps>(
     const handleExpand = useCallback((id: string) => {
       setExpandedItems((prev) => (prev?.includes(id) ? prev.filter((i) => i !== id) : [...(prev ?? []), id]));
     }, []);
-
-    // Keep external expansion in sync (e.g. when the active deal changes).
-    useEffect(() => {
-      if (initialExpandedItems) setExpandedItems((prev) => Array.from(new Set([...(prev ?? []), ...initialExpandedItems])));
-    }, [initialExpandedItems?.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
       <TreeContext.Provider value={{ selectedId, expandedItems, handleExpand, selectItem, indicator, direction: 'ltr' }}>

@@ -76,6 +76,7 @@ export default function DealPage() {
   useEffect(() => { if (id) fetch(`/api/deals/${id}/audit`).then((r) => r.json()).then((d) => setAudit(d.events ?? [])).catch(() => {}); }, [id, s.status, s.messages.length]);
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' }); }, [s.messages.length, chatLog.length, s.recommendation, s.liveFork?.messages.length, s.liveFork?.thinking, activeRoom]);
   // Surface the memo (with the decision controls) the moment it's ready.
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- sync panel UI to workflow status
   useEffect(() => { if (s.status === 'awaiting_human') { setRightTab('memo'); setLogsOpen(true); } }, [s.status]);
   // Restore the reviewer↔committee chat from persisted events (reload / old deals).
   useEffect(() => {
@@ -85,6 +86,7 @@ export default function DealPage() {
       .map((e): ChatMsg => (e.event_type === 'chat.user'
         ? { role: 'user', content: String(e.payload?.content ?? '') }
         : { role: 'assistant', content: String(e.payload?.content ?? ''), agent: e.payload?.agent as AgentType }));
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time restore of chat from persisted events
     if (restored.length) setChatLog(restored);
   }, [audit]); // eslint-disable-line react-hooks/exhaustive-deps
 

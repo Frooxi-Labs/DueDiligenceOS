@@ -26,7 +26,7 @@ export function validateBusinessLogic(output: AgentOutput): void {
 
 /** Extract a JSON object from a raw LLM response (tolerant of fences/preamble). */
 export function parseAgentOutput(raw: string): unknown {
-  let cleaned = raw
+  const cleaned = raw
     .replace(/^```json\s*/i, '')
     .replace(/^```\s*/i, '')
     .replace(/```\s*$/i, '')
