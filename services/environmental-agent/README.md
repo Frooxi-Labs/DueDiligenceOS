@@ -10,14 +10,23 @@ participant posting into the conversation.
 
 When Regulatory or Legal decides a property needs environmental review (emergent
 dispatch), the orchestrator recruits this agent into the Band room and calls it
-over HTTP. The agent runs its LangGraph state machine and posts its assessment
-back into the room as a first-class participant.
+over HTTP. The agent runs its LangGraph state machine — which **reads the Band
+room**, reasons, branches, and posts its thoughts + assessment back as a
+first-class participant.
 
 ```
-assess (LLM) ──▶ govern (deterministic Phase-I override) ──▶ announce (post to Band) ──▶ END
+gather (read Band room via getContext)
+  ▶ assess (contamination risk + recognized environmental conditions)
+      ├─ risk high/medium ▶ scope_phase_ii (Phase II scope + remediation $)
+      └─ risk low/none ─────────────────────────────┐
+  ▶ govern (deterministic Phase-I safety override) ◀─┘
+  ▶ announce (post the assessment into the Band room) ▶ END
 ```
 
-The graph is acyclic and bounded — it cannot loop.
+State accumulates across nodes and the **conditional edge** (scope a Phase II
+only when risk warrants it) is what makes this a real graph rather than a single
+call. It is acyclic and bounded — it cannot loop. Each node posts a Band
+`thought` / `tool_call` event so the specialist's reasoning is visible in the room.
 
 ## Run
 
