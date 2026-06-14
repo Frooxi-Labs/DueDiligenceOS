@@ -114,7 +114,7 @@ export async function runWorkflow(dealId: string): Promise<void> {
     const contradictions = detectContradictions(propertyFact, legalRisk);
     for (const c of contradictions) {
       emit(dealId, { type: 'contradiction.detected', title: c.title, detail: c.detail, agents: c.agents });
-      await logEvent(dealId, 'contradiction.detected', { title: c.title });
+      await logEvent(dealId, 'contradiction.detected', { title: c.title, detail: c.detail, agents: c.agents });
     }
 
     // ── FINANCIAL — baseline, then cascade re-underwrite if Critical ────
@@ -132,7 +132,7 @@ export async function runWorkflow(dealId: string): Promise<void> {
       );
       const revised = revisedRes.raw as FinancialModel;
       emit(dealId, { type: 'financial.recalculated', irr_before: financial.irr_pct, irr_after: revised.irr_pct, trigger: cascade.trigger });
-      await logEvent(dealId, 'financial.recalculated', { before: financial.irr_pct, after: revised.irr_pct });
+      await logEvent(dealId, 'financial.recalculated', { before: financial.irr_pct, after: revised.irr_pct, trigger: cascade.trigger });
       financial = revised;
     }
 

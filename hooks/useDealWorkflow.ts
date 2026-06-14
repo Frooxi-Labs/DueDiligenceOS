@@ -8,23 +8,9 @@ export interface AgentCardState {
   headline?: string;
   model?: string;
 }
-
-export interface RoomMessage {
-  agent: AgentType;
-  content: string;
-}
-
-export interface Contradiction {
-  title: string;
-  detail: string;
-  agents: AgentType[];
-}
-
-export interface CascadeInfo {
-  irr_before: number;
-  irr_after: number;
-  trigger: string;
-}
+export interface RoomMessage { agent: AgentType; content: string }
+export interface Contradiction { title: string; detail: string; agents: AgentType[] }
+export interface CascadeInfo { irr_before: number; irr_after: number; trigger: string }
 
 export interface WorkflowState {
   status: string;
@@ -73,24 +59,18 @@ function reduce(prev: WorkflowState, e: DealEvent): WorkflowState {
     case 'agent.mentioned':
       return { ...prev, handoffs: [...prev.handoffs, { from: e.from, to: e.to, reason: e.reason }] };
     case 'band.message':
+      // Dedupe — hydration + SSE replay can deliver the same message.
+      if (prev.messages.some((m) => m.agent === e.agent && m.content === e.content)) return prev;
       return { ...prev, messages: [...prev.messages, { agent: e.agent, content: e.content }] };
     case 'escalation.needed':
       return { ...prev, missingDocs: e.missing };
     case 'contradiction.detected':
+      if (prev.contradictions.some((c) => c.title === e.title)) return prev;
       return { ...prev, contradictions: [...prev.contradictions, { title: e.title, detail: e.detail, agents: e.agents }] };
     case 'financial.recalculated':
       return { ...prev, cascade: { irr_before: e.irr_before, irr_after: e.irr_after, trigger: e.trigger } };
     case 'approval.required':
-      return {
-        ...prev,
-        status: 'awaiting_human',
-        approvalSummary: e.summary,
-        compositeScore: e.composite_score,
-        signal: e.signal,
-        recommendation: e.recommendation,
-        topFindings: e.top_findings,
-        conditions: e.conditions,
-      };
+      return { ...prev, status: 'awaiting_human', approvalSummary: e.summary, compositeScore: e.composite_score, signal: e.signal, recommendation: e.recommendation, topFindings: e.top_findings, conditions: e.conditions };
     case 'deal.decided':
       return { ...prev, status: 'decided', decision: e.decision };
     case 'workflow.failed':
@@ -100,11 +80,73 @@ function reduce(prev: WorkflowState, e: DealEvent): WorkflowState {
   }
 }
 
-/** Subscribe to a deal's live SSE stream and reduce events into UI state. */
+// ── Hydration from the database (for past deals / after restart) ──────────────
+
+interface HydrateDeal {
+  deal?: { status: string };
+  room?: { band_room_id: string } | null;
+  evaluations?: { agent_type: string; status: string; summary?: string | null; raw_output?: Record<string, unknown>; created_at: string }[];
+  decision?: { final_status: string } | null;
+}
+interface HydrateAudit {
+  events?: { event_type: string; payload?: Record<string, unknown> }[];
+}
+
+function hydrate(d: HydrateDeal, a: HydrateAudit | null): WorkflowState {
+  const st = initialState();
+  if (d.deal) st.status = d.deal.status;
+  if (d.room?.band_room_id) st.bandRoomId = d.room.band_room_id;
+
+  const evals = [...(d.evaluations ?? [])].sort((x, y) => +new Date(x.created_at) - +new Date(y.created_at));
+  for (const e of evals) {
+    const at = e.agent_type as AgentType;
+    if (st.agents[at]) st.agents[at] = { status: e.status === 'failed' ? 'failed' : 'done', headline: e.status };
+    if (e.summary) st.messages.push({ agent: at, content: e.summary });
+    const raw = (e.raw_output ?? {}) as Record<string, unknown>;
+    if (at === 'synthesis') {
+      st.recommendation = raw.recommendation as string | undefined;
+      st.topFindings = raw.top_findings as WorkflowState['topFindings'];
+      st.conditions = raw.conditions_precedent as string[] | undefined;
+      st.signal = raw.signal as Signal | undefined;
+    }
+    if (at === 'archivist' && Array.isArray(raw.missing_documents)) st.missingDocs = raw.missing_documents as string[];
+  }
+
+  for (const ev of a?.events ?? []) {
+    const p = (ev.payload ?? {}) as Record<string, unknown>;
+    if (ev.event_type === 'contradiction.detected') st.contradictions.push({ title: String(p.title ?? 'Contradiction'), detail: String(p.detail ?? ''), agents: (p.agents as AgentType[]) ?? [] });
+    if (ev.event_type === 'financial.recalculated') st.cascade = { irr_before: Number(p.before), irr_after: Number(p.after), trigger: String(p.trigger ?? 'upstream finding') };
+    if (ev.event_type === 'approval.required') { st.compositeScore = p.composite as number | undefined; if (p.signal) st.signal = p.signal as Signal; }
+  }
+
+  if (d.decision?.final_status) st.decision = d.decision.final_status as HumanDecision;
+  return st;
+}
+
+/** Hydrate from the DB on load, then apply the live SSE stream on top. */
 export function useDealWorkflow(dealId: string): WorkflowState {
   const [state, setState] = useState<WorkflowState>(initialState);
   const esRef = useRef<EventSource | null>(null);
 
+  // Hydrate from the database (covers past deals with no live events).
+  useEffect(() => {
+    if (!dealId) return;
+    let cancelled = false;
+    (async () => {
+      const [d, a] = await Promise.all([
+        fetch(`/api/deals/${dealId}`).then((r) => r.json()).catch(() => null),
+        fetch(`/api/deals/${dealId}/audit`).then((r) => r.json()).catch(() => null),
+      ]);
+      if (cancelled || !d?.deal) return;
+      // Only apply if the live stream hasn't already populated the room.
+      setState((prev) => (prev.messages.length > 0 ? prev : hydrate(d, a)));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [dealId]);
+
+  // Live updates.
   useEffect(() => {
     if (!dealId) return;
     const es = new EventSource(`/api/deals/${dealId}/stream`);
