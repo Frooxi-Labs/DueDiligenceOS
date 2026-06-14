@@ -86,6 +86,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       {
         onThinking: (agent) => broadcast(id, { type: 'fork.thinking', branch, agent }),
         onMessage: (agent, content) => broadcast(id, { type: 'fork.message', branch, agent, content }),
+        onEvent: (kind, agent, content) => broadcast(id, { type: 'band.event', agent, kind, content, room: branch }),
       }
     );
   } catch (e) {

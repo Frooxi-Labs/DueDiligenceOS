@@ -34,7 +34,7 @@ export interface WorkflowState {
   recruited: { by: AgentType; agent: AgentType; reason: string }[];
   delegations: DelegationInfo[];
   projections?: ForkProjection[];
-  liveFork?: { branch: SimBranch; messages: { agent: AgentType; content: string }[]; thinking?: AgentType };
+  liveFork?: { branch: SimBranch; messages: { agent?: AgentType; content: string; event?: 'thought' | 'tool_call' | 'error' }[]; thinking?: AgentType };
   failureReason?: string;
 }
 
@@ -83,8 +83,13 @@ function reduce(prev: WorkflowState, e: DealEvent): WorkflowState {
       if (prev.messages.some((m) => m.system && m.content === e.content)) return prev;
       return { ...prev, messages: [...prev.messages, { content: e.content, system: true }] };
     case 'band.event': {
-      // Child-room events are handled by the live-fork stream; tool_result is Band-only.
-      if (e.room || e.kind === 'tool_result') return prev;
+      if (e.kind === 'tool_result') return prev; // Band-only, too noisy for the UI
+      // Child-room event → into the live fork stream.
+      if (e.room) {
+        if (!prev.liveFork || prev.liveFork.branch !== e.room) return prev;
+        return { ...prev, liveFork: { ...prev.liveFork, messages: [...prev.liveFork.messages, { agent: e.agent, content: e.content, event: e.kind as 'thought' | 'tool_call' | 'error' }] } };
+      }
+      // Parent-room event → into the main feed.
       if (prev.messages.some((m) => m.event === e.kind && m.agent === e.agent && m.content === e.content)) return prev;
       return { ...prev, messages: [...prev.messages, { agent: e.agent, content: e.content, event: e.kind }] };
     }

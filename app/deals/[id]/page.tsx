@@ -218,15 +218,24 @@ export default function DealPage() {
                   <p className="text-xs text-neutral-400">The team is working through this path live…</p>
                 </div>
               )}
-              {(live ? live.messages : activeProjection?.transcript ?? []).map((t, i) => (
-                <div key={i} className="fade-up flex gap-3">
-                  <div className="w-7 h-7 rounded-lg bg-neutral-800 flex items-center justify-center text-[10px] font-semibold text-neutral-300 shrink-0">{LABELS[t.agent].slice(0, 2)}</div>
-                  <div className="min-w-0 flex-1">
-                    <span className="text-xs font-medium text-neutral-200">{LABELS[t.agent]}</span>
-                    <div className="mt-0.5 text-sm text-neutral-300 leading-relaxed df-msg"><Markdown>{t.content}</Markdown></div>
+              {(live ? live.messages : (activeProjection?.transcript ?? []).map((t) => ({ ...t, event: undefined as undefined | 'thought' | 'tool_call' | 'error' }))).map((t, i) =>
+                t.event ? (
+                  <div key={i} className="fade-up flex gap-2 items-center pl-10 opacity-70">
+                    <span className="text-[11px] text-neutral-500">
+                      {t.event === 'thought' ? '💭' : t.event === 'error' ? '⚠️' : '🔧'} <span className="text-neutral-400">{t.agent ? LABELS[t.agent] : ''}</span>
+                      <span className={`ml-1 ${t.event === 'error' ? 'text-red-400/80' : 'italic'}`}>{t.event === 'tool_call' ? `reads the room · ${t.content}` : t.content}</span>
+                    </span>
                   </div>
-                </div>
-              ))}
+                ) : (
+                  <div key={i} className="fade-up flex gap-3">
+                    <div className="w-7 h-7 rounded-lg bg-neutral-800 flex items-center justify-center text-[10px] font-semibold text-neutral-300 shrink-0">{t.agent ? LABELS[t.agent].slice(0, 2) : '··'}</div>
+                    <div className="min-w-0 flex-1">
+                      <span className="text-xs font-medium text-neutral-200">{t.agent ? LABELS[t.agent] : ''}</span>
+                      <div className="mt-0.5 text-sm text-neutral-300 leading-relaxed df-msg"><Markdown>{t.content}</Markdown></div>
+                    </div>
+                  </div>
+                )
+              )}
               {live?.thinking && (
                 <div className="fade-up flex gap-3 items-center">
                   <div className="w-7 h-7 rounded-lg bg-neutral-800 flex items-center justify-center text-[10px] font-semibold text-neutral-400 shrink-0">{LABELS[live.thinking].slice(0, 2)}</div>
