@@ -145,15 +145,20 @@ export async function runWorkflow(dealId: string): Promise<void> {
       await logEvent(dealId, 'contradiction.detected', { title: c.title, detail: c.detail, agents: c.agents });
 
       // Band-mediated negotiation: the two agents debate the conflict in the
-      // room, each turn posted the instant it's produced (live back-and-forth).
+      // room. `onThinking` keeps the live "is composing" state on whoever is
+      // about to speak (incl. while the resolution is distilled), and `onTurn`
+      // streams each reply the instant it lands — so the room never looks frozen.
       try {
-        const neg = await negotiateContradiction(c, async (t) => {
-          emit(dealId, { type: 'agent.processing', agent: t.agent });
-          await post(roomId, t.agent, t.content, [t.to]);
-          emit(dealId, { type: 'band.message', agent: t.agent, content: t.content });
-          emit(dealId, { type: 'agent.completed', agent: t.agent, headline: 'reconciling contradiction' });
-          await logEvent(dealId, 'negotiation.turn', { agent: t.agent, content: t.content }, t.agent);
+        const neg = await negotiateContradiction(c, {
+          onThinking: (agent) => emit(dealId, { type: 'agent.processing', agent }),
+          onTurn: async (t) => {
+            await post(roomId, t.agent, t.content, [t.to]);
+            emit(dealId, { type: 'band.message', agent: t.agent, content: t.content });
+            await logEvent(dealId, 'negotiation.turn', { agent: t.agent, content: t.content }, t.agent);
+          },
         });
+        // Clear the lingering "thinking" state on the debaters now the debate is done.
+        for (const agent of c.agents) emit(dealId, { type: 'agent.completed', agent, headline: 'reconciled contradiction' });
         negotiatedConditions.push(neg.resolution);
       } catch (err) {
         await logEvent(dealId, 'negotiation.failed', { reason: (err as Error).message });
