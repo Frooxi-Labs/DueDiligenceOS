@@ -71,3 +71,14 @@ html, body {
   40%           { transform: scale(1);    opacity: 1; }
 }
 .thinking-dot { animation: thinking-dot 1.2s ease-in-out infinite; }
+
+/* Agent message prose — clean, organised spacing, no bubble */
+.df-msg > :first-child { margin-top: 0; }
+.df-msg > :last-child { margin-bottom: 0; }
+.df-msg p { margin: 0.5em 0; }
+.df-msg ul, .df-msg ol { margin: 0.5em 0; padding-left: 1.25em; }
+.df-msg li { margin: 0.2em 0; }
+.df-msg li > ul, .df-msg li > ol { margin: 0.2em 0; }
+.df-msg h1, .df-msg h2, .df-msg h3 { font-weight: 600; margin: 0.8em 0 0.3em; color: #e5e5e5; }
+.df-msg strong { color: #e5e5e5; }
+.df-msg code { background: #ffffff14; padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.9em; }

@@ -23,8 +23,9 @@ const PERSONA: Record<AgentType, string> = {
 /** Pick which agent the reviewer is addressing; default to the Deal Director. */
 function detectAgent(msg: string): AgentType {
   const m = msg.toLowerCase();
+  if (/specialist|environmental|contaminat|phase\s*i|wetland|remediat|soil|asbestos/.test(m)) return 'environmental';
   if (/\blegal\b|\btitle\b|easement|contract|lien/.test(m)) return 'legal';
-  if (/regulator|complian|zoning|permit|environmental|flood|fema/.test(m)) return 'regulatory';
+  if (/regulator|complian|zoning|permit|flood|fema/.test(m)) return 'regulatory';
   if (/financ|\birr\b|underwrit|cap rate|dscr|\bnoi\b|return/.test(m)) return 'financial';
   if (/archivist|extract|\bdeed\b|\bsurvey\b|document/.test(m)) return 'archivist';
   return 'synthesis';

@@ -63,6 +63,7 @@ export type DealEvent =
   | { type: 'agent.mentioned'; from: AgentType; to: AgentType; reason: string }
   | { type: 'agent.recruited'; by: AgentType; agent: AgentType; reason: string }
   | { type: 'band.message'; agent: AgentType; content: string }
+  | { type: 'room.system'; content: string }
   | { type: 'escalation.needed'; missing: string[] }
   | { type: 'contradiction.detected'; title: string; detail: string; agents: AgentType[] }
   | { type: 'financial.recalculated'; irr_before: number; irr_after: number; trigger: string }

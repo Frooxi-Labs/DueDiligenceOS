@@ -8,7 +8,7 @@ export interface AgentCardState {
   headline?: string;
   model?: string;
 }
-export interface RoomMessage { agent: AgentType; content: string }
+export interface RoomMessage { agent?: AgentType; content: string; system?: boolean }
 export interface Contradiction { title: string; detail: string; agents: AgentType[] }
 export interface CascadeInfo { irr_before: number; irr_after: number; trigger: string }
 
@@ -69,6 +69,9 @@ function reduce(prev: WorkflowState, e: DealEvent): WorkflowState {
       // Dedupe — hydration + SSE replay can deliver the same message.
       if (prev.messages.some((m) => m.agent === e.agent && m.content === e.content)) return prev;
       return { ...prev, messages: [...prev.messages, { agent: e.agent, content: e.content }] };
+    case 'room.system':
+      if (prev.messages.some((m) => m.system && m.content === e.content)) return prev;
+      return { ...prev, messages: [...prev.messages, { content: e.content, system: true }] };
     case 'escalation.needed':
       return { ...prev, missingDocs: e.missing };
     case 'contradiction.detected':
@@ -109,7 +112,7 @@ function hydrate(d: HydrateDeal, a: HydrateAudit | null): WorkflowState {
   if (d.room?.band_room_id) st.bandRoomId = d.room.band_room_id;
 
   // Collect room messages from agent evaluations + negotiation turns, ordered by time.
-  const msgs: { agent: AgentType; content: string; ts: number }[] = [];
+  const msgs: { agent?: AgentType; content: string; ts: number; system?: boolean }[] = [];
 
   for (const e of d.evaluations ?? []) {
     const at = e.agent_type as AgentType;
@@ -127,7 +130,8 @@ function hydrate(d: HydrateDeal, a: HydrateAudit | null): WorkflowState {
 
   for (const ev of a?.events ?? []) {
     const p = (ev.payload ?? {}) as Record<string, unknown>;
-    if (ev.event_type === 'negotiation.turn') msgs.push({ agent: p.agent as AgentType, content: String(p.content ?? ''), ts: +new Date(ev.created_at) });
+    if (ev.event_type === 'negotiation.turn' || ev.event_type === 'room.agent') msgs.push({ agent: p.agent as AgentType, content: String(p.content ?? ''), ts: +new Date(ev.created_at) });
+    if (ev.event_type === 'room.system') msgs.push({ content: String(p.content ?? ''), ts: +new Date(ev.created_at), system: true });
     if (ev.event_type === 'agent.recruited') st.recruited.push({ by: p.by as AgentType, agent: p.agent as AgentType, reason: String(p.reason ?? '') });
     if (ev.event_type === 'contradiction.detected') st.contradictions.push({ title: String(p.title ?? 'Contradiction'), detail: String(p.detail ?? ''), agents: (p.agents as AgentType[]) ?? [] });
     if (ev.event_type === 'financial.recalculated') st.cascade = { irr_before: Number(p.before), irr_after: Number(p.after), trigger: String(p.trigger ?? 'upstream finding') };
@@ -135,7 +139,7 @@ function hydrate(d: HydrateDeal, a: HydrateAudit | null): WorkflowState {
     if (ev.event_type === 'decision.document') st.decisionDocument = String(p.content ?? '');
   }
 
-  st.messages = msgs.sort((x, y) => x.ts - y.ts).map(({ agent, content }) => ({ agent, content }));
+  st.messages = msgs.sort((x, y) => x.ts - y.ts).map(({ agent, content, system }) => ({ agent, content, system }));
 
   if (d.decision?.final_status) st.decision = d.decision.final_status as HumanDecision;
   return st;

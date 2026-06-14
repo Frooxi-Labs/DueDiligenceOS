@@ -62,6 +62,19 @@ async function post(roomId: string, agent: AgentType, content: string, mentionTa
   return band.postMessage(roomId, content, mentionTargets);
 }
 
+/** Post an agent message to the room, stream it live, and persist it for reload. */
+async function say(dealId: string, roomId: string, agent: AgentType, content: string, mentions: AgentType[]) {
+  await post(roomId, agent, content, mentions);
+  emit(dealId, { type: 'band.message', agent, content });
+  await db.insert(workflowEvents).values({ deal_id: dealId, event_type: 'room.agent', agent_type: agent, triggered_by: agent, payload: { agent, content } });
+}
+
+/** A system line in the room ("X joined the room"). */
+async function systemSay(dealId: string, content: string) {
+  emit(dealId, { type: 'room.system', content });
+  await db.insert(workflowEvents).values({ deal_id: dealId, event_type: 'room.system', triggered_by: 'orchestrator', payload: { content } });
+}
+
 /** Decide whether an Environmental specialist should be recruited, and why. */
 function needsEnvironmental(pf: PropertyFact, compliance: ComplianceReport, legal: LegalRisk): string | null {
   const env = /environment|contaminat|phase\s*i|wetland|flood|epa|superfund/i;
@@ -145,17 +158,23 @@ export async function runWorkflow(dealId: string): Promise<void> {
     const envReason = needsEnvironmental(propertyFact, compliance, legalRisk);
     const envConfigured = !!getAgentConfigs().environmental.agentId;
     if (envReason && envConfigured) {
+      // 1) Regulatory tells the room it's bringing in outside help.
+      await say(dealId, roomId, 'regulatory', `I've hit something outside my lane — ${envReason.toLowerCase()}. I'm pulling in an Environmental specialist to take a look.`, ['synthesis']);
       try {
-        // Regulatory recruits the specialist into the room via Band's peer API.
+        // 2) Regulatory recruits the specialist into the room via Band's peer API.
         await new BandClient('regulatory').addParticipant(roomId, getAgentConfigs().environmental.agentId);
       } catch {
         /* best-effort */
       }
+      // 3) Group-chat join notice, like a teammate entering the room.
+      await systemSay(dealId, 'Environmental specialist joined the room');
       emit(dealId, { type: 'agent.recruited', by: 'regulatory', agent: 'environmental', reason: envReason });
       await logEvent(dealId, 'agent.recruited', { by: 'regulatory', agent: 'environmental', reason: envReason }, 'regulatory');
       await recordMention(dealId, 'regulatory', 'environmental', envReason);
+      // 4) Regulatory asks the specialist directly — it's our ask, so we ask.
+      await say(dealId, roomId, 'regulatory', `Thanks for joining. Could you assess the contamination risk on this property and tell us whether a Phase I is warranted? We'd value your read before Financial underwrites.`, ['environmental']);
       try {
-        const envRes = await run('environmental', { deal, propertyFact, compliance }, ['synthesis']);
+        const envRes = await run('environmental', { deal, propertyFact, compliance }, ['regulatory', 'synthesis']);
         environmental = envRes.raw as EnvironmentalReport;
       } catch {
         /* a failed specialist must not abort the committee */

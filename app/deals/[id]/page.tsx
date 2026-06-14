@@ -137,18 +137,24 @@ export default function DealPage() {
           <div className="max-w-3xl mx-auto w-full space-y-3">
           {s.messages.length === 0 && <p className="text-sm text-neutral-600">Waiting for the committee to convene…</p>}
           {s.messages.map((m, i) => (
-            <div key={i} className="fade-up flex gap-3">
-              <div className="w-7 h-7 rounded-lg bg-neutral-800 flex items-center justify-center text-[10px] font-semibold text-neutral-300 shrink-0">{LABELS[m.agent].slice(0, 2)}</div>
-              <div className="min-w-0">
-                <span className="text-xs font-medium text-neutral-200">{LABELS[m.agent]}</span>
-                <div className="mt-0.5 rounded-xl rounded-tl-sm bg-neutral-800/60 px-3 py-2 text-sm text-neutral-300"><Markdown>{m.content}</Markdown></div>
+            m.system || !m.agent ? (
+              <div key={i} className="fade-up flex justify-center py-1">
+                <span className="text-[11px] text-neutral-500 bg-neutral-800/40 rounded-full px-3 py-1">{m.content}</span>
               </div>
-            </div>
+            ) : (
+              <div key={i} className="fade-up flex gap-3">
+                <div className="w-7 h-7 rounded-lg bg-neutral-800 flex items-center justify-center text-[10px] font-semibold text-neutral-300 shrink-0">{LABELS[m.agent].slice(0, 2)}</div>
+                <div className="min-w-0 flex-1">
+                  <span className="text-xs font-medium text-neutral-200">{LABELS[m.agent]}</span>
+                  <div className="mt-0.5 text-sm text-neutral-300 leading-relaxed df-msg"><Markdown>{m.content}</Markdown></div>
+                </div>
+              </div>
+            )
           ))}
           {rosterAgents.filter((a) => s.agents[a].status === 'processing').map((a) => (
             <div key={`t-${a}`} className="fade-up flex gap-3 items-center">
               <div className="w-7 h-7 rounded-lg bg-neutral-800 flex items-center justify-center text-[10px] font-semibold text-neutral-400 shrink-0">{LABELS[a].slice(0, 2)}</div>
-              <div className="flex items-center gap-1 rounded-xl bg-neutral-800/40 px-3 py-2"><span className="text-xs text-neutral-500 mr-1">{LABELS[a]} is analysing</span>{[0, 1, 2].map((d) => <span key={d} className="w-1.5 h-1.5 rounded-full bg-neutral-500 thinking-dot" style={{ animationDelay: `${d * 0.15}s` }} />)}</div>
+              <div className="flex items-center gap-1 px-1 py-1"><span className="text-xs text-neutral-500 mr-1">{LABELS[a]} is analysing</span>{[0, 1, 2].map((d) => <span key={d} className="w-1.5 h-1.5 rounded-full bg-neutral-500 thinking-dot" style={{ animationDelay: `${d * 0.15}s` }} />)}</div>
             </div>
           ))}
 
@@ -180,20 +186,24 @@ export default function DealPage() {
           )}
 
           {chatLog.map((m, i) => (
-            <div key={`c-${i}`} className={`fade-up flex ${m.role === 'user' ? 'justify-end' : 'gap-3'}`}>
-              {m.role === 'assistant' && <div className="w-7 h-7 rounded-lg bg-blue-900/60 flex items-center justify-center text-[10px] font-semibold text-blue-300 shrink-0">{(m.agent ? LABELS[m.agent] : 'Synthesis').slice(0, 2)}</div>}
-              <div className="min-w-0">
-                {m.role === 'assistant' && <span className="text-xs font-medium text-neutral-200">{m.agent ? LABELS[m.agent] : 'Synthesis'}</span>}
-                {m.role === 'user'
-                  ? <div className="max-w-[80%] rounded-xl px-3 py-2 text-sm leading-relaxed bg-neutral-700 text-neutral-100 rounded-tr-sm ml-auto">{m.content}</div>
-                  : <div className="mt-0.5 rounded-xl px-3 py-2 text-sm bg-neutral-800/60 text-neutral-300 rounded-tl-sm"><Markdown>{m.content}</Markdown></div>}
+            m.role === 'user' ? (
+              <div key={`c-${i}`} className="fade-up flex justify-end">
+                <div className="max-w-[80%] rounded-xl px-3 py-2 text-sm leading-relaxed bg-neutral-700 text-neutral-100 rounded-tr-sm">{m.content}</div>
               </div>
-            </div>
+            ) : (
+              <div key={`c-${i}`} className="fade-up flex gap-3">
+                <div className="w-7 h-7 rounded-lg bg-neutral-800 flex items-center justify-center text-[10px] font-semibold text-neutral-300 shrink-0">{(m.agent ? LABELS[m.agent] : 'Synthesis').slice(0, 2)}</div>
+                <div className="min-w-0 flex-1">
+                  <span className="text-xs font-medium text-neutral-200">{m.agent ? LABELS[m.agent] : 'Synthesis'}</span>
+                  <div className="mt-0.5 text-sm text-neutral-300 leading-relaxed df-msg"><Markdown>{m.content}</Markdown></div>
+                </div>
+              </div>
+            )
           ))}
           {chatBusy && (
             <div className="fade-up flex gap-3 items-center">
-              <div className="w-7 h-7 rounded-lg bg-blue-900/60 flex items-center justify-center text-[10px] font-semibold text-blue-300 shrink-0">SY</div>
-              <div className="flex items-center gap-1 rounded-xl bg-neutral-800/40 px-3 py-2">{[0, 1, 2].map((d) => <span key={d} className="w-1.5 h-1.5 rounded-full bg-neutral-500 thinking-dot" style={{ animationDelay: `${d * 0.15}s` }} />)}</div>
+              <div className="w-7 h-7 rounded-lg bg-neutral-800 flex items-center justify-center text-[10px] font-semibold text-neutral-400 shrink-0">··</div>
+              <div className="flex items-center gap-1 px-1 py-1">{[0, 1, 2].map((d) => <span key={d} className="w-1.5 h-1.5 rounded-full bg-neutral-500 thinking-dot" style={{ animationDelay: `${d * 0.15}s` }} />)}</div>
             </div>
           )}
           </div>
