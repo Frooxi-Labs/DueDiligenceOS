@@ -11,8 +11,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+from typing import Optional  # noqa: E402
+
 from fastapi import FastAPI  # noqa: E402
-from pydantic import BaseModel  # noqa: E402
+from pydantic import BaseModel, Field  # noqa: E402
 
 from graph import GRAPH, MODEL  # noqa: E402
 
@@ -20,11 +22,11 @@ app = FastAPI(title="DueDiligenceOS — Environmental Specialist (LangGraph)")
 
 
 class AssessRequest(BaseModel):
-    deal: dict = {}
-    property_fact: dict = {}
-    compliance: dict = {}
-    room_id: str | None = None
-    mention_ids: list[str] = []
+    deal: dict = Field(default_factory=dict)
+    property_fact: dict = Field(default_factory=dict)
+    compliance: dict = Field(default_factory=dict)
+    room_id: Optional[str] = None
+    mention_ids: list = Field(default_factory=list)
 
 
 @app.get("/health")
