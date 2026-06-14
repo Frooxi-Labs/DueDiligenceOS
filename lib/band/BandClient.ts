@@ -108,9 +108,14 @@ export class BandClient {
    * omit to address every other agent in the room.
    */
   async postMessage(roomId: string, content: string, mentionTargets?: AgentType[]): Promise<string> {
-    const targets = (Object.values(this.allConfigs) as BandAgentConfig[]).filter((c) =>
+    let targets = (Object.values(this.allConfigs) as BandAgentConfig[]).filter((c) =>
       mentionTargets ? mentionTargets.includes(c.agentType) : c.agentType !== this.agentType
     );
+    // Band requires at least one mention per message; if none were specified
+    // (e.g. the final Synthesis post), address the rest of the committee.
+    if (targets.length === 0) {
+      targets = (Object.values(this.allConfigs) as BandAgentConfig[]).filter((c) => c.agentType !== this.agentType);
+    }
 
     // Band expects mentions as { id }; the @handle prefix lives in the content.
     const mentions = targets.map((c) => ({ id: c.agentId }));
