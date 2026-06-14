@@ -5,6 +5,15 @@ changed and the **context** (why).
 
 ## [Unreleased]
 
+### 2026-06-14
+
+- **Audit trail view.** Added `GET /api/deals/[id]/audit` and a collapsible audit-trail panel on
+  the deal page — a chronological log of every workflow event (with agent + timestamp).
+  - *Context:* Traceability is a core Track-3 requirement: every agent decision and step is
+    recorded and reviewable.
+- **Model-discovery helper.** Added `npm run models` (`scripts/list-models.mjs`) to list the exact
+  AI/ML API model IDs a key can use, so per-agent model config matches the catalog.
+
 ### 2026-06-13
 
 - **Due-diligence committee — agents & workflow.** The system models a real-estate

@@ -20,6 +20,21 @@ export default function DealPage() {
   const s = useDealWorkflow(id);
   const [deciding, setDeciding] = useState(false);
 
+  interface AuditEvent { id: string; event_type: string; agent_type?: string | null; created_at: string; payload?: Record<string, unknown> }
+  const [audit, setAudit] = useState<AuditEvent[] | null>(null);
+  const [showAudit, setShowAudit] = useState(false);
+
+  async function loadAudit() {
+    setShowAudit(true);
+    try {
+      const res = await fetch(`/api/deals/${id}/audit`);
+      const data = await res.json();
+      setAudit(data.events ?? []);
+    } catch {
+      setAudit([]);
+    }
+  }
+
   async function decide(decision: HumanDecision) {
     setDeciding(true);
     await fetch(`/api/deals/${id}/decide`, {
@@ -121,6 +136,37 @@ export default function DealPage() {
           Reviewer decision recorded: <span className="text-white font-medium">{s.decision.replace(/_/g, ' ')}</span>
         </div>
       )}
+
+      {/* Audit trail — traceability of every workflow event */}
+      <div className="mt-4">
+        {!showAudit ? (
+          <button onClick={loadAudit} className="text-xs text-neutral-400 hover:text-white border border-neutral-800 rounded-md px-3 py-1.5">
+            View audit trail
+          </button>
+        ) : (
+          <div className="rounded-xl border border-neutral-800 bg-neutral-900/40 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium">Audit trail</span>
+              <button onClick={() => setShowAudit(false)} className="text-xs text-neutral-500 hover:text-white">hide</button>
+            </div>
+            {!audit ? (
+              <p className="text-xs text-neutral-500">Loading…</p>
+            ) : audit.length === 0 ? (
+              <p className="text-xs text-neutral-500">No events recorded yet.</p>
+            ) : (
+              <ol className="space-y-1.5 max-h-60 overflow-auto df-scroll">
+                {audit.map((e) => (
+                  <li key={e.id} className="text-xs flex gap-3">
+                    <span className="text-neutral-600 tabular-nums shrink-0">{new Date(e.created_at).toLocaleTimeString()}</span>
+                    <span className="text-neutral-300">{e.event_type}</span>
+                    {e.agent_type && <span className="text-neutral-500">· {e.agent_type}</span>}
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
