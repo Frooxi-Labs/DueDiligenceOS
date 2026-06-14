@@ -89,6 +89,8 @@ function reduce(prev: WorkflowState, e: DealEvent): WorkflowState {
       return { ...prev, contradictions: [...prev.contradictions, { title: e.title, detail: e.detail, agents: e.agents }] };
     case 'financial.recalculated':
       return { ...prev, cascade: { irr_before: e.irr_before, irr_after: e.irr_after, trigger: e.trigger } };
+    case 'fork.started':
+      return { ...prev, liveFork: { branch: e.branch, messages: [], thinking: undefined } };
     case 'fork.thinking': {
       const messages = prev.liveFork?.branch === e.branch ? prev.liveFork.messages : [];
       return { ...prev, liveFork: { branch: e.branch, messages, thinking: e.agent } };

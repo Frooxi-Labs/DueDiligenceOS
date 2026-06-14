@@ -1,3 +1,4 @@
+import { jsonrepair } from 'jsonrepair';
 import type { AgentOutput, ComplianceReport, FinancialModel } from './schemas';
 
 export class BusinessLogicError extends Error {
@@ -36,21 +37,18 @@ export function parseAgentOutput(raw: string): unknown {
     throw new Error(`Output contains no JSON object. Preview: "${cleaned.substring(0, 150)}"`);
   }
   const slice = cleaned.substring(start, end + 1);
-  // Try increasingly aggressive repairs for the common LLM/JSON-mode slips.
-  const noTrailingCommas = (s: string) => s.replace(/,(\s*[}\]])/g, '$1');
-  // Insert a missing comma between two elements/members split across a newline
-  // (e.g. `}\n{`, `]\n[`, `"a"\n"b"`, `5\n"c"`) — a known Gemini glitch.
-  const addMissingCommas = (s: string) => s.replace(/([}\]"\d])(\s*\n\s*)(["{[])/g, '$1,$2$3');
-  const attempts = [slice, noTrailingCommas(slice), addMissingCommas(noTrailingCommas(slice))];
-  let lastErr: unknown;
-  for (const candidate of attempts) {
+  try {
+    return JSON.parse(slice);
+  } catch {
+    // LLMs (notably Gemini in JSON mode) occasionally drop commas between array
+    // elements / object members, or leave trailing commas. jsonrepair fixes the
+    // full class of these structural slips robustly.
     try {
-      return JSON.parse(candidate);
+      return JSON.parse(jsonrepair(slice));
     } catch (e) {
-      lastErr = e;
+      throw new Error(`Could not parse JSON: ${(e as Error).message}. Preview: "${slice.substring(0, 150)}"`);
     }
   }
-  throw new Error(`Could not parse JSON: ${(lastErr as Error).message}. Preview: "${slice.substring(0, 150)}"`);
 }
 
 /** True if a report carries a deal-breaking (Critical) finding — drives the cascade. */

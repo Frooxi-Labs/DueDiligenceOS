@@ -64,6 +64,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const baselineIrr = Number(recalc?.after) || Number((fin?.raw as Record<string, unknown> | undefined)?.irr_pct) || 0;
   const panel = await contextualPanel(id);
 
+  // Reset any prior live state for this branch so a re-run starts clean.
+  broadcast(id, { type: 'fork.started', branch });
+
   let projection: ForkProjection;
   try {
     projection = await simulateBranch(

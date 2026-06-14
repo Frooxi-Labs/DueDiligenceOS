@@ -108,7 +108,10 @@ export default function DealPage() {
       if (!res.ok) throw new Error(`Failed (${res.status})`);
       const data = await res.json(); // final set also arrives via SSE; this is the fallback
       setLocalProjections(data.projections ?? null);
-    } catch (e) { setDecideError((e as Error).message); } finally { setSimBranch(null); }
+    } catch (e) {
+      setDecideError(`Could not simulate ${branch}: ${(e as Error).message}`);
+      router.push(`/deals/${id}`); // don't strand the reviewer in a half-built room
+    } finally { setSimBranch(null); }
   }
 
   async function verifyBand() {
