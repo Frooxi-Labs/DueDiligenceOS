@@ -46,6 +46,8 @@ export default function DealPage() {
   const [chatBusy, setChatBusy] = useState(false);
   const [simBusy, setSimBusy] = useState(false);
   const [localProjections, setLocalProjections] = useState<ForkProjection[] | null>(null);
+  const [bandBusy, setBandBusy] = useState(false);
+  const [bandCheck, setBandCheck] = useState<{ message_count: number; participants_polled: number } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const shownDecision = s.decision ?? localDecision;
@@ -91,6 +93,16 @@ export default function DealPage() {
       const data = await res.json(); // also arrives via SSE; this is the fallback
       setLocalProjections(data.projections ?? null);
     } catch (e) { setDecideError((e as Error).message); } finally { setSimBusy(false); }
+  }
+
+  async function verifyBand() {
+    if (bandBusy) return;
+    setBandBusy(true);
+    try {
+      const res = await fetch(`/api/deals/${id}/band-context`);
+      const data = await res.json();
+      if (res.ok) setBandCheck({ message_count: data.message_count, participants_polled: data.participants_polled });
+    } catch { /* ignore */ } finally { setBandBusy(false); }
   }
 
   async function sendChat() {
@@ -365,6 +377,19 @@ export default function DealPage() {
               ))}
               {s.missingDocs.length > 0 && <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-300">Missing documents: {s.missingDocs.join(', ')}</div>}
               {s.status === 'failed' && <div className="rounded-lg border border-red-500/50 bg-red-500/10 px-3 py-2 text-xs text-red-300">Workflow failed{s.failureReason ? `: ${s.failureReason}` : ''}</div>}
+              {s.bandRoomId && (
+                <div className="rounded-lg border border-neutral-700/60 bg-neutral-800/30 px-3 py-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <p className="text-neutral-300 font-medium">Band room</p>
+                    <button onClick={verifyBand} disabled={bandBusy} className="text-[11px] text-indigo-300 hover:text-indigo-200 disabled:opacity-50">{bandBusy ? 'checking…' : '↻ verify live'}</button>
+                  </div>
+                  {bandCheck ? (
+                    <p className="text-neutral-500 mt-1">Context preserved in Band: <span className="text-neutral-300">{bandCheck.message_count} messages</span> across {bandCheck.participants_polled} participants — survives restarts &amp; rejoins.</p>
+                  ) : (
+                    <p className="text-neutral-600 mt-1">Reconstruct this room straight from Band to confirm it&apos;s the source of truth.</p>
+                  )}
+                </div>
+              )}
               <div className="pt-2">
                 <p className="text-[11px] font-semibold uppercase tracking-widest text-neutral-600 mb-2">Audit trail</p>
                 {!audit || audit.length === 0 ? <p className="text-xs text-neutral-600">No events yet.</p> : (
