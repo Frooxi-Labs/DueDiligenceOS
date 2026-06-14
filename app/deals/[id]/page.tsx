@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useDealWorkflow, type WorkflowState } from '@/hooks/useDealWorkflow';
 import Markdown from '@/app/components/Markdown';
-import type { AgentType, ForkProjection, HumanDecision } from '@/types';
+import type { AgentType, ForkProjection, HumanDecision, SimBranch } from '@/types';
 
 const LABELS: Record<AgentType, string> = {
   archivist: 'Archivist', regulatory: 'Regulatory', legal: 'Legal Risk', financial: 'Financial', synthesis: 'Synthesis', environmental: 'Environmental',
@@ -12,17 +12,17 @@ const LABELS: Record<AgentType, string> = {
 const ORDER: AgentType[] = ['archivist', 'regulatory', 'legal', 'financial', 'synthesis'];
 const signalColor: Record<string, string> = { green: 'text-emerald-400', yellow: 'text-amber-400', red: 'text-red-400' };
 const riskColor: Record<string, string> = { low: 'text-emerald-400', medium: 'text-amber-400', high: 'text-red-400' };
-const BRANCH_META: Record<HumanDecision, { label: string; btn: string }> = {
+const BRANCH_META: Record<SimBranch, { label: string; btn: string }> = {
   proceed: { label: 'Proceed with conditions', btn: 'bg-emerald-500 text-black hover:bg-emerald-400' },
   remediate: { label: 'Request remediation', btn: 'bg-amber-500 text-black hover:bg-amber-400' },
   renegotiate: { label: 'Flag for renegotiation', btn: 'bg-red-500/90 text-white hover:bg-red-500' },
 };
-const SIM_LABEL: Record<HumanDecision, string> = {
+const SIM_LABEL: Record<SimBranch, string> = {
   proceed: 'If we proceed with conditions',
   remediate: 'If we request seller remediation',
   renegotiate: 'If we renegotiate the deal',
 };
-const SIM_DOT: Record<HumanDecision, string> = { proceed: 'bg-emerald-400', remediate: 'bg-amber-400', renegotiate: 'bg-red-400' };
+const SIM_DOT: Record<SimBranch, string> = { proceed: 'bg-emerald-400', remediate: 'bg-amber-400', renegotiate: 'bg-red-400' };
 
 interface AuditEvent { id: string; event_type: string; agent_type?: string | null; created_at: string; payload?: Record<string, unknown> }
 interface DealMeta { title?: string; intended_use?: string; purchase_price?: string }
@@ -32,6 +32,7 @@ function nextStep(decision: HumanDecision, s: WorkflowState): { heading: string;
   const material = (s.topFindings ?? []).filter((f) => f.severity === 'critical' || f.severity === 'material');
   if (decision === 'proceed') return { heading: 'Conditions precedent — satisfy before closing', intro: 'Approved to proceed, subject to clearing the following before funds are released:', items: s.conditions ?? [] };
   if (decision === 'remediate') return { heading: 'Seller remediation request', intro: 'The deal is paused pending the seller curing the items below; re-evaluate once delivered:', items: [...material.map((f) => `Seller to resolve: ${f.title}`), ...(s.missingDocs ?? []).map((d) => `Seller to provide: ${d}`)] };
+  if (decision === 'reject') return { heading: 'Deal declined — rationale for the file', intro: 'Passing on this opportunity. The basis for walking away:', items: material.length ? material.map((f) => `Walk-away driver: ${f.title}`) : ['Risk-adjusted return does not meet the committee bar.'] };
   return { heading: 'Renegotiation brief', intro: 'The findings materially change the economics. Take the following back to the table:', items: [...material.map((f) => `Re-trade on: ${f.title}`), ...(s.cascade ? [`Reprice to reflect IRR falling from ${s.cascade.irr_before.toFixed(1)}% to ${s.cascade.irr_after.toFixed(1)}%`] : [])] };
 }
 
@@ -52,12 +53,12 @@ export default function DealPage() {
   const [chatLog, setChatLog] = useState<ChatMsg[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [chatBusy, setChatBusy] = useState(false);
-  const [simBranch, setSimBranch] = useState<HumanDecision | null>(null);
+  const [simBranch, setSimBranch] = useState<SimBranch | null>(null);
   const [localProjections, setLocalProjections] = useState<ForkProjection[] | null>(null);
   const [bandBusy, setBandBusy] = useState(false);
   const [bandCheck, setBandCheck] = useState<{ message_count: number; participants_polled: number } | null>(null);
   const roomParam = searchParams.get('room');
-  const activeRoom: 'parent' | HumanDecision =
+  const activeRoom: 'parent' | SimBranch =
     roomParam === 'proceed' || roomParam === 'remediate' || roomParam === 'renegotiate' ? roomParam : 'parent';
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -98,7 +99,7 @@ export default function DealPage() {
     } catch (e) { setDecideError((e as Error).message); } finally { setDeciding(false); }
   }
 
-  async function simulate(branch: HumanDecision) {
+  async function simulate(branch: SimBranch) {
     if (simBranch) return;
     setSimBranch(branch); setDecideError(null);
     router.push(`/deals/${id}?room=${branch}`); // open the room now; the debate streams in live
@@ -293,7 +294,7 @@ export default function DealPage() {
                 <span className="text-xs font-medium text-neutral-200">Synthesis</span>
                 <div className="mt-0.5 text-sm text-neutral-300 leading-relaxed df-msg">Want to see what your decision would lead to? I&apos;ll open a side room and have the team work through each path before you commit.</div>
                 <div className="mt-2 flex flex-col gap-2 max-w-md">
-                  {(['proceed', 'remediate', 'renegotiate'] as HumanDecision[]).map((br) => {
+                  {(['proceed', 'remediate', 'renegotiate'] as SimBranch[]).map((br) => {
                     const created = !!projections?.some((p) => p.branch === br);
                     return (
                       <button key={br} onClick={() => (created ? router.push(`/deals/${id}?room=${br}`) : simulate(br))} disabled={!!simBranch} className="flex items-center gap-2 rounded-lg border border-neutral-700 bg-neutral-800/40 px-3 py-2 text-left text-sm text-neutral-200 hover:border-neutral-500 hover:bg-neutral-800/70 disabled:opacity-50">
@@ -303,6 +304,11 @@ export default function DealPage() {
                       </button>
                     );
                   })}
+                  <button onClick={() => decide('reject')} disabled={deciding || !!simBranch} className="flex items-center gap-2 rounded-lg border border-neutral-800 px-3 py-2 text-left text-sm text-neutral-400 hover:text-neutral-200 hover:border-neutral-600 disabled:opacity-50">
+                    <span className="w-2 h-2 rounded-full shrink-0 bg-neutral-500" />
+                    <span className="flex-1">Reject — pass on this deal</span>
+                    <span className="text-[11px] text-neutral-600">decide →</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -336,8 +342,8 @@ export default function DealPage() {
         <div className="px-6 py-3 shrink-0">
           <div className="max-w-3xl mx-auto">
           {inChildRoom ? (
-            <button onClick={() => decide(activeRoom as HumanDecision)} disabled={deciding || !!shownDecision || !!live} className={`w-full rounded-xl font-medium px-4 py-2.5 text-sm disabled:opacity-50 ${BRANCH_META[activeRoom as HumanDecision].btn}`}>
-              {shownDecision ? `Decision recorded: ${shownDecision}` : live ? 'Simulating this path…' : `Commit this decision — ${BRANCH_META[activeRoom as HumanDecision].label}`}
+            <button onClick={() => decide(activeRoom as SimBranch)} disabled={deciding || !!shownDecision || !!live} className={`w-full rounded-xl font-medium px-4 py-2.5 text-sm disabled:opacity-50 ${BRANCH_META[activeRoom as SimBranch].btn}`}>
+              {shownDecision ? `Decision recorded: ${shownDecision}` : live ? 'Simulating this path…' : `Commit this decision — ${BRANCH_META[activeRoom as SimBranch].label}`}
             </button>
           ) : (
           <div className={`rounded-2xl px-4 py-2.5 flex items-end gap-2 ${deliberating ? 'opacity-60' : ''}`} style={{ background: '#212121' }}>

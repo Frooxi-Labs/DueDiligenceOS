@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Tree, Folder, File } from '@/components/ui/file-tree';
 import ChatRoomIcon from './ChatRoomIcon';
-import type { ForkProjection, HumanDecision } from '@/types';
+import type { ForkProjection, SimBranch } from '@/types';
 
 interface DealItem {
   id: string;
@@ -12,7 +12,7 @@ interface DealItem {
   status: string;
 }
 
-const BRANCH_ORDER: HumanDecision[] = ['proceed', 'remediate', 'renegotiate'];
+const BRANCH_ORDER: SimBranch[] = ['proceed', 'remediate', 'renegotiate'];
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -23,6 +23,7 @@ export default function Sidebar() {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [branches, setBranches] = useState<ForkProjection[]>([]);
+  const [pending, setPending] = useState<Set<string>>(new Set());
 
   const seg = pathname.startsWith('/deals/') ? pathname.split('/')[2] : null;
   const activeDealId = seg && seg !== 'new' ? seg : null;
@@ -37,12 +38,28 @@ export default function Sidebar() {
 
   // Load the simulated branch rooms for the active deal (nested under it in the tree).
   useEffect(() => {
+    setPending(new Set());
     if (!activeDealId) { setBranches([]); return; }
     fetch(`/api/deals/${activeDealId}/projections`)
       .then((r) => r.json())
       .then((d) => setBranches(Array.isArray(d.projections) ? d.projections : []))
       .catch(() => setBranches([]));
-  }, [activeDealId, pathname]);
+  }, [activeDealId]);
+
+  // Live: child rooms appear the moment they're created, no refresh needed.
+  useEffect(() => {
+    if (!activeDealId) return;
+    const es = new EventSource(`/api/deals/${activeDealId}/stream`);
+    es.onmessage = (event) => {
+      if (!event.data || event.data.startsWith(':')) return;
+      try {
+        const ev = JSON.parse(event.data);
+        if (ev.type === 'fork.thinking') setPending((prev) => new Set(prev).add(ev.branch));
+        else if (ev.type === 'fork.simulated' && Array.isArray(ev.projections)) { setBranches(ev.projections); setPending(new Set()); }
+      } catch { /* ignore */ }
+    };
+    return () => es.close();
+  }, [activeDealId]);
 
   async function handleDelete(e: React.MouseEvent, dealId: string) {
     e.preventDefault();
@@ -145,10 +162,11 @@ export default function Sidebar() {
                     icon={<ChatRoomIcon className="w-4 h-4 shrink-0 text-white" />}
                     style={{ opacity: deletingId === deal.id ? 0.4 : 1 }}
                   >
-                    {dealBranches.length > 0 ? (
-                      BRANCH_ORDER.map((br) => {
+                    {(() => {
+                      const shown = BRANCH_ORDER.filter((br) => dealBranches.some((p) => p.branch === br) || (isActiveDeal && pending.has(br)));
+                      if (shown.length === 0) return <span className="block px-1.5 py-1 text-[11px] text-neutral-600">{isActiveDeal ? 'No simulated branches yet' : 'Open to view rooms'}</span>;
+                      return shown.map((br) => {
                         const pr = dealBranches.find((x) => x.branch === br);
-                        if (!pr) return null;
                         return (
                           <File
                             key={br}
@@ -157,13 +175,11 @@ export default function Sidebar() {
                             fileIcon={<span className="w-1.5 shrink-0" />}
                           >
                             <span className="capitalize truncate">{br}</span>
-                            <span className="ml-auto text-[10px] text-neutral-600 tabular-nums">{pr.projected_irr_pct.toFixed(1)}%</span>
+                            <span className="ml-auto text-[10px] text-neutral-600 tabular-nums">{pr ? `${pr.projected_irr_pct.toFixed(1)}%` : '…'}</span>
                           </File>
                         );
-                      })
-                    ) : (
-                      <span className="block px-1.5 py-1 text-[11px] text-neutral-600">{isActiveDeal ? 'No simulated branches yet' : 'Open to view rooms'}</span>
-                    )}
+                      });
+                    })()}
                   </Folder>
                   {hoveredId === deal.id && deletingId !== deal.id && (
                     <button onClick={(e) => handleDelete(e, deal.id)} title="Delete" className="absolute right-1.5 top-1.5 z-10 rounded p-1" style={{ color: '#555', background: '#040404', border: 'none', cursor: 'pointer' }}>

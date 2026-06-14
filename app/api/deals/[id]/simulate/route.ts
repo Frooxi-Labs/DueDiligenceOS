@@ -5,7 +5,7 @@ import { db } from '@/lib/db';
 import { dealBriefs, agentEvaluations, workflowEvents } from '@/lib/db/schema';
 import { simulateBranch } from '@/lib/orchestration/forking';
 import { broadcast } from '@/lib/realtime';
-import type { AgentType, DealRecord, ForkProjection, HumanDecision } from '@/types';
+import type { AgentType, DealRecord, ForkProjection, SimBranch } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,7 +32,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const { id } = await params;
   const parsed = Body.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return NextResponse.json({ error: 'branch required' }, { status: 422 });
-  const branch = parsed.data.branch as HumanDecision;
+  const branch = parsed.data.branch as SimBranch;
 
   const [deal] = await db.select().from(dealBriefs).where(eq(dealBriefs.id, id)).limit(1);
   if (!deal) return NextResponse.json({ error: 'Not found' }, { status: 404 });

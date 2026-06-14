@@ -54,6 +54,9 @@ function draftPrompt(decision: HumanDecision, s: Awaited<ReturnType<typeof getSy
   if (decision === 'renegotiate') {
     return `Draft a concise, professional RENEGOTIATION BRIEF (one short paragraph + a bulleted list of asks: price reduction, holdbacks, indemnities) the buyer should take back to the seller, based on these findings:\n${findings}\nPlain text only.`;
   }
+  if (decision === 'reject') {
+    return `Draft a concise, professional DEAL DECLINE / PASS memo (one short paragraph + a bulleted list of the decisive reasons) explaining why the buyer is walking away from this deal, based on these findings:\n${findings}\nPlain text only.`;
+  }
   return `Draft a concise, professional APPROVAL-TO-PROCEED memo (one short paragraph + the conditions precedent as a bulleted list) for an approved-with-conditions deal. Conditions: ${conditions}\nPlain text only.`;
 }
 

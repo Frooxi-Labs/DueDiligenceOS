@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { AgentType, DealEvent, ForkProjection, HumanDecision, Signal } from '@/types';
+import type { AgentType, DealEvent, ForkProjection, HumanDecision, SimBranch, Signal } from '@/types';
 
 export interface AgentCardState {
   status: 'idle' | 'processing' | 'done' | 'failed';
@@ -34,7 +34,7 @@ export interface WorkflowState {
   recruited: { by: AgentType; agent: AgentType; reason: string }[];
   delegations: DelegationInfo[];
   projections?: ForkProjection[];
-  liveFork?: { branch: HumanDecision; messages: { agent: AgentType; content: string }[]; thinking?: AgentType };
+  liveFork?: { branch: SimBranch; messages: { agent: AgentType; content: string }[]; thinking?: AgentType };
   failureReason?: string;
 }
 

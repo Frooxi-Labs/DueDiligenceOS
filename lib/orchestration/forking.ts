@@ -1,10 +1,10 @@
 import { z } from 'zod';
 import { BandClient, getAgentConfigs } from '@/lib/band';
 import { callLLM, callText } from '@/lib/providers';
-import type { AgentType, DealRecord, ForkProjection, HumanDecision } from '@/types';
+import type { AgentType, DealRecord, ForkProjection, SimBranch } from '@/types';
 
 /** The three branches the human gate can take. */
-export const BRANCHES: HumanDecision[] = ['proceed', 'remediate', 'renegotiate'];
+export const BRANCHES: SimBranch[] = ['proceed', 'remediate', 'renegotiate'];
 
 const ProjectionSchema = z.object({
   projected_irr_pct: z.number(),
@@ -14,7 +14,7 @@ const ProjectionSchema = z.object({
   rationale: z.string().min(10).max(500),
 });
 
-const BRANCH_FRAME: Record<HumanDecision, string> = {
+const BRANCH_FRAME: Record<SimBranch, string> = {
   proceed:
     'The buyer PROCEEDS now and closes subject to clearing the conditions precedent. Closing stays on the normal timeline; the buyer carries the cost and risk of the still-open conditions.',
   remediate:
@@ -50,7 +50,7 @@ export interface SimHooks {
 
 export async function simulateBranch(
   input: SimulationInput,
-  branch: HumanDecision,
+  branch: SimBranch,
   panel: AgentType[],
   hooks: SimHooks = {}
 ): Promise<ForkProjection> {

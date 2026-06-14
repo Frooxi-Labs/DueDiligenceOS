@@ -13,7 +13,9 @@ export type WorkflowStatus =
 
 export type Severity = 'critical' | 'material' | 'minor';
 export type Signal = 'red' | 'yellow' | 'green';
-export type HumanDecision = 'proceed' | 'remediate' | 'renegotiate';
+export type HumanDecision = 'proceed' | 'remediate' | 'renegotiate' | 'reject';
+/** The decision branches that can be simulated as a counterfactual child room. */
+export type SimBranch = 'proceed' | 'remediate' | 'renegotiate';
 export type AcquisitionType = 'residential' | 'commercial' | 'mixed_use' | 'development';
 
 /** A ranked finding emitted by an analysis agent. */
@@ -56,7 +58,7 @@ export interface DealRecord extends DealTerms {
 
 /** A simulated outcome for one human-decision branch (counterfactual fork). */
 export interface ForkProjection {
-  branch: HumanDecision;
+  branch: SimBranch;
   projected_irr_pct: number;
   residual_risk: 'low' | 'medium' | 'high';
   time_to_close: string;
@@ -82,8 +84,8 @@ export type DealEvent =
   | { type: 'escalation.needed'; missing: string[] }
   | { type: 'contradiction.detected'; title: string; detail: string; agents: AgentType[] }
   | { type: 'financial.recalculated'; irr_before: number; irr_after: number; trigger: string }
-  | { type: 'fork.thinking'; branch: HumanDecision; agent: AgentType }
-  | { type: 'fork.message'; branch: HumanDecision; agent: AgentType; content: string }
+  | { type: 'fork.thinking'; branch: SimBranch; agent: AgentType }
+  | { type: 'fork.message'; branch: SimBranch; agent: AgentType; content: string }
   | { type: 'fork.simulated'; projections: ForkProjection[] }
   | {
       type: 'approval.required';

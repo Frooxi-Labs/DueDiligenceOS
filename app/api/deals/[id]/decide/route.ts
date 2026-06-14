@@ -5,7 +5,7 @@ import { applyHumanDecision } from '@/lib/orchestration';
 export const dynamic = 'force-dynamic';
 
 const DecisionSchema = z.object({
-  decision: z.enum(['proceed', 'remediate', 'renegotiate']),
+  decision: z.enum(['proceed', 'remediate', 'renegotiate', 'reject']),
   confirmed: z.boolean().optional(),
   notes: z.string().optional(),
 });
