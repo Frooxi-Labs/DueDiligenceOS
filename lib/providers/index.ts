@@ -85,6 +85,19 @@ async function callModel(model: string, messages: ChatMessage[], opts: CallOpts 
   throw lastErr;
 }
 
+/** One-shot extraction helper (used by deal intake to pull structured terms). */
+export async function extractWithAI(text: string, systemPrompt: string): Promise<string> {
+  const model = process.env.MODEL_EXTRACT ?? 'gpt-4o-mini';
+  return callModel(
+    model,
+    [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: text },
+    ],
+    { temperature: 0.1, maxTokens: 900 }
+  );
+}
+
 /** Route a prompt to an agent's configured model. */
 export async function callLLM(agentType: AgentType, prompt: string, opts: CallOpts = {}): Promise<LlmResult> {
   const model = modelFor(agentType);

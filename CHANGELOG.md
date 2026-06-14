@@ -7,6 +7,15 @@ changed and the **context** (why).
 
 ### 2026-06-14
 
+- **Chat-style deal intake.** Replaced the intake form with a chat composer — type a description
+  and/or **attach documents** (PDF/TXT/MD), then send. A new `POST /api/deals/extract` reads the
+  package (PDFs parsed server-side to text via `pdf-parse`), an LLM pulls the structured deal terms,
+  and the raw text becomes the document package the Archivist reads. Animated multi-step progress
+  while it works.
+  - *Context:* A natural, modern intake that matches the Archivist's document-intelligence role and
+    supports real uploaded files. Uses only the chat/completions endpoint (we extract text
+    ourselves), so a Chat-only API key is sufficient.
+
 - **UI shell + chat-style room.** Added a collapsible **sidebar** (recent deals with live status
   dots, new-run, delete), a rounded app panel with **page-transition animations**, and restyled the
   deal room as a **chat-style feed** (message bubbles with fade-in + a live "analysing…" typing
