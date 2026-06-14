@@ -64,6 +64,8 @@ export interface ForkProjection {
   rationale: string;
   /** The Band child room this branch was deliberated in. */
   child_room_id?: string;
+  /** The actual back-and-forth that happened inside the child room. */
+  transcript?: { agent: AgentType; content: string }[];
 }
 
 // SSE events streamed to the browser.

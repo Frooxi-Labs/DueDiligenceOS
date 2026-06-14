@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { BandClient } from '@/lib/band';
-import { callLLM } from '@/lib/providers';
+import { BandClient, getAgentConfigs } from '@/lib/band';
+import { callLLM, callText } from '@/lib/providers';
 import type { DealRecord, ForkProjection, HumanDecision } from '@/types';
 
 /** The three branches the human gate can take. */
@@ -68,9 +68,10 @@ ${conditions || '- none'}
 Project realistic numbers for THIS scenario only (don't just echo the baseline — reason about how this choice changes return, risk, and timing). Return ONLY JSON:
 {"projected_irr_pct": <number>, "residual_risk": "low|medium|high", "time_to_close": "<e.g. 30-45 days>", "deal_survival": "likely|uncertain|at risk", "rationale": "<1-2 sentences, <500 chars>"}`;
 
+      // Financial underwrites the branch (structured numbers).
       let proj: z.infer<typeof ProjectionSchema>;
       try {
-        const { content } = await callLLM('synthesis', prompt, { json: true, maxTokens: 600 });
+        const { content } = await callLLM('financial', prompt, { json: true, maxTokens: 600 });
         proj = ProjectionSchema.parse(JSON.parse(stripFences(content)));
       } catch {
         // Always render something, even if the model/parse fails.
@@ -83,22 +84,45 @@ Project realistic numbers for THIS scenario only (don't just echo the baseline �
         };
       }
 
-      // Genuinely fork: create a Band child room and post the branch deliberation
-      // there (as a thought event — no mention needed in a fresh room).
-      let childRoomId: string | undefined;
+      // Genuinely fork: a Band child room where TWO agents actually deliberate —
+      // Financial states the re-underwrite, the Deal Director gives the verdict.
+      const finMsg = `On a ${branch.toUpperCase()} path I re-underwrite to ${proj.projected_irr_pct}% IRR — residual risk ${proj.residual_risk}, close in ${proj.time_to_close}, deal ${proj.deal_survival}. ${proj.rationale}`;
+
+      let verdict = '';
       try {
-        const band = new BandClient('synthesis');
-        childRoomId = await band.createRoom();
-        await band.postEvent(
-          childRoomId,
-          `Counterfactual branch — ${branch.toUpperCase()}\n${BRANCH_FRAME[branch]}\n\nProjected IRR ${proj.projected_irr_pct}% · residual risk ${proj.residual_risk} · close ${proj.time_to_close} · deal ${proj.deal_survival}.\n${proj.rationale}`,
-          'thought'
-        );
+        verdict = (
+          await callText(
+            'synthesis',
+            `You are the Deal Director in a forked "what-if" room simulating the ${branch.toUpperCase()} decision (${BRANCH_FRAME[branch]}). Financial just reported: "${finMsg}". In 1-2 sentences, give your verdict on whether this path is advisable and the single biggest watch-item. Plain text.`,
+            { maxTokens: 400 }
+          )
+        ).trim();
       } catch {
-        /* best-effort — the simulation result stands without the room */
+        verdict = `Acknowledged. ${branch} carries ${proj.residual_risk} residual risk; weigh it against the timeline.`;
       }
 
-      return { branch, child_room_id: childRoomId, ...proj };
+      // Post the deliberation into the child room as real, mention-routed messages.
+      let childRoomId: string | undefined;
+      try {
+        const configs = getAgentConfigs();
+        const fin = new BandClient('financial');
+        childRoomId = await fin.createRoom();
+        await fin.addParticipant(childRoomId, configs.synthesis.agentId);
+        await fin.postMessage(childRoomId, finMsg, ['synthesis']);
+        await new BandClient('synthesis').postMessage(childRoomId, verdict, ['financial']);
+      } catch {
+        /* best-effort — the simulation result stands even if Band is unreachable */
+      }
+
+      return {
+        branch,
+        child_room_id: childRoomId,
+        ...proj,
+        transcript: [
+          { agent: 'financial' as const, content: finMsg },
+          { agent: 'synthesis' as const, content: verdict },
+        ],
+      };
     })
   );
 }

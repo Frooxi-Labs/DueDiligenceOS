@@ -48,6 +48,7 @@ export default function DealPage() {
   const [localProjections, setLocalProjections] = useState<ForkProjection[] | null>(null);
   const [bandBusy, setBandBusy] = useState(false);
   const [bandCheck, setBandCheck] = useState<{ message_count: number; participants_polled: number } | null>(null);
+  const [openRoom, setOpenRoom] = useState<HumanDecision | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const shownDecision = s.decision ?? localDecision;
@@ -308,9 +309,10 @@ export default function DealPage() {
                 ) : (
                   <>
                     <p className="text-xs text-neutral-500 mb-2">Reviewer decision required — the memo is held until you decide.</p>
-                    <button onClick={simulate} disabled={simBusy} className="w-full mb-3 rounded-lg border border-indigo-500/50 bg-indigo-500/10 text-indigo-200 text-sm font-medium px-4 py-2 hover:bg-indigo-500/20 disabled:opacity-50">
+                    <button onClick={simulate} disabled={simBusy} className="w-full mb-2 rounded-lg border border-indigo-500/50 bg-indigo-500/10 text-indigo-200 text-sm font-medium px-4 py-2 hover:bg-indigo-500/20 disabled:opacity-50">
                       {simBusy ? 'Simulating the three futures…' : projections ? '↻ Re-simulate outcomes' : '⑂ Simulate the 3 outcomes'}
                     </button>
+                    {projections && <p className="text-[11px] text-neutral-500 mb-3">Each option was deliberated in its own Band child room — expand to see the agents talk, then <span className="text-neutral-300">choose one</span> to commit.</p>}
                     {projections ? (
                       <div className="flex flex-col gap-2">
                         {(['proceed', 'remediate', 'renegotiate'] as HumanDecision[]).map((br) => {
@@ -327,9 +329,28 @@ export default function DealPage() {
                                     <span>risk <span className={riskColor[pr.residual_risk]}>{pr.residual_risk}</span></span>
                                     <span>close {pr.time_to_close}</span>
                                     <span>deal {pr.deal_survival}</span>
-                                    {pr.child_room_id && <span className="text-neutral-600" title={pr.child_room_id}>· forked room</span>}
                                   </div>
                                   <p className="text-xs text-neutral-400 mb-2">{pr.rationale}</p>
+                                  {pr.transcript && pr.transcript.length > 0 && (
+                                    <>
+                                      <button onClick={() => setOpenRoom(openRoom === br ? null : br)} className="text-[11px] text-indigo-300 hover:text-indigo-200 mb-2">
+                                        {openRoom === br ? '▾ hide room' : '▸ view room'}
+                                        {pr.child_room_id && <span className="font-mono text-neutral-600"> · {pr.child_room_id.slice(0, 8)}</span>}
+                                        <span className="text-neutral-600"> · {pr.transcript.length} messages</span>
+                                      </button>
+                                      {openRoom === br && (
+                                        <div className="mb-2 space-y-2 rounded-md border border-neutral-800 bg-neutral-900/50 p-2">
+                                          <p className="text-[10px] uppercase tracking-widest text-neutral-600">Band child room</p>
+                                          {pr.transcript.map((t, ti) => (
+                                            <div key={ti} className="flex gap-2">
+                                              <div className="w-5 h-5 rounded bg-neutral-800 flex items-center justify-center text-[8px] font-semibold text-neutral-300 shrink-0">{LABELS[t.agent].slice(0, 2)}</div>
+                                              <div className="min-w-0"><span className="text-[10px] font-medium text-neutral-300">{LABELS[t.agent]}</span><p className="text-[11px] text-neutral-400 leading-snug">{t.content}</p></div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </>
+                                  )}
                                 </>
                               ) : (
                                 <p className="text-xs text-neutral-500 mb-2">No projection for this branch.</p>
