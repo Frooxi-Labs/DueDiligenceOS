@@ -2,7 +2,7 @@ import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { dealBriefs, bandRooms, agentEvaluations, mentions as mentionsTable, workflowEvents } from '@/lib/db/schema';
 import { BandClient, getAgentConfigs } from '@/lib/band';
-import { runAgent, type PropertyFact, type ComplianceReport, type LegalRisk, type FinancialModel } from '@/lib/agents';
+import { runAgent, type PropertyFact, type ComplianceReport, type LegalRisk, type FinancialModel, type DealMemo } from '@/lib/agents';
 import { broadcast } from '@/lib/realtime';
 import { detectContradictions, cascadeFromCompliance, compositeRiskScore } from './contradiction';
 import type { AgentType, DealRecord, DealEvent, WorkflowStatus } from '@/types';
@@ -139,13 +139,21 @@ export async function runWorkflow(dealId: string): Promise<void> {
     // ── SYNTHESIS + human gate ──────────────────────────────────────────
     await setStatus(dealId, 'synthesis');
     const synth = await run('synthesis', { deal, propertyFact, compliance, legal: legalRisk, financialBaseline: financial }, []);
-    const memo = synth.raw as { signal: 'red' | 'yellow' | 'green'; recommendation: string };
+    const memo = synth.raw as DealMemo;
 
     const composite = compositeRiskScore(propertyFact, compliance, legalRisk);
     const summary = `${memo.recommendation}\n\nComposite risk score: ${composite}/100 · Signal: ${memo.signal.toUpperCase()}${contradictions.length ? ` · ${contradictions.length} contradiction(s) flagged` : ''}`;
 
     await setStatus(dealId, 'awaiting_human');
-    emit(dealId, { type: 'approval.required', summary, composite_score: composite, signal: memo.signal });
+    emit(dealId, {
+      type: 'approval.required',
+      summary,
+      composite_score: composite,
+      signal: memo.signal,
+      recommendation: memo.recommendation,
+      top_findings: memo.top_findings,
+      conditions: memo.conditions_precedent,
+    });
     await logEvent(dealId, 'approval.required', { composite, signal: memo.signal });
   } catch (err) {
     const reason = (err as Error).message;

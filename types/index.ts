@@ -65,7 +65,15 @@ export type DealEvent =
   | { type: 'escalation.needed'; missing: string[] }
   | { type: 'contradiction.detected'; title: string; detail: string; agents: AgentType[] }
   | { type: 'financial.recalculated'; irr_before: number; irr_after: number; trigger: string }
-  | { type: 'approval.required'; summary: string; composite_score: number; signal: Signal }
+  | {
+      type: 'approval.required';
+      summary: string;
+      composite_score: number;
+      signal: Signal;
+      recommendation: string;
+      top_findings: { title: string; detail: string; severity: Severity }[];
+      conditions: string[];
+    }
   | { type: 'deal.decided'; decision: HumanDecision; conditions: string[] }
   | { type: 'workflow.status'; status: WorkflowStatus }
   | { type: 'workflow.failed'; reason: string };

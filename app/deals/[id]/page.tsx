@@ -102,26 +102,70 @@ export default function DealPage() {
         </div>
 
         {/* Human gate */}
-        {s.status === 'awaiting_human' && !shownDecision && (
-          <div className="mt-4 rounded-xl border border-neutral-700 bg-neutral-900 p-4">
-            {s.signal && (
-              <p className="mb-2 text-sm">
-                Signal: <span className={`font-semibold ${signalColor[s.signal]}`}>{s.signal.toUpperCase()}</span>
-                {s.compositeScore !== undefined && <span className="text-neutral-500"> · composite risk {s.compositeScore}/100</span>}
-              </p>
-            )}
-            <p className="text-sm text-neutral-300 mb-3 whitespace-pre-line">{s.approvalSummary}</p>
-            <div className="flex flex-wrap gap-3">
-              <button onClick={() => decide('proceed')} disabled={deciding} className="rounded-lg bg-emerald-500 text-black font-medium px-4 py-2 hover:bg-emerald-400 disabled:opacity-50">Proceed with conditions</button>
-              <button onClick={() => decide('remediate')} disabled={deciding} className="rounded-lg bg-amber-500 text-black font-medium px-4 py-2 hover:bg-amber-400 disabled:opacity-50">Request remediation</button>
-              <button onClick={() => decide('renegotiate')} disabled={deciding} className="rounded-lg bg-red-500/90 text-white font-medium px-4 py-2 hover:bg-red-500 disabled:opacity-50">Flag for renegotiation</button>
+        {/* Executive deal memo + human-in-the-loop gate */}
+        {s.recommendation && (
+          <div className="mt-4 rounded-xl border border-neutral-700 bg-neutral-900 overflow-hidden">
+            {/* Verdict band */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800" style={{ background: s.signal === 'green' ? '#0e2a1a' : s.signal === 'yellow' ? '#2a230e' : '#2a0e0e' }}>
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-neutral-500">Deal memo</p>
+                <p className={`text-lg font-semibold ${s.signal ? signalColor[s.signal] : ''}`}>{s.signal?.toUpperCase()}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] uppercase tracking-widest text-neutral-500">Composite risk</p>
+                <p className="text-lg font-semibold">{s.compositeScore ?? '—'}<span className="text-xs text-neutral-500">/100</span></p>
+              </div>
             </div>
-            {decideError && <p className="mt-2 text-xs text-red-400">Could not record decision: {decideError}</p>}
-          </div>
-        )}
-        {shownDecision && (
-          <div className="mt-4 rounded-xl border border-neutral-700 bg-neutral-900 p-4 text-sm">
-            Reviewer decision recorded: <span className="text-white font-medium capitalize">{shownDecision}</span>
+
+            <div className="p-4 space-y-3 max-h-[40vh] overflow-auto df-scroll">
+              <p className="text-sm text-neutral-300 leading-relaxed">{s.recommendation}</p>
+
+              {s.topFindings && s.topFindings.length > 0 && (
+                <div>
+                  <p className="text-[11px] uppercase tracking-widest text-neutral-600 mb-1.5">Top findings</p>
+                  <ul className="space-y-1.5">
+                    {s.topFindings.map((f, i) => (
+                      <li key={i} className="flex gap-2 text-sm">
+                        <span className={`text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded shrink-0 h-fit ${f.severity === 'critical' ? 'bg-red-500/20 text-red-400' : f.severity === 'material' ? 'bg-amber-500/20 text-amber-400' : 'bg-neutral-700/40 text-neutral-400'}`}>{f.severity}</span>
+                        <span className="text-neutral-300"><span className="font-medium text-neutral-200">{f.title}.</span> {f.detail}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {s.conditions && s.conditions.length > 0 && (
+                <div>
+                  <p className="text-[11px] uppercase tracking-widest text-neutral-600 mb-1.5">Conditions precedent</p>
+                  <ul className="space-y-1">
+                    {s.conditions.map((c, i) => (
+                      <li key={i} className="flex gap-2 text-sm text-neutral-300"><span className="text-neutral-600">☐</span> {c}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            {/* Decision footer */}
+            <div className="px-4 py-3 border-t border-neutral-800">
+              {!shownDecision ? (
+                <>
+                  <p className="text-xs text-neutral-500 mb-2">Reviewer decision required — the memo is held until you decide.</p>
+                  <div className="flex flex-wrap gap-3">
+                    <button onClick={() => decide('proceed')} disabled={deciding} className="rounded-lg bg-emerald-500 text-black font-medium px-4 py-2 hover:bg-emerald-400 disabled:opacity-50">Proceed with conditions</button>
+                    <button onClick={() => decide('remediate')} disabled={deciding} className="rounded-lg bg-amber-500 text-black font-medium px-4 py-2 hover:bg-amber-400 disabled:opacity-50">Request remediation</button>
+                    <button onClick={() => decide('renegotiate')} disabled={deciding} className="rounded-lg bg-red-500/90 text-white font-medium px-4 py-2 hover:bg-red-500 disabled:opacity-50">Flag for renegotiation</button>
+                  </div>
+                  {decideError && <p className="mt-2 text-xs text-red-400">Could not record decision: {decideError}</p>}
+                </>
+              ) : (
+                <p className="text-sm">
+                  <span className="text-neutral-500">Reviewer decision:</span>{' '}
+                  <span className="text-white font-semibold capitalize">{shownDecision}</span>
+                  <span className="text-neutral-600"> · stamped {new Date().toLocaleString()}</span>
+                </p>
+              )}
+            </div>
           </div>
         )}
       </div>

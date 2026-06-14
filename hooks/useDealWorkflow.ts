@@ -38,6 +38,9 @@ export interface WorkflowState {
   approvalSummary?: string;
   compositeScore?: number;
   signal?: Signal;
+  recommendation?: string;
+  topFindings?: { title: string; detail: string; severity: string }[];
+  conditions?: string[];
   decision?: HumanDecision;
   failureReason?: string;
 }
@@ -78,7 +81,16 @@ function reduce(prev: WorkflowState, e: DealEvent): WorkflowState {
     case 'financial.recalculated':
       return { ...prev, cascade: { irr_before: e.irr_before, irr_after: e.irr_after, trigger: e.trigger } };
     case 'approval.required':
-      return { ...prev, status: 'awaiting_human', approvalSummary: e.summary, compositeScore: e.composite_score, signal: e.signal };
+      return {
+        ...prev,
+        status: 'awaiting_human',
+        approvalSummary: e.summary,
+        compositeScore: e.composite_score,
+        signal: e.signal,
+        recommendation: e.recommendation,
+        topFindings: e.top_findings,
+        conditions: e.conditions,
+      };
     case 'deal.decided':
       return { ...prev, status: 'decided', decision: e.decision };
     case 'workflow.failed':
