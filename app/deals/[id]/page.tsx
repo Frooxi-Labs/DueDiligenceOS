@@ -132,7 +132,8 @@ export default function DealPage() {
           })}
         </div>
 
-        <div ref={scrollRef} className="flex-1 overflow-auto df-scroll px-6 pb-2 space-y-3">
+        <div ref={scrollRef} className="flex-1 overflow-auto df-scroll px-6 pb-2">
+          <div className="max-w-3xl mx-auto w-full space-y-3">
           {s.messages.length === 0 && <p className="text-sm text-neutral-600">Waiting for the committee to convene…</p>}
           {s.messages.map((m, i) => (
             <div key={i} className="fade-up flex gap-3">
@@ -194,14 +195,17 @@ export default function DealPage() {
               <div className="flex items-center gap-1 rounded-xl bg-neutral-800/40 px-3 py-2">{[0, 1, 2].map((d) => <span key={d} className="w-1.5 h-1.5 rounded-full bg-neutral-500 thinking-dot" style={{ animationDelay: `${d * 0.15}s` }} />)}</div>
             </div>
           )}
+          </div>
         </div>
 
         <div className="px-6 py-3 shrink-0">
+          <div className="max-w-3xl mx-auto">
           <div className={`rounded-2xl px-4 py-2.5 flex items-end gap-2 ${deliberating ? 'opacity-60' : ''}`} style={{ background: '#212121' }}>
             <textarea rows={1} value={chatInput} disabled={deliberating} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (!deliberating) sendChat(); } }} placeholder={deliberating ? 'The committee is deliberating — you can ask questions once the memo is ready…' : 'Ask the committee about this deal…'} className="flex-1 resize-none bg-transparent text-sm outline-none text-neutral-100 disabled:cursor-not-allowed" style={{ maxHeight: 120 }} />
             <button onClick={sendChat} disabled={!chatInput.trim() || chatBusy || deliberating} className="w-7 h-7 rounded-full flex items-center justify-center disabled:opacity-30" style={{ background: '#fff', color: '#1a1a1a' }}>
               <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 12L12 1M12 1H4M12 1V9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </button>
+          </div>
           </div>
         </div>
       </div>
