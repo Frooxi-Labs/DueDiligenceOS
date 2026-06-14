@@ -36,12 +36,21 @@ export function parseAgentOutput(raw: string): unknown {
     throw new Error(`Output contains no JSON object. Preview: "${cleaned.substring(0, 150)}"`);
   }
   const slice = cleaned.substring(start, end + 1);
-  try {
-    return JSON.parse(slice);
-  } catch {
-    // Repair the most common LLM slip: trailing commas before } or ].
-    return JSON.parse(slice.replace(/,(\s*[}\]])/g, '$1'));
+  // Try increasingly aggressive repairs for the common LLM/JSON-mode slips.
+  const noTrailingCommas = (s: string) => s.replace(/,(\s*[}\]])/g, '$1');
+  // Insert a missing comma between two elements/members split across a newline
+  // (e.g. `}\n{`, `]\n[`, `"a"\n"b"`, `5\n"c"`) — a known Gemini glitch.
+  const addMissingCommas = (s: string) => s.replace(/([}\]"\d])(\s*\n\s*)(["{[])/g, '$1,$2$3');
+  const attempts = [slice, noTrailingCommas(slice), addMissingCommas(noTrailingCommas(slice))];
+  let lastErr: unknown;
+  for (const candidate of attempts) {
+    try {
+      return JSON.parse(candidate);
+    } catch (e) {
+      lastErr = e;
+    }
   }
+  throw new Error(`Could not parse JSON: ${(lastErr as Error).message}. Preview: "${slice.substring(0, 150)}"`);
 }
 
 /** True if a report carries a deal-breaking (Critical) finding — drives the cascade. */

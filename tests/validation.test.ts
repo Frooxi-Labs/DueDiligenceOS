@@ -7,6 +7,11 @@ describe('parseAgentOutput', () => {
   it('strips markdown fences', () => expect(parseAgentOutput('```json\n{"a":1}\n```')).toEqual({ a: 1 }));
   it('extracts JSON from preamble', () => expect(parseAgentOutput('Here:\n{"a":1}\nthx')).toEqual({ a: 1 }));
   it('throws when no JSON', () => expect(() => parseAgentOutput('nope')).toThrow());
+  it('repairs trailing commas', () => expect(parseAgentOutput('{"a":[1,2,],}')).toEqual({ a: [1, 2] }));
+  it('repairs a missing comma between array objects', () =>
+    expect(parseAgentOutput('{\n"chain":[\n{"o":"A"}\n{"o":"B"}\n]\n}')).toEqual({ chain: [{ o: 'A' }, { o: 'B' }] }));
+  it('repairs a missing comma between object members', () =>
+    expect(parseAgentOutput('{\n"a":"x"\n"b":"y"\n}')).toEqual({ a: 'x', b: 'y' }));
 });
 
 describe('validateBusinessLogic', () => {
