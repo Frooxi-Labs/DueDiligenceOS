@@ -17,13 +17,19 @@ const MAX_RETRIES = 3;
 
 export const PROVIDER = 'aiml';
 
-/** Per-agent model. Different models on purpose (cross-model committee). */
+/**
+ * Per-agent model — different models on purpose (cross-model committee).
+ * IDs must match the AI/ML API catalog exactly: Google models are namespaced
+ * (`google/…`), OpenAI models are plain. Override any of these via env.
+ * To go three-provider, set MODEL_REGULATORY / MODEL_LEGAL to a Claude id from
+ * your AI/ML dashboard (e.g. `claude-3-5-sonnet-20241022`).
+ */
 const MODELS: Record<AgentType, string> = {
-  archivist: process.env.MODEL_ARCHIVIST ?? 'gemini-2.0-flash', // long-context doc extraction
-  regulatory: process.env.MODEL_REGULATORY ?? 'claude-3-5-sonnet-20241022',
-  legal: process.env.MODEL_LEGAL ?? 'claude-3-5-sonnet-20241022',
+  archivist: process.env.MODEL_ARCHIVIST ?? 'google/gemini-2.0-flash', // long-context extraction
+  regulatory: process.env.MODEL_REGULATORY ?? 'gpt-4o-mini',
+  legal: process.env.MODEL_LEGAL ?? 'gpt-4o-mini',
   financial: process.env.MODEL_FINANCIAL ?? 'gpt-4o',
-  synthesis: process.env.MODEL_SYNTHESIS ?? 'gpt-4o',
+  synthesis: process.env.MODEL_SYNTHESIS ?? 'gpt-4o-mini',
 };
 
 export function modelFor(agentType: AgentType): string {

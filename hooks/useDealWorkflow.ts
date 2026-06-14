@@ -39,6 +39,7 @@ export interface WorkflowState {
   compositeScore?: number;
   signal?: Signal;
   decision?: HumanDecision;
+  failureReason?: string;
 }
 
 const AGENTS: AgentType[] = ['archivist', 'regulatory', 'legal', 'financial', 'synthesis'];
@@ -81,7 +82,7 @@ function reduce(prev: WorkflowState, e: DealEvent): WorkflowState {
     case 'deal.decided':
       return { ...prev, status: 'decided', decision: e.decision };
     case 'workflow.failed':
-      return { ...prev, status: 'failed' };
+      return { ...prev, status: 'failed', failureReason: e.reason };
     default:
       return prev;
   }

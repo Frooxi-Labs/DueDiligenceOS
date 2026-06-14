@@ -1,53 +1,59 @@
 /**
  * Realtime module — fan-out of workflow events to connected browsers (SSE).
  *
- * Current transport is in-process (works when the app + workflow run in one
- * long-lived process — the demo topology). The `EventTransport` seam lets a
- * Redis pub/sub transport drop in for multi-instance deploys without touching
- * callers.
+ * Uses a globalThis-backed singleton so the workflow (running in the POST
+ * handler) and the SSE route share the same bus even when Next bundles route
+ * handlers separately. A per-deal replay buffer lets a browser that connects
+ * mid-run catch up on events it missed.
  *
- * Public API: `subscribe`, `broadcast`.
+ * In-process only (the single long-lived process / demo topology). A Redis
+ * pub/sub transport can replace this for multi-instance deploys.
  */
 import type { DealEvent } from '@/types';
 
-export interface EventTransport {
-  publish(dealId: string, event: DealEvent): void;
-  subscribe(dealId: string, onEvent: (event: DealEvent) => void): () => void;
+type Listener = (event: DealEvent) => void;
+
+interface Bus {
+  subscribers: Map<string, Set<Listener>>;
+  history: Map<string, DealEvent[]>;
 }
 
-class InProcessTransport implements EventTransport {
-  private subscribers = new Map<string, Set<(event: DealEvent) => void>>();
+const MAX_HISTORY = 300;
 
-  publish(dealId: string, event: DealEvent): void {
-    const subs = this.subscribers.get(dealId);
-    if (!subs) return;
-    for (const fn of subs) {
-      try {
-        fn(event);
-      } catch {
-        subs.delete(fn);
-      }
+const g = globalThis as unknown as { __ddosBus?: Bus };
+const bus: Bus = g.__ddosBus ?? (g.__ddosBus = { subscribers: new Map(), history: new Map() });
+
+/** Push an event to every subscriber, and remember it for late subscribers. */
+export function broadcast(dealId: string, event: DealEvent): void {
+  const hist = bus.history.get(dealId) ?? [];
+  hist.push(event);
+  if (hist.length > MAX_HISTORY) hist.shift();
+  bus.history.set(dealId, hist);
+
+  const subs = bus.subscribers.get(dealId);
+  if (!subs) return;
+  for (const fn of subs) {
+    try {
+      fn(event);
+    } catch {
+      subs.delete(fn);
     }
   }
+}
 
-  subscribe(dealId: string, onEvent: (event: DealEvent) => void): () => void {
-    if (!this.subscribers.has(dealId)) this.subscribers.set(dealId, new Set());
-    this.subscribers.get(dealId)!.add(onEvent);
-    return () => {
-      this.subscribers.get(dealId)?.delete(onEvent);
-      if (this.subscribers.get(dealId)?.size === 0) this.subscribers.delete(dealId);
-    };
+/** Subscribe to a deal's events. Replays buffered history first (catch-up). */
+export function subscribe(dealId: string, onEvent: Listener): () => void {
+  for (const e of bus.history.get(dealId) ?? []) {
+    try {
+      onEvent(e);
+    } catch {
+      /* ignore */
+    }
   }
-}
-
-const transport: EventTransport = new InProcessTransport();
-
-/** Push an event to every browser subscribed to this deal. */
-export function broadcast(dealId: string, event: DealEvent): void {
-  transport.publish(dealId, event);
-}
-
-/** Subscribe to a deal's event stream; returns an unsubscribe function. */
-export function subscribe(dealId: string, onEvent: (event: DealEvent) => void): () => void {
-  return transport.subscribe(dealId, onEvent);
+  if (!bus.subscribers.has(dealId)) bus.subscribers.set(dealId, new Set());
+  bus.subscribers.get(dealId)!.add(onEvent);
+  return () => {
+    bus.subscribers.get(dealId)?.delete(onEvent);
+    if (bus.subscribers.get(dealId)?.size === 0) bus.subscribers.delete(dealId);
+  };
 }

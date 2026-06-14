@@ -149,6 +149,7 @@ export async function runWorkflow(dealId: string): Promise<void> {
     await logEvent(dealId, 'approval.required', { composite, signal: memo.signal });
   } catch (err) {
     const reason = (err as Error).message;
+    console.error('[workflow] failed for deal', dealId, '-', reason);
     await setStatus(dealId, 'failed');
     emit(dealId, { type: 'workflow.failed', reason });
     await logEvent(dealId, 'workflow.failed', { reason });

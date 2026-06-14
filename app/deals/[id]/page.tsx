@@ -75,6 +75,12 @@ export default function DealPage() {
         </div>
       ))}
 
+      {s.status === 'failed' && (
+        <div className="mb-3 rounded-lg border border-red-500/50 bg-red-500/10 px-4 py-2 text-sm text-red-300">
+          Workflow failed{s.failureReason ? `: ${s.failureReason}` : ''}
+        </div>
+      )}
+
       {s.missingDocs.length > 0 && (
         <div className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-2 text-xs text-amber-300">
           Missing documents flagged by Archivist: {s.missingDocs.join(', ')}
