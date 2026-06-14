@@ -139,14 +139,16 @@ export async function runWorkflow(dealId: string): Promise<void> {
       emit(dealId, { type: 'contradiction.detected', title: c.title, detail: c.detail, agents: c.agents });
       await logEvent(dealId, 'contradiction.detected', { title: c.title, detail: c.detail, agents: c.agents });
 
-      // Band-mediated negotiation: the two agents debate the conflict in the room.
+      // Band-mediated negotiation: the two agents debate the conflict in the
+      // room, each turn posted the instant it's produced (live back-and-forth).
       try {
-        const neg = await negotiateContradiction(c);
-        for (const t of neg.turns) {
+        const neg = await negotiateContradiction(c, async (t) => {
+          emit(dealId, { type: 'agent.processing', agent: t.agent });
           await post(roomId, t.agent, t.content, [t.to]);
           emit(dealId, { type: 'band.message', agent: t.agent, content: t.content });
+          emit(dealId, { type: 'agent.completed', agent: t.agent, headline: 'reconciling contradiction' });
           await logEvent(dealId, 'negotiation.turn', { agent: t.agent, content: t.content }, t.agent);
-        }
+        });
         negotiatedConditions.push(neg.resolution);
       } catch (err) {
         await logEvent(dealId, 'negotiation.failed', { reason: (err as Error).message });
