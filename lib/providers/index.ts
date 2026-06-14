@@ -68,7 +68,9 @@ async function callModel(model: string, messages: ChatMessage[], opts: CallOpts 
           model,
           messages,
           temperature: opts.temperature ?? 0.1,
-          max_tokens: opts.maxTokens ?? 1200,
+          // Generous budget: "thinking" models (e.g. Gemini 2.5) spend tokens on
+          // reasoning before the JSON, so a low cap truncates the output.
+          max_tokens: opts.maxTokens ?? 4000,
           top_p: 0.9,
         }),
         signal: AbortSignal.timeout(TIMEOUT_MS),
