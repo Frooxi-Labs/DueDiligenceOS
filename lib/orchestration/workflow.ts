@@ -2,7 +2,7 @@ import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { dealBriefs, bandRooms, agentEvaluations, mentions as mentionsTable, workflowEvents } from '@/lib/db/schema';
 import { BandClient, getAgentConfigs } from '@/lib/band';
-import { runAgent, type PropertyFact, type ComplianceReport, type LegalRisk, type FinancialModel, type EnvironmentalReport, type DealMemo } from '@/lib/agents';
+import { runAgent, assessEnvironmentalViaLangGraph, type PropertyFact, type ComplianceReport, type LegalRisk, type FinancialModel, type EnvironmentalReport, type DealMemo } from '@/lib/agents';
 import { broadcast } from '@/lib/realtime';
 import { detectContradictions, cascadeFromCompliance, compositeRiskScore } from './contradiction';
 import { negotiateContradiction } from './negotiation';
@@ -175,17 +175,36 @@ export async function runWorkflow(dealId: string): Promise<void> {
         /* best-effort */
       }
       // 3) Group-chat join notice, like a teammate entering the room.
-      await systemSay(dealId, 'Environmental specialist joined the room');
+      await systemSay(dealId, 'Environmental specialist joined the room — running on LangGraph (Python)');
       emit(dealId, { type: 'agent.recruited', by: recruiter, agent: 'environmental', reason: envReason });
       await logEvent(dealId, 'agent.recruited', { by: recruiter, agent: 'environmental', reason: envReason }, recruiter);
       await recordMention(dealId, recruiter, 'environmental', envReason);
       // 4) The requesting agent asks the specialist directly — it's our ask, so we ask.
       await say(dealId, roomId, recruiter, `Thanks for joining. Could you assess the contamination risk on this property and tell us whether a Phase I is warranted? We'd value your read before Financial underwrites.`, ['environmental']);
+
+      // 5) The specialist is a cross-framework agent: a LangGraph (Python) service
+      //    that posts into this same Band room. Fall back in-process if it's down.
+      emit(dealId, { type: 'agent.processing', agent: 'environmental' });
       try {
-        const envRes = await run('environmental', { deal, propertyFact, compliance }, ['regulatory', 'synthesis']);
-        environmental = envRes.raw as EnvironmentalReport;
-      } catch {
-        /* a failed specialist must not abort the committee */
+        const configs = getAgentConfigs();
+        const lg = await assessEnvironmentalViaLangGraph(
+          { deal, propertyFact, compliance },
+          roomId,
+          [configs[recruiter].agentId, configs.synthesis.agentId]
+        );
+        environmental = lg.report;
+        await persistEval(dealId, 'environmental', { headline: lg.headline, bandMessage: lg.bandMessage, raw: lg.report, model: lg.model });
+        emit(dealId, { type: 'band.message', agent: 'environmental', content: lg.bandMessage });
+        emit(dealId, { type: 'agent.completed', agent: 'environmental', headline: lg.headline, model: lg.model });
+        await logEvent(dealId, 'agent.completed', { headline: lg.headline, framework: 'langgraph' }, 'environmental');
+      } catch (err) {
+        await logEvent(dealId, 'langgraph.fallback', { reason: (err as Error).message }, 'environmental');
+        try {
+          const envRes = await run('environmental', { deal, propertyFact, compliance }, ['regulatory', 'synthesis']);
+          environmental = envRes.raw as EnvironmentalReport;
+        } catch {
+          /* a failed specialist must not abort the committee */
+        }
       }
     } else if (envReason && !envConfigured) {
       await logEvent(dealId, 'recruitment.skipped', { reason: 'environmental agent not configured' });

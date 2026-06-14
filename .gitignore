@@ -20,3 +20,9 @@ next-env.d.ts
 .idea/
 .vscode/
 *.swp
+
+# ---- Python service ----
+__pycache__/
+*.pyc
+services/**/.venv/
+.venv/

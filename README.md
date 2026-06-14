@@ -35,7 +35,7 @@ They don't just run in parallel — they **collaborate through Band**:
 
 ## How Band is used
 
-Band is the collaboration layer, not a notification channel. The agents share context, route work via `@mentions`, negotiate, and record their reasoning **inside a Band room** — and at least one agent runs on a **different framework** (LangGraph, via the Band SDK) and joins the same room as a first-class participant, demonstrating genuine cross-framework collaboration.
+Band is the collaboration layer, not a notification channel. The agents share context, route work via `@mentions`, negotiate, and record their reasoning **inside a Band room**. The core committee also runs across **four model providers** (Gemini, Claude, GPT) — distinct Band identities collaborating with no glue code — and when a deal needs environmental review, an **Environmental specialist built on a different framework (LangGraph, Python)** is recruited into the *same* Band room as a first-class participant. That is genuine cross-framework, cross-model collaboration: Band makes the boundary disappear. See [`services/environmental-agent`](services/environmental-agent).
 
 ## Architecture
 
@@ -53,6 +53,10 @@ npm install
 cp .env.example .env.local   # add your database + Band agent credentials
 npm run dev
 ```
+
+Optionally run the cross-framework Environmental specialist (LangGraph/Python) so it
+joins the Band room live — see [`services/environmental-agent`](services/environmental-agent/README.md).
+If it isn't running, the committee falls back to an in-process implementation.
 
 ## License
 
