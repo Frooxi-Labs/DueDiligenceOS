@@ -4,8 +4,12 @@ Property: Riverside Medical Plaza, Austin, TX.
 Seller: Riverside Holdings, LLC.
 
 Environmental:
-  - Seller has no knowledge of contamination, underground storage tanks, or
-    hazardous materials on the property.
+  - Per county records, the parcel previously operated as an automotive service
+    station with on-site fuel dispensing until 2007, prior to the 2009
+    redevelopment. No Phase I Environmental Site Assessment has been performed
+    since redevelopment.
+  - Seller has no knowledge of contamination, remaining underground storage
+    tanks, or hazardous materials on the property.
   - The property is NOT located within a FEMA Special Flood Hazard Area.
   - No known wetlands or EPA-listed sites on or adjacent to the parcel.
 

@@ -77,9 +77,14 @@ async function systemSay(dealId: string, content: string) {
 
 /** Decide whether an Environmental specialist should be recruited, and why. */
 function needsEnvironmental(pf: PropertyFact, compliance: ComplianceReport, legal: LegalRisk): string | null {
-  const env = /environment|contaminat|phase\s*i|wetland|flood|epa|superfund/i;
-  if (pf.missing_documents.some((d) => env.test(d))) return 'Missing Phase I environmental assessment';
-  const flagged = [...compliance.findings, ...legal.findings].find((f) => env.test(`${f.title} ${f.detail}`));
+  // Genuine environmental signals only — concrete hazards, not the word "environment".
+  const env = /contaminat|phase\s*i\b|wetland|\bflood\b|\bfema\b|\bepa\b|superfund|asbestos|underground storage|\bust\b|petroleum|fuel dispens|service station|soil|groundwater|remediat|hazardous/i;
+  // Findings that belong to Legal/Regulatory, not Environmental — never recruit on these.
+  const notEnv = /easement|\btitle\b|zoning|\blien\b|estoppel|reps?\b|contingency/i;
+  if (pf.missing_documents.some((d) => /phase\s*i|environmental/i.test(d))) return 'Missing Phase I environmental assessment';
+  const flagged = [...compliance.findings, ...legal.findings].find(
+    (f) => env.test(`${f.title} ${f.detail}`) && !notEnv.test(f.title)
+  );
   return flagged ? `Environmental concern flagged: ${flagged.title}` : null;
 }
 

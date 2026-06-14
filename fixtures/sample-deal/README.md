@@ -10,7 +10,7 @@ committee surfaces both signature findings.
 | `01-title-deed.txt` | Fee simple absolute; **"no easements of record"** |
 | `02-zoning-certificate.txt` | Zoned **R-3 residential**; intended medical/retail use **not permitted** |
 | `03-property-inspection.txt` | Built 2009, grade B, ~$450k deferred maintenance, no Phase I |
-| `04-seller-disclosure.txt` | No known environmental issues; not in a FEMA flood zone |
+| `04-seller-disclosure.txt` | **Prior automotive service station use (fuel dispensing) until 2007**, no Phase I since; not in a FEMA flood zone |
 | `05-purchase-contract.txt` | $28.5M, 65% LTV @ 6.5%, 7-yr hold; **§4 access easement**; survey contingency waived |
 
 ## What it should produce
@@ -19,6 +19,9 @@ committee surfaces both signature findings.
 - **Contradiction** — the title deed says *no easements* but the contract §4 references an
   **access easement** → surfaced as a Critical contradiction.
 - **Missing-document flag** — no survey / no Phase I environmental → Archivist notes the gaps.
+- **Emergent recruitment** — the **prior gas-station use** is a recognized environmental
+  condition; Regulatory/Legal recruit the **Environmental specialist** (a cross-framework
+  LangGraph agent) into the room, which recommends a Phase I before closing.
 - Synthesis composes the memo with a Red/Yellow/Green signal, held for your decision
   (proceed / remediate / renegotiate).
 
