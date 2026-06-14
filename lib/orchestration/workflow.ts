@@ -153,26 +153,34 @@ export async function runWorkflow(dealId: string): Promise<void> {
       }
     }
 
-    // ── DYNAMIC RECRUITMENT — pull in an Environmental specialist if flagged ──
+    // ── EMERGENT DISPATCH — an agent decides it needs a specialist ──────────
+    // Prefer the agents' own requests; fall back to a deterministic heuristic.
     let environmental: EnvironmentalReport | undefined;
-    const envReason = needsEnvironmental(propertyFact, compliance, legalRisk);
+    const recruiter: AgentType =
+      compliance.requested_specialist === 'environmental' ? 'regulatory'
+      : legalRisk.requested_specialist === 'environmental' ? 'legal'
+      : 'regulatory';
+    const envReason =
+      (compliance.requested_specialist === 'environmental' && compliance.specialist_reason) ||
+      (legalRisk.requested_specialist === 'environmental' && legalRisk.specialist_reason) ||
+      needsEnvironmental(propertyFact, compliance, legalRisk);
     const envConfigured = !!getAgentConfigs().environmental.agentId;
     if (envReason && envConfigured) {
-      // 1) Regulatory tells the room it's bringing in outside help.
-      await say(dealId, roomId, 'regulatory', `I've hit something outside my lane — ${envReason.toLowerCase()}. I'm pulling in an Environmental specialist to take a look.`, ['synthesis']);
+      // 1) The requesting agent tells the room it's bringing in outside help.
+      await say(dealId, roomId, recruiter, `I've hit something outside my lane — ${envReason.toLowerCase()}. I'm pulling in an Environmental specialist to take a look.`, ['synthesis']);
       try {
-        // 2) Regulatory recruits the specialist into the room via Band's peer API.
-        await new BandClient('regulatory').addParticipant(roomId, getAgentConfigs().environmental.agentId);
+        // 2) The requesting agent recruits the specialist via Band's peer API.
+        await new BandClient(recruiter).addParticipant(roomId, getAgentConfigs().environmental.agentId);
       } catch {
         /* best-effort */
       }
       // 3) Group-chat join notice, like a teammate entering the room.
       await systemSay(dealId, 'Environmental specialist joined the room');
-      emit(dealId, { type: 'agent.recruited', by: 'regulatory', agent: 'environmental', reason: envReason });
-      await logEvent(dealId, 'agent.recruited', { by: 'regulatory', agent: 'environmental', reason: envReason }, 'regulatory');
-      await recordMention(dealId, 'regulatory', 'environmental', envReason);
-      // 4) Regulatory asks the specialist directly — it's our ask, so we ask.
-      await say(dealId, roomId, 'regulatory', `Thanks for joining. Could you assess the contamination risk on this property and tell us whether a Phase I is warranted? We'd value your read before Financial underwrites.`, ['environmental']);
+      emit(dealId, { type: 'agent.recruited', by: recruiter, agent: 'environmental', reason: envReason });
+      await logEvent(dealId, 'agent.recruited', { by: recruiter, agent: 'environmental', reason: envReason }, recruiter);
+      await recordMention(dealId, recruiter, 'environmental', envReason);
+      // 4) The requesting agent asks the specialist directly — it's our ask, so we ask.
+      await say(dealId, roomId, recruiter, `Thanks for joining. Could you assess the contamination risk on this property and tell us whether a Phase I is warranted? We'd value your read before Financial underwrites.`, ['environmental']);
       try {
         const envRes = await run('environmental', { deal, propertyFact, compliance }, ['regulatory', 'synthesis']);
         environmental = envRes.raw as EnvironmentalReport;

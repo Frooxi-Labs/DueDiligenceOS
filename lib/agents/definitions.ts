@@ -101,8 +101,9 @@ ${factBlock(ctx.propertyFact)}
 
 DEAL TERMS:
 ${dealTerms(ctx.deal)}
+EMERGENT DISPATCH: if you find an environmental concern that is genuinely outside your expertise and warrants a specialist (e.g. likely soil/groundwater contamination, a missing Phase I, an underground storage tank, wetlands/flood exposure needing assessment), set requested_specialist="environmental" and specialist_reason to one concrete sentence. Otherwise set both null — do NOT request a specialist for routine items you can assess yourself.
 ${retry(ctx)}
-Return ONLY JSON: { "agent": "regulatory", "risk_score": <0-100>, "zoning_permitted": <bool>, "flood_zone": <string|null>, "findings": [{"id":"reg-...","title":"...","detail":"...","severity":"critical|material|minor"}], "summary": "<20-400 chars>" }
+Return ONLY JSON: { "agent": "regulatory", "risk_score": <0-100>, "zoning_permitted": <bool>, "flood_zone": <string|null>, "findings": [{"id":"reg-...","title":"...","detail":"...","severity":"critical|material|minor"}], "requested_specialist": "environmental"|null, "specialist_reason": <string|null>, "summary": "<20-400 chars>" }
 Start with { and end with }.`;
     },
     formatBandMessage(o) {
@@ -132,8 +133,9 @@ CONTRACT / DOCUMENTS:
 """
 ${ctx.deal.documents}
 """
+EMERGENT DISPATCH: if the contract or title surfaces an environmental matter outside your legal expertise that needs a specialist (e.g. an environmental indemnity hinting at known contamination, a remediation obligation, a hazardous-materials disclosure), set requested_specialist="environmental" and specialist_reason to one concrete sentence. Otherwise set both null.
 ${retry(ctx)}
-Return ONLY JSON: { "agent": "legal", "title_clean": <bool>, "easement_found_in_contract": <bool>, "findings": [{"id":"legal-...","title":"...","detail":"...","severity":"critical|material|minor"}], "summary": "<20-400 chars>" }
+Return ONLY JSON: { "agent": "legal", "title_clean": <bool>, "easement_found_in_contract": <bool>, "findings": [{"id":"legal-...","title":"...","detail":"...","severity":"critical|material|minor"}], "requested_specialist": "environmental"|null, "specialist_reason": <string|null>, "summary": "<20-400 chars>" }
 Start with { and end with }.`;
     },
     formatBandMessage(o) {

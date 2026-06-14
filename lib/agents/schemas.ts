@@ -39,6 +39,9 @@ export const ComplianceReportSchema = z.object({
   zoning_permitted: z.boolean(),
   flood_zone: z.string().nullable().default(null),
   findings: z.array(FindingSchema).default([]),
+  /** Emergent dispatch: set when this agent decides a specialist is needed. */
+  requested_specialist: z.enum(['environmental']).nullable().default(null),
+  specialist_reason: z.string().nullable().default(null),
   summary: z.string().min(20).max(400),
 });
 
@@ -66,6 +69,9 @@ export const LegalRiskSchema = z.object({
   /** True if Legal read an easement in the contract — may contradict PropertyFact. */
   easement_found_in_contract: z.boolean(),
   findings: z.array(FindingSchema).default([]),
+  /** Emergent dispatch: set when this agent decides a specialist is needed. */
+  requested_specialist: z.enum(['environmental']).nullable().default(null),
+  specialist_reason: z.string().nullable().default(null),
   summary: z.string().min(20).max(400),
 });
 

@@ -22,6 +22,8 @@ const legal = (over: Partial<LegalRisk> = {}): LegalRisk => ({
   title_clean: true,
   easement_found_in_contract: false,
   findings: [],
+  requested_specialist: null,
+  specialist_reason: null,
   summary: 'x'.repeat(25),
   ...over,
 });
@@ -32,6 +34,8 @@ const compliance = (over: Partial<ComplianceReport> = {}): ComplianceReport => (
   zoning_permitted: true,
   flood_zone: null,
   findings: [],
+  requested_specialist: null,
+  specialist_reason: null,
   summary: 'x'.repeat(25),
   ...over,
 });
