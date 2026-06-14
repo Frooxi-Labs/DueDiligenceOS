@@ -49,10 +49,13 @@ export default function DealPage() {
   const [bandBusy, setBandBusy] = useState(false);
   const [bandCheck, setBandCheck] = useState<{ message_count: number; participants_polled: number } | null>(null);
   const [openRoom, setOpenRoom] = useState<HumanDecision | null>(null);
+  const [activeRoom, setActiveRoom] = useState<'parent' | HumanDecision>('parent');
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const shownDecision = s.decision ?? localDecision;
   const projections = s.projections ?? localProjections;
+  const activeProjection = activeRoom === 'parent' ? null : projections?.find((p) => p.branch === activeRoom) ?? null;
+  const inChildRoom = activeRoom !== 'parent' && !!activeProjection;
   const challenge = !shownDecision && !dismissedChallenge ? localChallenge ?? s.challenge : null;
   const ns = shownDecision ? nextStep(shownDecision, s) : null;
   const deliberating = !['awaiting_human', 'decided', 'failed'].includes(s.status);
@@ -144,13 +147,51 @@ export default function DealPage() {
 
   return (
     <div className="h-full flex overflow-hidden">
+      {/* ── Rooms rail: parent room + simulated child rooms (file tree) ── */}
+      <aside className="w-52 shrink-0 border-r border-neutral-800 flex flex-col bg-neutral-900/20">
+        <div className="px-3 h-12 flex items-center border-b border-neutral-800">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-neutral-500">Rooms</p>
+        </div>
+        <div className="flex-1 overflow-auto df-scroll p-2">
+          <button onClick={() => setActiveRoom('parent')} className={`w-full text-left rounded-md px-2 py-1.5 flex items-center gap-2 text-sm ${activeRoom === 'parent' ? 'bg-neutral-800 text-white' : 'text-neutral-300 hover:bg-neutral-800/50'}`}>
+            <span className="shrink-0">🗂️</span><span className="truncate">{deal?.title ?? 'Committee room'}</span>
+          </button>
+          {projections && projections.length > 0 && (
+            <div className="mt-1 ml-3 border-l border-neutral-800 pl-2 space-y-0.5">
+              <p className="text-[10px] uppercase tracking-widest text-neutral-600 px-1 py-1">Simulated branches</p>
+              {(['proceed', 'remediate', 'renegotiate'] as HumanDecision[]).map((br) => {
+                const pr = projections.find((x) => x.branch === br);
+                if (!pr) return null;
+                return (
+                  <button key={br} onClick={() => setActiveRoom(br)} className={`w-full text-left rounded-md px-2 py-1.5 ${activeRoom === br ? 'bg-neutral-800 text-white' : 'text-neutral-400 hover:bg-neutral-800/50'}`}>
+                    <span className="flex items-center gap-1.5 text-sm"><span className="text-indigo-400 shrink-0">💬</span><span className="truncate capitalize">{br}</span></span>
+                    <span className="block text-[10px] text-neutral-600 pl-5 tabular-nums">{pr.projected_irr_pct.toFixed(1)}% IRR{pr.child_room_id ? ` · ${pr.child_room_id.slice(0, 6)}` : ''}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </aside>
+
       {/* ── Main: conversation ───────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0">
         <header className="px-6 pt-5 pb-3 shrink-0">
-          <h1 className="text-lg font-semibold">Due-Diligence Committee</h1>
-          <p className="text-xs text-neutral-500">Status: <span className="text-neutral-300">{s.status.replace(/_/g, ' ')}</span>{s.bandRoomId && <span className="ml-2">· Band room live</span>}</p>
+          {inChildRoom ? (
+            <>
+              <button onClick={() => setActiveRoom('parent')} className="text-xs text-neutral-400 hover:text-white mb-1">← Committee room</button>
+              <h1 className="text-lg font-semibold capitalize">{activeRoom} — simulated branch</h1>
+              <p className="text-xs text-neutral-500">Counterfactual Band child room{activeProjection?.child_room_id ? <span className="font-mono ml-1">· {activeProjection.child_room_id.slice(0, 8)}</span> : ''}</p>
+            </>
+          ) : (
+            <>
+              <h1 className="text-lg font-semibold">Due-Diligence Committee</h1>
+              <p className="text-xs text-neutral-500">Status: <span className="text-neutral-300">{s.status.replace(/_/g, ' ')}</span>{s.bandRoomId && <span className="ml-2">· Band room live</span>}</p>
+            </>
+          )}
         </header>
 
+        {!inChildRoom && (
         <div className="grid grid-cols-5 gap-3 px-6 mb-3 shrink-0">
           {rosterAgents.map((a) => {
             const c = s.agents[a];
@@ -165,8 +206,35 @@ export default function DealPage() {
             );
           })}
         </div>
+        )}
 
         <div ref={scrollRef} className="flex-1 overflow-auto df-scroll px-6 pb-2">
+          {inChildRoom && activeProjection ? (
+            <div className="max-w-3xl mx-auto w-full space-y-3">
+              <div className="rounded-xl border border-indigo-500/30 bg-indigo-500/5 p-3">
+                <p className="text-[10px] uppercase tracking-widest text-indigo-300/80 mb-1">What-if · {activeRoom}</p>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-300">
+                  <span className="font-semibold tabular-nums">{activeProjection.projected_irr_pct.toFixed(1)}% IRR</span>
+                  <span>risk <span className={riskColor[activeProjection.residual_risk]}>{activeProjection.residual_risk}</span></span>
+                  <span>close {activeProjection.time_to_close}</span>
+                  <span>deal {activeProjection.deal_survival}</span>
+                </div>
+                <p className="text-xs text-neutral-400 mt-2">{activeProjection.rationale}</p>
+              </div>
+              {(activeProjection.transcript ?? []).map((t, i) => (
+                <div key={i} className="fade-up flex gap-3">
+                  <div className="w-7 h-7 rounded-lg bg-neutral-800 flex items-center justify-center text-[10px] font-semibold text-neutral-300 shrink-0">{LABELS[t.agent].slice(0, 2)}</div>
+                  <div className="min-w-0 flex-1">
+                    <span className="text-xs font-medium text-neutral-200">{LABELS[t.agent]}</span>
+                    <div className="mt-0.5 text-sm text-neutral-300 leading-relaxed df-msg"><Markdown>{t.content}</Markdown></div>
+                  </div>
+                </div>
+              ))}
+              <div className="flex justify-center pt-1">
+                <span className="text-[11px] text-neutral-600 bg-neutral-800/40 rounded-full px-3 py-1">End of simulated branch · choose this path from the memo panel to commit</span>
+              </div>
+            </div>
+          ) : (
           <div className="max-w-3xl mx-auto w-full space-y-3">
           {s.messages.length === 0 && <p className="text-sm text-neutral-600">Waiting for the committee to convene…</p>}
           {s.messages.map((m, i) => (
@@ -240,16 +308,23 @@ export default function DealPage() {
             </div>
           )}
           </div>
+          )}
         </div>
 
         <div className="px-6 py-3 shrink-0">
           <div className="max-w-3xl mx-auto">
+          {inChildRoom ? (
+            <button onClick={() => decide(activeRoom as HumanDecision)} disabled={deciding || !!shownDecision} className="w-full rounded-xl bg-indigo-500/90 text-white font-medium px-4 py-2.5 text-sm hover:bg-indigo-500 disabled:opacity-50">
+              {shownDecision ? `Decision recorded: ${shownDecision}` : `Choose “${activeRoom}” for this deal`}
+            </button>
+          ) : (
           <div className={`rounded-2xl px-4 py-2.5 flex items-end gap-2 ${deliberating ? 'opacity-60' : ''}`} style={{ background: '#212121' }}>
             <textarea rows={1} value={chatInput} disabled={deliberating} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (!deliberating) sendChat(); } }} placeholder={deliberating ? 'The committee is deliberating — you can ask questions once the memo is ready…' : 'Ask the committee about this deal…'} className="flex-1 resize-none bg-transparent text-sm outline-none text-neutral-100 disabled:cursor-not-allowed" style={{ maxHeight: 120 }} />
             <button onClick={sendChat} disabled={!chatInput.trim() || chatBusy || deliberating} className="w-7 h-7 rounded-full flex items-center justify-center disabled:opacity-30" style={{ background: '#fff', color: '#1a1a1a' }}>
               <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M1 12L12 1M12 1H4M12 1V9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </button>
           </div>
+          )}
           </div>
         </div>
       </div>

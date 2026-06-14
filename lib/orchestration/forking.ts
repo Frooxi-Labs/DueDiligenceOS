@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { BandClient, getAgentConfigs } from '@/lib/band';
 import { callLLM, callText } from '@/lib/providers';
-import type { DealRecord, ForkProjection, HumanDecision } from '@/types';
+import type { AgentType, DealRecord, ForkProjection, HumanDecision } from '@/types';
 
 /** The three branches the human gate can take. */
 export const BRANCHES: HumanDecision[] = ['proceed', 'remediate', 'renegotiate'];
@@ -13,6 +13,18 @@ const ProjectionSchema = z.object({
   deal_survival: z.enum(['likely', 'uncertain', 'at risk']),
   rationale: z.string().min(10).max(500),
 });
+
+/** The branch-relevant specialist who leads each child room's deliberation. */
+const LEAD: Record<HumanDecision, AgentType> = {
+  proceed: 'legal', // locks the conditions precedent before closing
+  remediate: 'regulatory', // what the seller must cure first
+  renegotiate: 'legal', // which terms/price to re-trade
+};
+const LEAD_ANGLE: Record<HumanDecision, string> = {
+  proceed: 'which conditions precedent and legal protections must be locked before closing, and the biggest residual exposure if we proceed now',
+  remediate: 'which compliance/environmental items the seller must cure before closing, and how likely the seller is to deliver',
+  renegotiate: 'which contract terms or price points to re-trade given the findings, and the risk the seller walks',
+};
 
 const BRANCH_FRAME: Record<HumanDecision, string> = {
   proceed:
@@ -84,8 +96,22 @@ Project realistic numbers for THIS scenario only (don't just echo the baseline â
         };
       }
 
-      // Genuinely fork: a Band child room where TWO agents actually deliberate â€”
-      // Financial states the re-underwrite, the Deal Director gives the verdict.
+      // Genuinely fork: a Band child room where a branch-relevant PANEL deliberates â€”
+      // a specialist frames the path, Financial re-underwrites, the Deal Director rules.
+      const lead = LEAD[branch];
+      let leadMsg = '';
+      try {
+        leadMsg = (
+          await callText(
+            lead,
+            `You are the ${lead} agent in a forked "what-if" room simulating the ${branch.toUpperCase()} decision (${BRANCH_FRAME[branch]}) for ${deal.title}. In 1-2 sentences, give your specialist read on ${LEAD_ANGLE[branch]}. Plain text.`,
+            { maxTokens: 400 }
+          )
+        ).trim();
+      } catch {
+        leadMsg = `From a ${lead} standpoint, the ${branch} path needs the open findings handled carefully before closing.`;
+      }
+
       const finMsg = `On a ${branch.toUpperCase()} path I re-underwrite to ${proj.projected_irr_pct}% IRR â€” residual risk ${proj.residual_risk}, close in ${proj.time_to_close}, deal ${proj.deal_survival}. ${proj.rationale}`;
 
       let verdict = '';
@@ -93,7 +119,7 @@ Project realistic numbers for THIS scenario only (don't just echo the baseline â
         verdict = (
           await callText(
             'synthesis',
-            `You are the Deal Director in a forked "what-if" room simulating the ${branch.toUpperCase()} decision (${BRANCH_FRAME[branch]}). Financial just reported: "${finMsg}". In 1-2 sentences, give your verdict on whether this path is advisable and the single biggest watch-item. Plain text.`,
+            `You are the Deal Director in a forked "what-if" room simulating the ${branch.toUpperCase()} decision. ${lead} said: "${leadMsg}". Financial reported: "${finMsg}". In 1-2 sentences, give your verdict on whether this path is advisable and the single biggest watch-item. Plain text.`,
             { maxTokens: 400 }
           )
         ).trim();
@@ -101,15 +127,17 @@ Project realistic numbers for THIS scenario only (don't just echo the baseline â
         verdict = `Acknowledged. ${branch} carries ${proj.residual_risk} residual risk; weigh it against the timeline.`;
       }
 
-      // Post the deliberation into the child room as real, mention-routed messages.
+      // Post the panel deliberation into the child room as real, mention-routed messages.
       let childRoomId: string | undefined;
       try {
         const configs = getAgentConfigs();
-        const fin = new BandClient('financial');
-        childRoomId = await fin.createRoom();
-        await fin.addParticipant(childRoomId, configs.synthesis.agentId);
-        await fin.postMessage(childRoomId, finMsg, ['synthesis']);
-        await new BandClient('synthesis').postMessage(childRoomId, verdict, ['financial']);
+        const leadBand = new BandClient(lead);
+        childRoomId = await leadBand.createRoom();
+        await leadBand.addParticipant(childRoomId, configs.financial.agentId);
+        await leadBand.addParticipant(childRoomId, configs.synthesis.agentId);
+        await leadBand.postMessage(childRoomId, leadMsg, ['financial']);
+        await new BandClient('financial').postMessage(childRoomId, finMsg, ['synthesis']);
+        await new BandClient('synthesis').postMessage(childRoomId, verdict, [lead]);
       } catch {
         /* best-effort â€” the simulation result stands even if Band is unreachable */
       }
@@ -119,6 +147,7 @@ Project realistic numbers for THIS scenario only (don't just echo the baseline â
         child_room_id: childRoomId,
         ...proj,
         transcript: [
+          { agent: lead, content: leadMsg },
           { agent: 'financial' as const, content: finMsg },
           { agent: 'synthesis' as const, content: verdict },
         ],
