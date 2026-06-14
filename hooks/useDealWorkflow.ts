@@ -30,10 +30,11 @@ export interface WorkflowState {
   decision?: HumanDecision;
   challenge?: { decision: HumanDecision; message: string };
   decisionDocument?: string;
+  recruited: { by: AgentType; agent: AgentType; reason: string }[];
   failureReason?: string;
 }
 
-const AGENTS: AgentType[] = ['archivist', 'regulatory', 'legal', 'financial', 'synthesis'];
+const AGENTS: AgentType[] = ['archivist', 'regulatory', 'legal', 'financial', 'synthesis', 'environmental'];
 
 function initialState(): WorkflowState {
   return {
@@ -43,6 +44,7 @@ function initialState(): WorkflowState {
     handoffs: [],
     contradictions: [],
     missingDocs: [],
+    recruited: [],
   };
 }
 
@@ -60,6 +62,9 @@ function reduce(prev: WorkflowState, e: DealEvent): WorkflowState {
       return { ...prev, agents: { ...prev.agents, [e.agent]: { status: 'failed', headline: e.reason } } };
     case 'agent.mentioned':
       return { ...prev, handoffs: [...prev.handoffs, { from: e.from, to: e.to, reason: e.reason }] };
+    case 'agent.recruited':
+      if (prev.recruited.some((r) => r.agent === e.agent)) return prev;
+      return { ...prev, recruited: [...prev.recruited, { by: e.by, agent: e.agent, reason: e.reason }] };
     case 'band.message':
       // Dedupe — hydration + SSE replay can deliver the same message.
       if (prev.messages.some((m) => m.agent === e.agent && m.content === e.content)) return prev;
@@ -123,6 +128,7 @@ function hydrate(d: HydrateDeal, a: HydrateAudit | null): WorkflowState {
   for (const ev of a?.events ?? []) {
     const p = (ev.payload ?? {}) as Record<string, unknown>;
     if (ev.event_type === 'negotiation.turn') msgs.push({ agent: p.agent as AgentType, content: String(p.content ?? ''), ts: +new Date(ev.created_at) });
+    if (ev.event_type === 'agent.recruited') st.recruited.push({ by: p.by as AgentType, agent: p.agent as AgentType, reason: String(p.reason ?? '') });
     if (ev.event_type === 'contradiction.detected') st.contradictions.push({ title: String(p.title ?? 'Contradiction'), detail: String(p.detail ?? ''), agents: (p.agents as AgentType[]) ?? [] });
     if (ev.event_type === 'financial.recalculated') st.cascade = { irr_before: Number(p.before), irr_after: Number(p.after), trigger: String(p.trigger ?? 'upstream finding') };
     if (ev.event_type === 'approval.required') { st.compositeScore = p.composite as number | undefined; if (p.signal) st.signal = p.signal as Signal; }

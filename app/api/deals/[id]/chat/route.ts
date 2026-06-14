@@ -17,6 +17,7 @@ const PERSONA: Record<AgentType, string> = {
   legal: 'the Legal Risk agent — title, contract terms, easements, liens',
   financial: 'the Financial Underwriting agent — NOI, cap rate, DCR, IRR',
   synthesis: 'the Deal Director (Synthesis) — you weigh all findings into the memo',
+  environmental: 'the Environmental specialist — contamination, Phase I, flood/wetlands, remediation',
 };
 
 /** Pick which agent the reviewer is addressing; default to the Deal Director. */

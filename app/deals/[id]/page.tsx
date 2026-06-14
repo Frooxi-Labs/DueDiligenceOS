@@ -7,7 +7,7 @@ import Markdown from '@/app/components/Markdown';
 import type { AgentType, HumanDecision } from '@/types';
 
 const LABELS: Record<AgentType, string> = {
-  archivist: 'Archivist', regulatory: 'Regulatory', legal: 'Legal Risk', financial: 'Financial', synthesis: 'Synthesis',
+  archivist: 'Archivist', regulatory: 'Regulatory', legal: 'Legal Risk', financial: 'Financial', synthesis: 'Synthesis', environmental: 'Environmental',
 };
 const ORDER: AgentType[] = ['archivist', 'regulatory', 'legal', 'financial', 'synthesis'];
 const signalColor: Record<string, string> = { green: 'text-emerald-400', yellow: 'text-amber-400', red: 'text-red-400' };
@@ -44,6 +44,7 @@ export default function DealPage() {
   const challenge = !shownDecision && !dismissedChallenge ? localChallenge ?? s.challenge : null;
   const ns = shownDecision ? nextStep(shownDecision, s) : null;
   const deliberating = !['awaiting_human', 'decided', 'failed'].includes(s.status);
+  const rosterAgents = [...ORDER, ...s.recruited.map((r) => r.agent).filter((a) => !ORDER.includes(a))];
 
   useEffect(() => { if (id) fetch(`/api/deals/${id}`).then((r) => r.json()).then((d) => setDeal(d.deal ?? null)).catch(() => {}); }, [id]);
   useEffect(() => { if (id) fetch(`/api/deals/${id}/audit`).then((r) => r.json()).then((d) => setAudit(d.events ?? [])).catch(() => {}); }, [id, s.status, s.messages.length]);
@@ -106,7 +107,7 @@ export default function DealPage() {
     w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
   }
 
-  const activityCount = s.contradictions.length + (s.cascade ? 1 : 0) + (s.missingDocs.length ? 1 : 0) + (s.status === 'failed' ? 1 : 0);
+  const activityCount = s.contradictions.length + s.recruited.length + (s.cascade ? 1 : 0) + (s.missingDocs.length ? 1 : 0) + (s.status === 'failed' ? 1 : 0);
 
   return (
     <div className="h-full flex overflow-hidden">
@@ -118,7 +119,7 @@ export default function DealPage() {
         </header>
 
         <div className="grid grid-cols-5 gap-3 px-6 mb-3 shrink-0">
-          {ORDER.map((a) => {
+          {rosterAgents.map((a) => {
             const c = s.agents[a];
             return (
               <div key={a} className={`rounded-xl border p-2.5 ${c.status === 'processing' ? 'border-blue-500/60 bg-blue-500/5' : 'border-neutral-800 bg-neutral-900/40'}`}>
@@ -144,7 +145,7 @@ export default function DealPage() {
               </div>
             </div>
           ))}
-          {ORDER.filter((a) => s.agents[a].status === 'processing').map((a) => (
+          {rosterAgents.filter((a) => s.agents[a].status === 'processing').map((a) => (
             <div key={`t-${a}`} className="fade-up flex gap-3 items-center">
               <div className="w-7 h-7 rounded-lg bg-neutral-800 flex items-center justify-center text-[10px] font-semibold text-neutral-400 shrink-0">{LABELS[a].slice(0, 2)}</div>
               <div className="flex items-center gap-1 rounded-xl bg-neutral-800/40 px-3 py-2"><span className="text-xs text-neutral-500 mr-1">{LABELS[a]} is analysing</span>{[0, 1, 2].map((d) => <span key={d} className="w-1.5 h-1.5 rounded-full bg-neutral-500 thinking-dot" style={{ animationDelay: `${d * 0.15}s` }} />)}</div>
@@ -282,6 +283,12 @@ export default function DealPage() {
               )}
               {s.contradictions.map((c, i) => (
                 <div key={i} className="rounded-lg border border-red-500/50 bg-red-500/10 px-3 py-2 text-xs"><p className="text-red-300 font-semibold mb-0.5">⚠ Contradiction</p><p className="text-neutral-300">{c.title}</p><p className="text-neutral-500 mt-1">{c.detail}</p><p className="text-neutral-600 mt-1">{c.agents.map((a) => LABELS[a]).join(' vs ')}</p></div>
+              ))}
+              {s.recruited.map((r, i) => (
+                <div key={`r-${i}`} className="rounded-lg border border-blue-500/40 bg-blue-500/10 px-3 py-2 text-xs">
+                  <p className="text-blue-300 font-medium mb-0.5">🤝 Recruited {LABELS[r.agent]}</p>
+                  <p className="text-neutral-400">{LABELS[r.by]} pulled a specialist into the room — {r.reason}</p>
+                </div>
               ))}
               {s.missingDocs.length > 0 && <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-300">Missing documents: {s.missingDocs.join(', ')}</div>}
               {s.status === 'failed' && <div className="rounded-lg border border-red-500/50 bg-red-500/10 px-3 py-2 text-xs text-red-300">Workflow failed{s.failureReason ? `: ${s.failureReason}` : ''}</div>}

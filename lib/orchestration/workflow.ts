@@ -2,7 +2,7 @@ import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { dealBriefs, bandRooms, agentEvaluations, mentions as mentionsTable, workflowEvents } from '@/lib/db/schema';
 import { BandClient, getAgentConfigs } from '@/lib/band';
-import { runAgent, type PropertyFact, type ComplianceReport, type LegalRisk, type FinancialModel, type DealMemo } from '@/lib/agents';
+import { runAgent, type PropertyFact, type ComplianceReport, type LegalRisk, type FinancialModel, type EnvironmentalReport, type DealMemo } from '@/lib/agents';
 import { broadcast } from '@/lib/realtime';
 import { detectContradictions, cascadeFromCompliance, compositeRiskScore } from './contradiction';
 import { negotiateContradiction } from './negotiation';
@@ -60,6 +60,14 @@ async function initBandRoom(deal: DealRecord): Promise<string> {
 async function post(roomId: string, agent: AgentType, content: string, mentionTargets: AgentType[]) {
   const band = new BandClient(agent);
   return band.postMessage(roomId, content, mentionTargets);
+}
+
+/** Decide whether an Environmental specialist should be recruited, and why. */
+function needsEnvironmental(pf: PropertyFact, compliance: ComplianceReport, legal: LegalRisk): string | null {
+  const env = /environment|contaminat|phase\s*i|wetland|flood|epa|superfund/i;
+  if (pf.missing_documents.some((d) => env.test(d))) return 'Missing Phase I environmental assessment';
+  const flagged = [...compliance.findings, ...legal.findings].find((f) => env.test(`${f.title} ${f.detail}`));
+  return flagged ? `Environmental concern flagged: ${flagged.title}` : null;
 }
 
 /**
@@ -132,6 +140,30 @@ export async function runWorkflow(dealId: string): Promise<void> {
       }
     }
 
+    // ── DYNAMIC RECRUITMENT — pull in an Environmental specialist if flagged ──
+    let environmental: EnvironmentalReport | undefined;
+    const envReason = needsEnvironmental(propertyFact, compliance, legalRisk);
+    const envConfigured = !!getAgentConfigs().environmental.agentId;
+    if (envReason && envConfigured) {
+      try {
+        // Regulatory recruits the specialist into the room via Band's peer API.
+        await new BandClient('regulatory').addParticipant(roomId, getAgentConfigs().environmental.agentId);
+      } catch {
+        /* best-effort */
+      }
+      emit(dealId, { type: 'agent.recruited', by: 'regulatory', agent: 'environmental', reason: envReason });
+      await logEvent(dealId, 'agent.recruited', { by: 'regulatory', agent: 'environmental', reason: envReason }, 'regulatory');
+      await recordMention(dealId, 'regulatory', 'environmental', envReason);
+      try {
+        const envRes = await run('environmental', { deal, propertyFact, compliance }, ['synthesis']);
+        environmental = envRes.raw as EnvironmentalReport;
+      } catch {
+        /* a failed specialist must not abort the committee */
+      }
+    } else if (envReason && !envConfigured) {
+      await logEvent(dealId, 'recruitment.skipped', { reason: 'environmental agent not configured' });
+    }
+
     // ── FINANCIAL — baseline, then cascade re-underwrite if Critical ────
     await setStatus(dealId, 'financial');
     const baselineRes = await run('financial', { deal, propertyFact, compliance }, ['synthesis']);
@@ -153,7 +185,7 @@ export async function runWorkflow(dealId: string): Promise<void> {
 
     // ── SYNTHESIS + human gate ──────────────────────────────────────────
     await setStatus(dealId, 'synthesis');
-    const synth = await run('synthesis', { deal, propertyFact, compliance, legal: legalRisk, financialBaseline: financial }, []);
+    const synth = await run('synthesis', { deal, propertyFact, compliance, legal: legalRisk, environmental, financialBaseline: financial }, []);
     const memo = synth.raw as DealMemo;
 
     const composite = compositeRiskScore(propertyFact, compliance, legalRisk);

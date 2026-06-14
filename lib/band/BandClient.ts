@@ -40,6 +40,7 @@ export function getAgentConfigs(): Record<AgentType, BandAgentConfig> {
     legal: mk('legal', 'BAND_LEGAL', 'Legal'),
     financial: mk('financial', 'BAND_FINANCIAL', 'Financial'),
     synthesis: mk('synthesis', 'BAND_SYNTHESIS', 'Synthesis'),
+    environmental: mk('environmental', 'BAND_ENVIRONMENTAL', 'Environmental'),
   };
 }
 

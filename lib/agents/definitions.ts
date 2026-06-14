@@ -6,11 +6,13 @@ import {
   FinancialModelSchema,
   LegalRiskSchema,
   DealMemoSchema,
+  EnvironmentalReportSchema,
   type AgentOutput,
   type PropertyFact,
   type ComplianceReport,
   type FinancialModel,
   type LegalRisk,
+  type EnvironmentalReport,
   type DealMemo,
 } from './schemas';
 
@@ -20,6 +22,7 @@ export interface AgentPromptContext {
   propertyFact?: PropertyFact;
   compliance?: ComplianceReport;
   legal?: LegalRisk;
+  environmental?: EnvironmentalReport;
   financialBaseline?: FinancialModel;
   /** Present when Financial is re-underwriting due to a Critical upstream flag. */
   cascade?: { trigger: string; delta: string };
@@ -167,6 +170,32 @@ Start with { and end with }.`;
     },
   },
 
+  environmental: {
+    agentType: 'environmental',
+    title: 'Environmental',
+    schema: EnvironmentalReportSchema,
+    buildPrompt(ctx) {
+      return `You are the Environmental specialist, RECRUITED into this real-estate deal because an environmental concern was flagged.
+Assess contamination risk, whether a Phase I Environmental Site Assessment is needed, flood/wetlands exposure, and likely remediation liability — using the property facts and the documents. Rank findings critical/material/minor.
+
+${factBlock(ctx.propertyFact)}
+
+DEAL DOCUMENTS:
+"""
+${ctx.deal.documents}
+"""
+${retry(ctx)}
+Return ONLY JSON: { "agent": "environmental", "contamination_risk": "none"|"low"|"medium"|"high", "phase_i_recommended": <bool>, "findings": [{"id":"env-...","title":"...","detail":"...","severity":"critical"|"material"|"minor"}], "summary": "<20-400 chars>" }
+Start with { and end with }.`;
+    },
+    formatBandMessage(o) {
+      return (o as EnvironmentalReport).summary;
+    },
+    headline(o) {
+      return `${(o as EnvironmentalReport).contamination_risk} contamination risk`;
+    },
+  },
+
   synthesis: {
     agentType: 'synthesis',
     title: 'Synthesis',
@@ -175,6 +204,7 @@ Start with { and end with }.`;
       const findings = [
         ...(ctx.compliance?.findings ?? []).map((f) => `[Regulatory] ${f.severity}: ${f.title}`),
         ...(ctx.legal?.findings ?? []).map((f) => `[Legal] ${f.severity}: ${f.title}`),
+        ...(ctx.environmental?.findings ?? []).map((f) => `[Environmental] ${f.severity}: ${f.title}`),
       ].join('\n');
       return `You are Synthesis, the Deal Director. Compose the deal memo from all agents' findings.
 Pick the top 5 findings by deal impact, list conditions precedent, and give a Red/Yellow/Green signal with a short recommendation.

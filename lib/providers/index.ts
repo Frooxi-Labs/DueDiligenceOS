@@ -30,6 +30,7 @@ const MODELS: Record<AgentType, string> = {
   legal: process.env.MODEL_LEGAL ?? 'anthropic/claude-sonnet-4-6-20260218', // Anthropic — contradiction nuance
   financial: process.env.MODEL_FINANCIAL ?? 'gpt-4o', // OpenAI
   synthesis: process.env.MODEL_SYNTHESIS ?? 'gpt-4o-mini', // OpenAI
+  environmental: process.env.MODEL_ENVIRONMENTAL ?? 'gpt-4o-mini', // recruited specialist
 };
 
 export function modelFor(agentType: AgentType): string {

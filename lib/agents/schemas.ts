@@ -69,6 +69,15 @@ export const LegalRiskSchema = z.object({
   summary: z.string().min(20).max(400),
 });
 
+// ── Environmental: a dynamically-recruited specialist ────────────────────────
+export const EnvironmentalReportSchema = z.object({
+  agent: z.literal('environmental'),
+  contamination_risk: z.enum(['none', 'low', 'medium', 'high']),
+  phase_i_recommended: z.boolean(),
+  findings: z.array(FindingSchema).default([]),
+  summary: z.string().min(20).max(400),
+});
+
 // ── Synthesis: the deal memo (composite score is computed in code) ───────────
 export const DealMemoSchema = z.object({
   agent: z.literal('synthesis'),
@@ -83,6 +92,7 @@ export type PropertyFact = z.infer<typeof PropertyFactSchema>;
 export type ComplianceReport = z.infer<typeof ComplianceReportSchema>;
 export type FinancialModel = z.infer<typeof FinancialModelSchema>;
 export type LegalRisk = z.infer<typeof LegalRiskSchema>;
+export type EnvironmentalReport = z.infer<typeof EnvironmentalReportSchema>;
 export type DealMemo = z.infer<typeof DealMemoSchema>;
 
 export type AgentOutput =
@@ -90,4 +100,5 @@ export type AgentOutput =
   | ComplianceReport
   | FinancialModel
   | LegalRisk
+  | EnvironmentalReport
   | DealMemo;

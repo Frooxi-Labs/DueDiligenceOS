@@ -1,4 +1,4 @@
-export type AgentType = 'archivist' | 'regulatory' | 'financial' | 'legal' | 'synthesis';
+export type AgentType = 'archivist' | 'regulatory' | 'financial' | 'legal' | 'synthesis' | 'environmental';
 
 export type WorkflowStatus =
   | 'pending'
@@ -61,6 +61,7 @@ export type DealEvent =
   | { type: 'agent.completed'; agent: AgentType; headline: string; model?: string }
   | { type: 'agent.failed'; agent: AgentType; reason: string }
   | { type: 'agent.mentioned'; from: AgentType; to: AgentType; reason: string }
+  | { type: 'agent.recruited'; by: AgentType; agent: AgentType; reason: string }
   | { type: 'band.message'; agent: AgentType; content: string }
   | { type: 'escalation.needed'; missing: string[] }
   | { type: 'contradiction.detected'; title: string; detail: string; agents: AgentType[] }
