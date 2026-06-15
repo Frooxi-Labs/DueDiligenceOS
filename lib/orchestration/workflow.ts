@@ -8,7 +8,7 @@ import { broadcast } from '@/lib/realtime';
 import { computeUnderwriting } from '@/lib/finance/underwrite';
 import { detectContradictions, discoverContradictions, cascadeFromCompliance, compositeRiskScore } from './contradiction';
 import { negotiateContradiction } from './negotiation';
-import type { AgentType, CoreAgentType, DealRecord, DealEvent, WorkflowStatus } from '@/types';
+import type { AgentType, CoreAgentType, SpecialistType, DealRecord, DealEvent, WorkflowStatus } from '@/types';
 
 function emit(dealId: string, event: DealEvent) {
   broadcast(dealId, event);
@@ -359,62 +359,59 @@ export async function runWorkflow(dealId: string): Promise<void> {
       }
     }
 
-    // ── EMERGENT DISPATCH — recruit the quantitative specialists this deal needs ──
-    // Each specialist is a cross-framework LangGraph (Python) agent recruited into
-    // the same Band room on a context-driven trigger. Bounded; best-effort.
+    // ── EMERGENT DISPATCH — recruit the specialists the AGENTS asked for ─────
+    // Primary: whatever Regulatory/Legal decided to request from the deal context.
+    // A deterministic safety net only fills gaps they didn't request, so the
+    // demo's cross-framework moment never silently misses. Bounded; best-effort.
     const specialistSummaries: { label: string; summary: string }[] = [];
-    const recruiter: CoreAgentType = legalRisk.requested_specialist === 'environmental' ? 'legal' : 'regulatory';
-    const recruits: { id: AgentType; display: string; reason: string | null; ask: string }[] = [
-      {
-        id: 'environmental',
-        display: 'Environmental',
-        reason:
-          (compliance.requested_specialist === 'environmental' && compliance.specialist_reason) ||
-          (legalRisk.requested_specialist === 'environmental' && legalRisk.specialist_reason) ||
-          needsEnvironmental(propertyFact, compliance, legalRisk),
-        ask: 'Could you assess the contamination risk and whether a Phase I is warranted before Financial underwrites?',
-      },
-      { id: 'capex', display: 'CapEx / Construction', reason: needsCapex(deal), ask: 'Could you model the renovation/conversion cost and schedule risk?' },
-      { id: 'insurance', display: 'Insurance / Catastrophe', reason: needsInsurance(compliance, deal, propertyFact), ask: 'Could you estimate the catastrophe exposure and the insurance cost?' },
+    const SPEC_META: Record<SpecialistType, { display: string; ask: string }> = {
+      environmental: { display: 'Environmental', ask: 'Could you assess contamination risk and whether a Phase I is warranted?' },
+      capex: { display: 'CapEx / Construction', ask: 'Could you model the renovation/conversion cost and schedule risk?' },
+      insurance: { display: 'Insurance / Catastrophe', ask: 'Could you estimate the catastrophe exposure and the insurance cost?' },
+    };
+    const requested = new Map<SpecialistType, { reason: string; by: CoreAgentType }>();
+    for (const r of compliance.requested_specialists) if (!requested.has(r.specialist)) requested.set(r.specialist, { reason: r.reason, by: 'regulatory' });
+    for (const r of legalRisk.requested_specialists) if (!requested.has(r.specialist)) requested.set(r.specialist, { reason: r.reason, by: 'legal' });
+    const fallbacks: [SpecialistType, string | null][] = [
+      ['environmental', needsEnvironmental(propertyFact, compliance, legalRisk)],
+      ['capex', needsCapex(deal)],
+      ['insurance', needsInsurance(compliance, deal, propertyFact)],
     ];
-    for (const r of recruits) {
-      if (!r.reason) continue;
-      if (!getAgentConfigs()[r.id].agentId) {
-        await logEvent(dealId, 'recruitment.skipped', { id: r.id, reason: 'agent not configured' });
-        continue;
-      }
-      const out = await recruitSpecialist(r.id, r.display, r.reason, recruiter, r.ask);
+    for (const [spec, reason] of fallbacks) if (reason && !requested.has(spec)) requested.set(spec, { reason, by: 'regulatory' });
+
+    for (const [spec, { reason, by }] of requested) {
+      if (!getAgentConfigs()[spec].agentId) { await logEvent(dealId, 'recruitment.skipped', { id: spec }); continue; }
+      const out = await recruitSpecialist(spec, SPEC_META[spec].display, reason, by, SPEC_META[spec].ask);
       if (out) specialistSummaries.push(out);
     }
 
-    // ── FINANCIAL — baseline, then cascade re-underwrite if Critical ────
+    // ── FINANCIAL — baseline, then execute the agents' delegated tasks ────
     await setStatus(dealId, 'financial');
     const baselineRes = await run('financial', { deal, propertyFact, compliance }, ['synthesis']);
     let financial = baselineRes.raw as FinancialModel;
 
+    // Tasks the agents themselves decided to hand off — any agent → any agent, any
+    // topic — each executed as a real Band task (intent + authority + processing
+    // state). The deterministic cascade is only a safety net for the re-underwrite.
+    const delegations: { from: CoreAgentType; to: AgentType; intent: string; authority: string }[] = [
+      ...compliance.delegations.map((d) => ({ from: 'regulatory' as CoreAgentType, to: d.to, intent: d.intent, authority: d.authority })),
+      ...legalRisk.delegations.map((d) => ({ from: 'legal' as CoreAgentType, to: d.to, intent: d.intent, authority: d.authority })),
+    ];
     const cascade = cascadeFromCompliance(compliance);
-    if (cascade) {
-      // Structured delegation: the upstream agent assigns Financial an accountable
-      // re-underwrite task (intent + authority), tracked through Band's task states.
-      const revised = await delegate(
-        dealId,
-        roomId,
-        cascade.from,
-        'financial',
-        `Re-underwrite the deal — ${cascade.trigger}.`,
-        `remove the affected assumption (${cascade.delta})`,
-        async () => {
-          const revisedRes = await run(
-            'financial',
-            { deal, propertyFact, compliance, financialBaseline: financial, cascade: { trigger: cascade.trigger, delta: cascade.delta } },
-            ['synthesis']
-          );
-          return revisedRes.raw as FinancialModel;
-        }
+    if (cascade && !delegations.some((d) => d.to === 'financial')) {
+      delegations.push({ from: cascade.from as CoreAgentType, to: 'financial', intent: `Re-underwrite the deal — ${cascade.trigger}.`, authority: `remove the affected assumption (${cascade.delta})` });
+    }
+
+    for (const d of delegations.slice(0, 4)) {
+      const result = await delegate(dealId, roomId, d.from, d.to, d.intent, d.authority, async () =>
+        run(d.to as CoreAgentType, { deal, propertyFact, compliance, legal: legalRisk, financialBaseline: financial, delegation: { from: d.from, intent: d.intent, authority: d.authority } }, ['synthesis'])
       );
-      emit(dealId, { type: 'financial.recalculated', irr_before: financial.irr_pct, irr_after: revised.irr_pct, trigger: cascade.trigger });
-      await logEvent(dealId, 'financial.recalculated', { before: financial.irr_pct, after: revised.irr_pct, trigger: cascade.trigger });
-      financial = revised;
+      if (d.to === 'financial') {
+        const revised = result.raw as FinancialModel;
+        emit(dealId, { type: 'financial.recalculated', irr_before: financial.irr_pct, irr_after: revised.irr_pct, trigger: d.intent });
+        await logEvent(dealId, 'financial.recalculated', { before: financial.irr_pct, after: revised.irr_pct, trigger: d.intent });
+        financial = revised;
+      }
     }
 
     // ── SYNTHESIS + human gate ──────────────────────────────────────────

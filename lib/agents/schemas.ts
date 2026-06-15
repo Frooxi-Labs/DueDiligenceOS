@@ -32,6 +32,18 @@ export const PropertyFactSchema = z.object({
   summary: z.string().min(20).max(400),
 });
 
+// A task an agent decides — from context — to hand to another committee agent.
+export const DelegationRequestSchema = z.object({
+  to: z.enum(['archivist', 'regulatory', 'legal', 'financial', 'synthesis']),
+  intent: z.string().min(3),
+  authority: z.string().default(''),
+});
+// A specialist an agent decides — from context — to pull into the room.
+export const SpecialistRequestSchema = z.object({
+  specialist: z.enum(['environmental', 'capex', 'insurance']),
+  reason: z.string().min(3),
+});
+
 // ── Regulatory: compliance assessment ────────────────────────────────────────
 export const ComplianceReportSchema = z.object({
   agent: z.literal('regulatory'),
@@ -39,9 +51,10 @@ export const ComplianceReportSchema = z.object({
   zoning_permitted: z.boolean(),
   flood_zone: z.string().nullable().default(null),
   findings: z.array(FindingSchema).default([]),
-  /** Emergent dispatch: set when this agent decides a specialist is needed. */
-  requested_specialist: z.enum(['environmental']).nullable().default(null),
-  specialist_reason: z.string().nullable().default(null),
+  /** Emergent: tasks this agent hands to other committee agents (any topic). */
+  delegations: z.array(DelegationRequestSchema).default([]),
+  /** Emergent: specialists this agent decides the deal needs. */
+  requested_specialists: z.array(SpecialistRequestSchema).default([]),
   summary: z.string().min(20).max(400),
 });
 
@@ -69,9 +82,10 @@ export const LegalRiskSchema = z.object({
   /** True if Legal read an easement in the contract — may contradict PropertyFact. */
   easement_found_in_contract: z.boolean(),
   findings: z.array(FindingSchema).default([]),
-  /** Emergent dispatch: set when this agent decides a specialist is needed. */
-  requested_specialist: z.enum(['environmental']).nullable().default(null),
-  specialist_reason: z.string().nullable().default(null),
+  /** Emergent: tasks this agent hands to other committee agents (any topic). */
+  delegations: z.array(DelegationRequestSchema).default([]),
+  /** Emergent: specialists this agent decides the deal needs. */
+  requested_specialists: z.array(SpecialistRequestSchema).default([]),
   summary: z.string().min(20).max(400),
 });
 

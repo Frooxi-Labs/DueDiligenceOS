@@ -23,6 +23,8 @@ export interface AgentPromptContext {
   financialBaseline?: FinancialModel;
   /** Present when Financial is re-underwriting due to a Critical upstream flag. */
   cascade?: { trigger: string; delta: string };
+  /** Present when another agent delegated a task to this one (emergent, any topic). */
+  delegation?: { from: AgentType; intent: string; authority: string };
   /** The live Band room conversation as this agent sees it (read via getContext). */
   roomContext?: string;
   /** Recruited specialist assessments (environmental, capex, insurance) for Synthesis. */
@@ -42,6 +44,11 @@ export interface AgentDefinition {
 
 /** Evaluation order. Regulatory + Legal both read PropertyFact; Financial reads both. */
 export const AGENT_SEQUENCE: CoreAgentType[] = ['archivist', 'regulatory', 'legal', 'financial', 'synthesis'];
+
+// Emergent collaboration the agent decides for itself from the deal — not hardcoded.
+const COLLAB = `COLLABORATE — decide these from the deal; use empty arrays [] unless genuinely warranted:
+- "delegations": hand a concrete task to another committee agent → [{"to":"archivist|regulatory|legal|financial|synthesis","intent":"what they must do and why","authority":"what they may change or assume"}]. e.g. a zoning conflict that breaks the income assumption → delegate "financial" to re-underwrite, authorized to drop the as-of-right-use assumption.
+- "requested_specialists": pull in a quantitative specialist → [{"specialist":"environmental|capex|insurance","reason":"one concrete sentence"}]. environmental = contamination / Phase I; capex = renovation/conversion cost & schedule; insurance = flood/wind/seismic exposure. Don't request one for routine items you can assess yourself.`;
 
 const retry = (ctx: AgentPromptContext) =>
   ctx.lastError ? `\n⚠️ ATTEMPT ${ctx.attempt - 1} FAILED: ${ctx.lastError}\nFix the exact error and return valid JSON.\n` : '';
@@ -102,9 +109,9 @@ ${factBlock(ctx.propertyFact)}
 
 DEAL TERMS:
 ${dealTerms(ctx.deal)}
-EMERGENT DISPATCH: if you find an environmental concern that is genuinely outside your expertise and warrants a specialist (e.g. likely soil/groundwater contamination, a missing Phase I, an underground storage tank, wetlands/flood exposure needing assessment), set requested_specialist="environmental" and specialist_reason to one concrete sentence. Otherwise set both null — do NOT request a specialist for routine items you can assess yourself.
+${COLLAB}
 ${retry(ctx)}
-Return ONLY JSON: { "agent": "regulatory", "risk_score": <0-100>, "zoning_permitted": <bool>, "flood_zone": <string|null>, "findings": [{"id":"reg-...","title":"...","detail":"...","severity":"critical|material|minor"}], "requested_specialist": "environmental"|null, "specialist_reason": <string|null>, "summary": "<20-400 chars>" }
+Return ONLY JSON: { "agent": "regulatory", "risk_score": <0-100>, "zoning_permitted": <bool>, "flood_zone": <string|null>, "findings": [{"id":"reg-...","title":"...","detail":"...","severity":"critical|material|minor"}], "delegations": [{"to":"...","intent":"...","authority":"..."}], "requested_specialists": [{"specialist":"...","reason":"..."}], "summary": "<20-400 chars>" }
 Start with { and end with }.`;
     },
     formatBandMessage(o) {
@@ -134,9 +141,9 @@ CONTRACT / DOCUMENTS:
 """
 ${ctx.deal.documents}
 """
-EMERGENT DISPATCH: if the contract or title surfaces an environmental matter outside your legal expertise that needs a specialist (e.g. an environmental indemnity hinting at known contamination, a remediation obligation, a hazardous-materials disclosure), set requested_specialist="environmental" and specialist_reason to one concrete sentence. Otherwise set both null.
+${COLLAB}
 ${retry(ctx)}
-Return ONLY JSON: { "agent": "legal", "title_clean": <bool>, "easement_found_in_contract": <bool>, "findings": [{"id":"legal-...","title":"...","detail":"...","severity":"critical|material|minor"}], "requested_specialist": "environmental"|null, "specialist_reason": <string|null>, "summary": "<20-400 chars>" }
+Return ONLY JSON: { "agent": "legal", "title_clean": <bool>, "easement_found_in_contract": <bool>, "findings": [{"id":"legal-...","title":"...","detail":"...","severity":"critical|material|minor"}], "delegations": [{"to":"...","intent":"...","authority":"..."}], "requested_specialists": [{"specialist":"...","reason":"..."}], "summary": "<20-400 chars>" }
 Start with { and end with }.`;
     },
     formatBandMessage(o) {
