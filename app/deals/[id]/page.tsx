@@ -7,7 +7,7 @@ import Markdown from '@/app/components/Markdown';
 import type { AgentType, ForkProjection, HumanDecision, SimBranch } from '@/types';
 
 const LABELS: Record<AgentType, string> = {
-  archivist: 'Archivist', regulatory: 'Regulatory', legal: 'Legal Risk', financial: 'Financial', synthesis: 'Synthesis', environmental: 'Environmental',
+  archivist: 'Archivist', regulatory: 'Regulatory', legal: 'Legal Risk', financial: 'Financial', synthesis: 'Synthesis', environmental: 'Environmental', capex: 'CapEx', insurance: 'Insurance',
 };
 const ORDER: AgentType[] = ['archivist', 'regulatory', 'legal', 'financial', 'synthesis'];
 const signalColor: Record<string, string> = { green: 'text-emerald-400', yellow: 'text-amber-400', red: 'text-red-400' };

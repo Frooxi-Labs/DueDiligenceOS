@@ -34,13 +34,24 @@ export function getAgentConfigs(): Record<AgentType, BandAgentConfig> {
     handle: process.env[`${prefix}_HANDLE`] ?? displayName.replace(/\s+/g, ''),
     displayName,
   });
+  const environmental = mk('environmental', 'BAND_ENVIRONMENTAL', 'Environmental');
+  // Recruited Python specialists. If a deal hasn't been given its own Band agent
+  // identity, fall back to the Environmental identity so it still posts into the
+  // room (it's still a distinct agent in our app); set BAND_CAPEX_*/BAND_INSURANCE_*
+  // to make it a distinct Band participant.
+  const specialist = (type: AgentType, prefix: string, displayName: string): BandAgentConfig => {
+    const c = mk(type, prefix, displayName);
+    return c.agentId && c.apiKey ? c : { ...environmental, agentType: type, displayName };
+  };
   return {
     archivist: mk('archivist', 'BAND_ARCHIVIST', 'Archivist'),
     regulatory: mk('regulatory', 'BAND_REGULATORY', 'Regulatory'),
     legal: mk('legal', 'BAND_LEGAL', 'Legal'),
     financial: mk('financial', 'BAND_FINANCIAL', 'Financial'),
     synthesis: mk('synthesis', 'BAND_SYNTHESIS', 'Synthesis'),
-    environmental: mk('environmental', 'BAND_ENVIRONMENTAL', 'Environmental'),
+    environmental,
+    capex: specialist('capex', 'BAND_CAPEX', 'CapEx'),
+    insurance: specialist('insurance', 'BAND_INSURANCE', 'Insurance'),
   };
 }
 

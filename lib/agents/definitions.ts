@@ -1,5 +1,5 @@
 import type { ZodTypeAny } from 'zod';
-import type { AgentType, DealRecord } from '@/types';
+import type { AgentType, CoreAgentType, DealRecord } from '@/types';
 import {
   PropertyFactSchema,
   ComplianceReportSchema,
@@ -42,7 +42,7 @@ export interface AgentDefinition {
 }
 
 /** Evaluation order. Regulatory + Legal both read PropertyFact; Financial reads both. */
-export const AGENT_SEQUENCE: AgentType[] = ['archivist', 'regulatory', 'legal', 'financial', 'synthesis'];
+export const AGENT_SEQUENCE: CoreAgentType[] = ['archivist', 'regulatory', 'legal', 'financial', 'synthesis'];
 
 const retry = (ctx: AgentPromptContext) =>
   ctx.lastError ? `\n⚠️ ATTEMPT ${ctx.attempt - 1} FAILED: ${ctx.lastError}\nFix the exact error and return valid JSON.\n` : '';
@@ -55,7 +55,7 @@ const factBlock = (pf?: PropertyFact) =>
     ? `PROPERTY FACTS (from Archivist):\n- Legal description: ${pf.legal_description}\n- Encumbrances: ${pf.encumbrances.map((e) => `${e.kind} (${e.recorded ? 'recorded' : 'unrecorded'})`).join('; ') || 'none listed'}\n- No easements recorded: ${pf.no_easements_recorded}\n- Tenants: ${pf.existing_tenants.join(', ') || 'none'}\n- Notable: ${pf.notable_conditions.join('; ') || 'none'}`
     : '';
 
-export const AGENTS: Record<AgentType, AgentDefinition> = {
+export const AGENTS: Record<CoreAgentType, AgentDefinition> = {
   archivist: {
     agentType: 'archivist',
     title: 'Archivist',

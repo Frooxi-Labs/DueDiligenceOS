@@ -38,7 +38,7 @@ export interface WorkflowState {
   failureReason?: string;
 }
 
-const AGENTS: AgentType[] = ['archivist', 'regulatory', 'legal', 'financial', 'synthesis', 'environmental'];
+const AGENTS: AgentType[] = ['archivist', 'regulatory', 'legal', 'financial', 'synthesis', 'environmental', 'capex', 'insurance'];
 
 function initialState(): WorkflowState {
   return {

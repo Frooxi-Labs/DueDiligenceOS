@@ -1,4 +1,9 @@
-export type AgentType = 'archivist' | 'regulatory' | 'financial' | 'legal' | 'synthesis' | 'environmental';
+/** Core committee agents — TypeScript, run via runAgent (one structured pass each). */
+export type CoreAgentType = 'archivist' | 'regulatory' | 'financial' | 'legal' | 'synthesis' | 'environmental';
+/** Quantitative specialists — Python/LangGraph, recruited on demand for probabilistic modeling. */
+export type SpecialistType = 'capex' | 'insurance';
+/** Any participant in a Band room (committee agent or recruited specialist). */
+export type AgentType = CoreAgentType | SpecialistType;
 
 export type WorkflowStatus =
   | 'pending'

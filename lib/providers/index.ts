@@ -31,6 +31,10 @@ const MODELS: Record<AgentType, string> = {
   financial: process.env.MODEL_FINANCIAL ?? 'gpt-4o', // OpenAI
   synthesis: process.env.MODEL_SYNTHESIS ?? 'gpt-4o-mini', // OpenAI
   environmental: process.env.MODEL_ENVIRONMENTAL ?? 'gpt-4o-mini', // recruited specialist
+  // Python/LangGraph specialists do their own model calls; these entries exist so
+  // any incidental TS-side call (e.g. a chat reply) resolves a model.
+  capex: process.env.MODEL_CAPEX ?? 'gpt-4o-mini',
+  insurance: process.env.MODEL_INSURANCE ?? 'gpt-4o-mini',
 };
 
 export function modelFor(agentType: AgentType): string {

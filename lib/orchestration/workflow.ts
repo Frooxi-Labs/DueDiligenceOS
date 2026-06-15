@@ -8,7 +8,7 @@ import { broadcast } from '@/lib/realtime';
 import { computeUnderwriting } from '@/lib/finance/underwrite';
 import { detectContradictions, discoverContradictions, cascadeFromCompliance, compositeRiskScore } from './contradiction';
 import { negotiateContradiction } from './negotiation';
-import type { AgentType, DealRecord, DealEvent, WorkflowStatus } from '@/types';
+import type { AgentType, CoreAgentType, DealRecord, DealEvent, WorkflowStatus } from '@/types';
 
 function emit(dealId: string, event: DealEvent) {
   broadcast(dealId, event);
@@ -45,7 +45,7 @@ async function reportError(dealId: string, roomId: string, agent: AgentType, con
 }
 
 /** Role-aware one-liner an agent "thinks" before it reasons over the room. */
-const THINKING: Record<AgentType, string> = {
+const THINKING: Record<CoreAgentType, string> = {
   archivist: 'Extracting property facts, encumbrances, and the missing-document checklist from the package.',
   regulatory: 'Cross-checking zoning, permits, flood, and environmental flags against the property facts in the room.',
   legal: "Reviewing title, contract terms, and easements against the Archivist's facts in the room.",
@@ -196,7 +196,7 @@ export async function runWorkflow(dealId: string): Promise<void> {
   try {
     const roomId = await initBandRoom(deal);
 
-    const run = async (agent: AgentType, ctx: Parameters<typeof runAgent>[1], mentionTargets: AgentType[]) => {
+    const run = async (agent: CoreAgentType, ctx: Parameters<typeof runAgent>[1], mentionTargets: AgentType[]) => {
       emit(dealId, { type: 'agent.processing', agent });
       // 1) Think out loud, then 2) READ the shared Band room, then 3) reason over it.
       await think(dealId, roomId, agent, THINKING[agent]);

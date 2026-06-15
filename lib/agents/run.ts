@@ -1,4 +1,4 @@
-import type { AgentType } from '@/types';
+import type { AgentType, CoreAgentType } from '@/types';
 import { callLLM } from '@/lib/providers';
 import { AGENTS, type AgentPromptContext } from './definitions';
 import { parseAgentOutput, validateBusinessLogic } from './validation';
@@ -29,7 +29,7 @@ const MAX_ATTEMPTS = 3;
  * parses + validates, retries with error feedback. No Band/DB side effects.
  */
 export async function runAgent(
-  agentType: AgentType,
+  agentType: CoreAgentType,
   ctx: Omit<AgentPromptContext, 'lastError' | 'attempt'>
 ): Promise<AgentRunResult> {
   const def = AGENTS[agentType];
