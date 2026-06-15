@@ -5,6 +5,7 @@ import { dealBriefs, bandRooms, agentEvaluations, mentions as mentionsTable, wor
 import { BandClient, getAgentConfigs } from '@/lib/band';
 import { runAgent, assessEnvironmentalViaLangGraph, type PropertyFact, type ComplianceReport, type LegalRisk, type FinancialModel, type EnvironmentalReport, type DealMemo } from '@/lib/agents';
 import { broadcast } from '@/lib/realtime';
+import { computeUnderwriting } from '@/lib/finance/underwrite';
 import { detectContradictions, discoverContradictions, cascadeFromCompliance, compositeRiskScore } from './contradiction';
 import { negotiateContradiction } from './negotiation';
 import type { AgentType, DealRecord, DealEvent, WorkflowStatus } from '@/types';
@@ -206,6 +207,26 @@ export async function runWorkflow(dealId: string): Promise<void> {
       } catch (err) {
         await reportError(dealId, roomId, agent, `I couldn't complete my analysis: ${(err as Error).message}`);
         throw err;
+      }
+      // The Financial agent ESTIMATES the income; we compute DSCR + IRR
+      // deterministically from it, so the headline return number is auditable —
+      // not an LLM guess. (Tool-call surfaced in the room.)
+      if (agent === 'financial') {
+        const fm = result.raw as FinancialModel;
+        const noi = fm.noi && fm.noi > 0 ? fm.noi : Number(deal.purchase_price) * 0.06;
+        const u = computeUnderwriting({
+          purchasePrice: Number(deal.purchase_price),
+          ltvPct: Number(deal.financing_ltv),
+          ratePct: Number(deal.financing_rate),
+          holdYears: deal.hold_period_years,
+          noi,
+          exitCapPct: fm.cap_rate_pct ?? undefined,
+        });
+        await think(dealId, roomId, 'financial', `compute_underwriting() — NOI $${Math.round(noi).toLocaleString()} → DSCR ${u.dscr.toFixed(2)}, levered IRR ${u.irrPct.toFixed(1)}% (deterministic).`);
+        fm.irr_pct = u.irrPct;
+        fm.dcr = u.dscr;
+        result.headline = `IRR ${u.irrPct.toFixed(1)}% · DSCR ${u.dscr.toFixed(2)} (computed)`;
+        result.bandMessage = `${fm.summary}\n\n[Auditable underwrite — NOI $${Math.round(noi).toLocaleString()} → DSCR ${u.dscr.toFixed(2)}, levered IRR ${u.irrPct.toFixed(1)}% at ${deal.financing_ltv}% LTV / ${deal.financing_rate}% over ${deal.hold_period_years}y, exit cap ${u.exitCapPct.toFixed(1)}%.]`;
       }
       await post(roomId, agent, result.bandMessage, mentionTargets);
       await persistEval(dealId, agent, result);
