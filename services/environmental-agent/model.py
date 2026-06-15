@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from typing import TypedDict
 
+import numpy as np
+
 
 class RiskFactors(TypedDict, total=False):
     prior_use: str          # e.g. "fueling depot", "dry cleaner", "printing/etching", "none"
@@ -90,3 +92,67 @@ def score_environment(f: RiskFactors) -> RiskResult:
 
 def usd(n: int) -> str:
     return "$0" if n == 0 else f"${n/1_000_000:.1f}M" if n >= 1_000_000 else f"${n//1000}k"
+
+
+# ── Probabilistic remediation cost (Monte Carlo) ──────────────────────────────
+# Remediation cost is genuinely uncertain, so a single point estimate is
+# misleading. We simulate the cost as a sum of per-driver triangular
+# distributions and report P50/P90 + the probability of blowing the deal's
+# environmental contingency. This is real environmental-engineering practice and
+# the kind of numeric work Python (numpy) is built for. Seeded → reproducible.
+_SEED = 42
+_COST_COMPONENTS: dict[str, tuple[int, int, int]] = {
+    # key: (low, most-likely, high) USD
+    "fueling": (150_000, 500_000, 2_000_000),
+    "dry_clean": (300_000, 900_000, 3_000_000),
+    "industrial": (100_000, 350_000, 1_200_000),
+    "ust_in_place": (80_000, 220_000, 600_000),
+    "ust_removed": (20_000, 60_000, 180_000),
+    "asbestos": (30_000, 120_000, 400_000),
+    "investigation": (15_000, 35_000, 90_000),  # Phase I/II fieldwork, always if any driver
+}
+
+
+def _cost_components(f: RiskFactors) -> list[str]:
+    use = (f.get("prior_use") or "").lower()
+    comps: list[str] = []
+    if any(k in use for k in ("gas", "fuel", "service station", "petroleum")):
+        comps.append("fueling")
+    elif "dry clean" in use:
+        comps.append("dry_clean")
+    elif any(k in use for k in ("industrial", "manufactur", "printing", "etching", "chemical")):
+        comps.append("industrial")
+    if f.get("ust_present"):
+        comps.append("ust_removed" if f.get("ust_removed") else "ust_in_place")
+    year = f.get("building_year") or 0
+    if 0 < year < 1985:
+        comps.append("asbestos")
+    return comps
+
+
+class CostSimulation(TypedDict):
+    mean: int
+    p10: int
+    p50: int
+    p90: int
+    prob_over_contingency: float
+    contingency: int
+    iterations: int
+    components: list[str]
+
+
+def simulate_remediation_cost(f: RiskFactors, contingency: int = 0, n: int = 20_000) -> CostSimulation:
+    comps = _cost_components(f)
+    if not comps:
+        return {"mean": 0, "p10": 0, "p50": 0, "p90": 0, "prob_over_contingency": 0.0,
+                "contingency": contingency, "iterations": 0, "components": []}
+    rng = np.random.default_rng(_SEED)
+    total = np.zeros(n)
+    for key in [*comps, "investigation"]:
+        lo, mode, hi = _COST_COMPONENTS[key]
+        total += rng.triangular(lo, mode, hi, n)
+    p10, p50, p90 = (int(x) for x in np.percentile(total, [10, 50, 90]))
+    prob = float(np.mean(total > contingency)) if contingency else 0.0
+    return {"mean": int(total.mean()), "p10": p10, "p50": p50, "p90": p90,
+            "prob_over_contingency": round(prob, 2), "contingency": contingency,
+            "iterations": n, "components": comps}

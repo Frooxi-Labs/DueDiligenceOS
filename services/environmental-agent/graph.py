@@ -33,7 +33,7 @@ from langgraph.graph import END, StateGraph
 from pydantic import BaseModel, Field
 
 import band
-from model import RiskFactors, score_environment, usd
+from model import RiskFactors, score_environment, simulate_remediation_cost, usd
 
 AIML_BASE_URL = os.getenv("AIML_BASE_URL", "https://api.aimlapi.com/v1")
 AIML_API_KEY = os.getenv("AIML_API_KEY", "")
@@ -65,6 +65,7 @@ class AssessState(TypedDict, total=False):
     room_context: str
     factors: dict
     risk: dict          # output of model.score_environment
+    sim: dict           # output of model.simulate_remediation_cost (Monte Carlo)
     phase_ii_plan: str
     report: dict
     band_message: str
@@ -141,10 +142,23 @@ Return ONLY JSON:
 # ── Node 3: quantify — PURE PYTHON, deterministic & auditable (the value) ─────
 def quantify(state: AssessState) -> AssessState:
     factors: RiskFactors = state.get("factors", {})  # type: ignore[assignment]
-    _event(state, "tool_call", "score_environment(factors) — deterministic risk + cost model")
+    deal = state.get("deal", {})
+    try:
+        price = int(float(str(deal.get("purchase_price") or 0)))
+    except ValueError:
+        price = 0
+    contingency = int(price * 0.02) if price else 0  # typical environmental contingency ≈ 2% of price
+
+    _event(state, "tool_call", "score_environment(facts) + Monte Carlo cost (20k runs) — numpy")
     risk = score_environment(factors)
-    _event(state, "tool_result", f"score {risk['score']}/100 → {risk['band']} risk; remediation {usd(risk['remediation_cost_low'])}–{usd(risk['remediation_cost_high'])}")
-    return {"risk": risk}
+    sim = simulate_remediation_cost(factors, contingency=contingency)
+    if sim["iterations"]:
+        _event(state, "tool_result",
+               f"score {risk['score']}/100 → {risk['band']}; remediation P50 {usd(sim['p50'])} (P90 {usd(sim['p90'])}); "
+               f"{int(sim['prob_over_contingency'] * 100)}% chance over the {usd(contingency)} contingency")
+    else:
+        _event(state, "tool_result", f"score {risk['score']}/100 → {risk['band']}; no remediation cost anticipated")
+    return {"risk": risk, "sim": sim}
 
 
 def route_after_quantify(state: AssessState) -> Literal["scope", "skip"]:
@@ -168,12 +182,18 @@ Drivers: {'; '.join(risk.get('drivers', []))}. In 1-2 sentences, scope a Phase I
 # ── Node 5: finalize — assemble the schema-valid report ───────────────────────
 def finalize(state: AssessState) -> AssessState:
     risk = state.get("risk", {})
+    sim = state.get("sim", {})
     drivers = risk.get("drivers", [])
     sev = "material" if risk.get("band") in ("high", "medium") else "minor"
     findings = [Finding(id=f"env-{i+1}", title="Risk driver", detail=d, severity=sev) for i, d in enumerate(drivers[:4])]
-    cost = f"{usd(risk.get('remediation_cost_low', 0))}–{usd(risk.get('remediation_cost_high', 0))}"
-    parts = [f"Computed contamination risk {risk.get('score', 0)}/100 ({risk.get('band', 'low')}).",
-             f"Est. remediation {cost}." if risk.get("remediation_cost_high") else "No remediation cost anticipated."]
+    parts = [f"Computed contamination risk {risk.get('score', 0)}/100 ({risk.get('band', 'low')})."]
+    if sim.get("iterations"):
+        parts.append(
+            f"Monte-Carlo remediation (20k runs): P50 {usd(sim['p50'])}, P90 {usd(sim['p90'])}; "
+            f"{int(sim['prob_over_contingency'] * 100)}% chance of exceeding the {usd(sim['contingency'])} contingency."
+        )
+    else:
+        parts.append("No remediation cost anticipated.")
     if state.get("phase_ii_plan"):
         parts.append(state["phase_ii_plan"])
     report = EnvironmentalReport(

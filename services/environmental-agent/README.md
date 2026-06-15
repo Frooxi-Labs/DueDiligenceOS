@@ -10,11 +10,14 @@ participant posting into the conversation.
 
 **Why this agent is in Python (the actual value):** regulated due diligence
 shouldn't accept an LLM *guessing* "medium risk." This agent produces an
-**auditable, deterministic risk score + remediation-cost estimate** from a
-rules-based model ([`model.py`](model.py)) — same facts in, same numbers out,
-with an itemized rationale a reviewer can defend. The LLM only *extracts facts*;
-Python does the *scoring*. That separation is the point, and Python is the right
-home for the computation.
+**auditable, deterministic risk score** plus a **probabilistic remediation-cost
+estimate** ([`model.py`](model.py)): a rules-based score with an itemized
+rationale, and a **Monte-Carlo simulation (numpy, 20k runs)** giving P50/P90 and
+the probability of exceeding the deal's environmental contingency — real
+environmental-engineering practice, seeded for reproducibility. The LLM only
+*extracts facts*; Python does the *math*. Probabilistic cost modeling is exactly
+what numpy is for and what a single LLM call can't do well — that's why this
+agent is Python.
 
 When Regulatory or Legal decides a property needs environmental review (emergent
 dispatch), the orchestrator recruits this agent into the Band room and calls it
