@@ -15,13 +15,13 @@ const STEPS = [
   { key: 'agents', label: 'Convening the committee…' },
 ];
 
-const SAMPLE_TEXT = `Riverside Medical Plaza — mixed-use medical/retail, Austin TX. Purchase price $28.5M, 65% LTV at 6.5%, 7-year hold.
+const SAMPLE_TEXT = `Cedar Wharf Mixed-Use Redevelopment — Brooklyn, NY. Purchase price $62M, 75% LTV at 7.4%, 10-year hold. Plan: convert a former printing/industrial building into 180 residential apartments over ground-floor retail.
 
 TITLE DEED: fee simple absolute; title record shows NO recorded easements.
-ZONING: parcel zoned R-3 (residential, low-density) — medical/retail use is NOT permitted under R-3.
-INSPECTION: built 2009, roof replaced 2021, 9 occupied units, good condition.
-SELLER DISCLOSURE: no known environmental issues; not in a FEMA flood zone.
-PURCHASE CONTRACT §4: references a recorded ACCESS EASEMENT for the adjoining parcel. No survey attached.`;
+PURCHASE CONTRACT §7: Buyer takes title SUBJECT TO a recorded ACCESS EASEMENT in favor of the adjoining wharf parcel. No survey attached.
+ZONING: parcel zoned M1-2 (Light Manufacturing) — residential use is NOT permitted as-of-right; a rezoning (ULURP) is required and the outcome is uncertain.
+ENVIRONMENTAL: operated as a commercial printing and chemical-etching plant until 2008; a 4,000-gallon underground heating-oil tank remains in place; no Phase I ESA has been performed. The site is within a FEMA AE flood zone and the ground floor flooded during Hurricane Ida.
+FINANCIALS: 40% occupied at below-market rent; the pro forma assumes full residential conversion at market rents from year 2. Existing $9.2M mortgage and a 2019 mechanic's lien.`;
 
 function StackedPills({ current }: { current: string }) {
   const idx = STEPS.findIndex((s) => s.key === current);
