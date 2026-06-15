@@ -41,7 +41,10 @@ export function getAgentConfigs(): Record<AgentType, BandAgentConfig> {
   // to make it a distinct Band participant.
   const specialist = (type: AgentType, prefix: string, displayName: string): BandAgentConfig => {
     const c = mk(type, prefix, displayName);
-    return c.agentId && c.apiKey ? c : { ...environmental, agentType: type, displayName };
+    // A real, distinct Band agent as soon as it has its own ID (TS uses the ID to
+    // add it as a participant and @mention it; the Python service posts as it
+    // using its own API key). Falls back to the Environmental identity otherwise.
+    return c.agentId ? c : { ...environmental, agentType: type, displayName };
   };
   return {
     archivist: mk('archivist', 'BAND_ARCHIVIST', 'Archivist'),

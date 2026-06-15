@@ -49,6 +49,7 @@ class SpecState(TypedDict, total=False):
     compliance: dict
     room_id: str
     mention_ids: list
+    band_key: str
     room_context: str
     factors: dict
     metrics: dict
@@ -74,10 +75,10 @@ class Spec:
 
 
 def _event(state: SpecState, kind: str, content: str) -> None:
-    room_id = state.get("room_id")
-    if room_id and BAND_KEY_PRESENT:
+    room_id, key = state.get("room_id"), state.get("band_key")
+    if room_id and key:
         try:
-            band.post_event(room_id, content, kind)
+            band.post_event(room_id, content, kind, api_key=key)
         except Exception:  # noqa: BLE001
             pass
 
@@ -93,10 +94,10 @@ def make_graph(spec: Spec):
     def gather(state: SpecState) -> SpecState:
         _event(state, "tool_call", "get_room_context() — reading the committee's findings")
         context = ""
-        room_id = state.get("room_id")
-        if room_id and BAND_KEY_PRESENT:
+        room_id, key = state.get("room_id"), state.get("band_key")
+        if room_id and key:
             try:
-                msgs = band.get_context(room_id)
+                msgs = band.get_context(room_id, api_key=key)
                 context = "\n".join(f"{m.get('sender_name') or m.get('sender_id')}: {m.get('content')}" for m in msgs)[:3000]
                 _event(state, "tool_result", f"read {len(msgs)} message(s) of shared context")
             except Exception:  # noqa: BLE001
@@ -152,10 +153,10 @@ Return ONLY that JSON."""
 
     def announce(state: SpecState) -> SpecState:
         posted = False
-        room_id = state.get("room_id")
-        if room_id and BAND_KEY_PRESENT:
+        room_id, key = state.get("room_id"), state.get("band_key")
+        if room_id and key:
             try:
-                band.post_message(room_id, state.get("band_message", ""), state.get("mention_ids", []))
+                band.post_message(room_id, state.get("band_message", ""), state.get("mention_ids", []), api_key=key)
                 posted = True
             except Exception:  # noqa: BLE001
                 posted = False

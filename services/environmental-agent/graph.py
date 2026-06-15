@@ -62,6 +62,7 @@ class AssessState(TypedDict, total=False):
     compliance: dict
     room_id: str
     mention_ids: list[str]
+    band_key: str
     room_context: str
     factors: dict
     risk: dict          # output of model.score_environment
@@ -87,10 +88,10 @@ def _extract_json(text: str) -> dict:
 
 
 def _event(state: AssessState, kind: str, content: str) -> None:
-    room_id = state.get("room_id")
-    if room_id and BAND_KEY_PRESENT:
+    room_id, key = state.get("room_id"), state.get("band_key")
+    if room_id and key:
         try:
-            band.post_event(room_id, content, kind)
+            band.post_event(room_id, content, kind, api_key=key)
         except Exception:  # noqa: BLE001
             pass
 
@@ -99,10 +100,10 @@ def _event(state: AssessState, kind: str, content: str) -> None:
 def gather(state: AssessState) -> AssessState:
     _event(state, "tool_call", "get_room_context() — reading the committee's findings")
     context = ""
-    room_id = state.get("room_id")
-    if room_id and BAND_KEY_PRESENT:
+    room_id, key = state.get("room_id"), state.get("band_key")
+    if room_id and key:
         try:
-            msgs = band.get_context(room_id)
+            msgs = band.get_context(room_id, api_key=key)
             context = "\n".join(f"{m.get('sender_name') or m.get('sender_id')}: {m.get('content')}" for m in msgs)[:3000]
             _event(state, "tool_result", f"read {len(msgs)} message(s) of shared context")
         except Exception:  # noqa: BLE001
@@ -211,10 +212,10 @@ def announce(state: AssessState) -> AssessState:
     rec = "I recommend a Phase I ESA before closing." if report.get("phase_i_recommended") else "No Phase I appears warranted."
     band_message = f"{report.get('summary')}\n\nContamination risk: {report.get('contamination_risk')}. {rec}"
     posted = False
-    room_id = state.get("room_id")
-    if room_id and BAND_KEY_PRESENT:
+    room_id, key = state.get("room_id"), state.get("band_key")
+    if room_id and key:
         try:
-            band.post_message(room_id, band_message, state.get("mention_ids", []))
+            band.post_message(room_id, band_message, state.get("mention_ids", []), api_key=key)
             posted = True
         except Exception:  # noqa: BLE001
             posted = False

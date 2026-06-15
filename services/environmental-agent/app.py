@@ -23,6 +23,15 @@ from specialists import GRAPHS as SPECIALIST_GRAPHS  # noqa: E402
 # All recruitable specialists, keyed by type.
 GRAPHS = {"environmental": ENVIRONMENTAL_GRAPH, **SPECIALIST_GRAPHS}
 
+# Each specialist posts to Band under its OWN identity (api key → handle). Falls
+# back to the Environmental identity if a distinct key isn't provisioned.
+_ENV_KEY = os.getenv("BAND_ENVIRONMENTAL_API_KEY", "")
+BAND_KEYS = {
+    "environmental": _ENV_KEY,
+    "capex": os.getenv("BAND_CAPEX_API_KEY") or _ENV_KEY,
+    "insurance": os.getenv("BAND_INSURANCE_API_KEY") or _ENV_KEY,
+}
+
 app = FastAPI(title="DueDiligenceOS — Quantitative Specialists (LangGraph)")
 
 
@@ -50,6 +59,7 @@ def assess(req: AssessRequest) -> dict:
             "compliance": req.compliance,
             "room_id": req.room_id or "",
             "mention_ids": req.mention_ids,
+            "band_key": BAND_KEYS.get(req.type, _ENV_KEY),
         }
     )
     report = state.get("report", {})
