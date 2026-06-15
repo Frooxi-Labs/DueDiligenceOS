@@ -5,41 +5,33 @@
 <title>DueDiligenceOS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,200..800&family=Caveat:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,200..800&family=Caveat:wght@600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root{
     --ink:#0B1220; --ink2:#222B3B; --muted:#5A6373; --faint:#9098A6;
     --line:#E7EAF1; --line2:#F0F2F7;
     --blue:#2563EB; --blue-d:#1D4FD7; --green:#15A34A; --green-d:#0F7A38;
-    --amber:#B45309; --red:#DC2626;
-    --code-bg:#0C1422;
+    --amber:#B45309; --red:#DC2626; --code-bg:#0C1422;
   }
   *{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   html,body{background:#c9ced8;font-family:'Bricolage Grotesque',sans-serif;color:var(--ink);}
   .mono{font-family:'JetBrains Mono',monospace;}
-  .hw{font-family:'Caveat',cursive;font-weight:600;line-height:1;}
-
-  .slide{
-    position:relative;width:1280px;height:720px;background:#fff;overflow:hidden;margin:0 auto;
-    background-image:radial-gradient(circle, rgba(13,20,33,0.05) 1px, transparent 1.4px);
-    background-size:30px 30px;background-position:0 0;
-  }
+  .hw{font-family:'Caveat',cursive;font-weight:700;line-height:1;}
+  .slide{position:relative;width:1280px;height:720px;background:#fff;overflow:hidden;margin:0 auto;
+    background-image:radial-gradient(circle, rgba(13,20,33,0.05) 1px, transparent 1.4px);background-size:30px 30px;}
   .slide + .slide{margin-top:30px;}
   @page{size:1280px 720px;margin:0;}
   @media print{ html,body{background:#fff;} .slide{margin:0 !important;page-break-after:always;break-after:page;} .slide:last-child{page-break-after:auto;} }
   .pad{position:absolute;inset:0;padding:60px 72px;display:flex;flex-direction:column;}
-
   .eyebrow{display:flex;align-items:center;gap:9px;font-size:12.5px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--blue);}
   .eyebrow::before{content:"";width:22px;height:2px;background:var(--blue);}
   .eyebrow.green{color:var(--green-d);} .eyebrow.green::before{background:var(--green);}
   h1{font-size:72px;line-height:.98;font-weight:700;letter-spacing:-.028em;}
   h2{font-size:44px;line-height:1.04;font-weight:700;letter-spacing:-.024em;}
-  .lead{font-size:19px;line-height:1.5;color:var(--muted);font-weight:400;max-width:820px;}
+  .lead{font-size:19px;line-height:1.5;color:var(--muted);font-weight:400;max-width:840px;}
   .pagenum{position:absolute;right:30px;bottom:24px;font-size:11px;color:var(--faint);letter-spacing:.1em;}
   .foot{position:absolute;left:72px;bottom:24px;font-size:11px;font-weight:700;letter-spacing:.16em;color:var(--faint);text-transform:uppercase;}
-
   .logo{display:inline-flex;align-items:center;gap:11px;font-weight:700;letter-spacing:-.02em;}
-  .logo svg{display:block;}
   .card{background:#fff;border:1px solid var(--line);border-radius:14px;}
   .tag{font-size:11px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--faint);}
   .sq{display:inline-block;width:9px;height:9px;border-radius:3px;vertical-align:middle;}
@@ -47,16 +39,22 @@
   .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
   .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
   b{font-weight:700;}
-
-  /* editor / code */
   .editor{background:var(--code-bg);border-radius:14px;overflow:hidden;border:1px solid #1C2740;}
   .editor .bar{display:flex;align-items:center;gap:7px;padding:12px 16px;border-bottom:1px solid #1C2740;}
   .editor .bar i{width:11px;height:11px;border-radius:50%;display:block;}
   .editor .fn{margin-left:10px;font-size:12px;color:#7E8CA8;font-family:'JetBrains Mono',monospace;}
   .editor pre{margin:0;padding:18px 20px;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.62;color:#C9D4E8;white-space:pre;}
   .c-key{color:#7AA2FF;} .c-str{color:#8DD6A0;} .c-com{color:#5E6B85;font-style:italic;} .c-fn{color:#E0B978;} .c-pun{color:#8794AD;}
-
-  /* logo glyph svg reused */
+  /* divider grid (roster / primitives) */
+  .dgrid{display:grid;border-top:1px solid var(--line);}
+  .dcell{padding:22px 26px;border-bottom:1px solid var(--line);}
+  .dcell .h{font-size:16.5px;font-weight:700;margin-bottom:7px;display:flex;align-items:center;gap:9px;}
+  .dcell p{font-size:13.5px;color:var(--muted);line-height:1.45;}
+  /* logo tile */
+  .lt{display:flex;flex-direction:column;align-items:center;gap:8px;width:78px;}
+  .lt .box{width:54px;height:54px;border:1px solid var(--line);border-radius:13px;display:flex;align-items:center;justify-content:center;background:#fff;}
+  .lt img{width:28px;height:28px;object-fit:contain;}
+  .lt span{font-size:11.5px;color:var(--ink2);font-weight:600;text-align:center;}
 </style>
 </head>
 <body>
@@ -69,28 +67,23 @@
         <svg width="30" height="30" viewBox="0 0 30 30"><rect width="30" height="30" rx="8" fill="#0B1220"/><path d="M9 18 L14 13 L17 16 L22 10" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="22" cy="10" r="1.6" fill="#2563EB"/></svg>
         DueDiligenceOS
       </div>
-      <div style="font-size:12.5px;font-weight:600;color:var(--muted);letter-spacing:.02em;">Band of Agents&nbsp;&nbsp;·&nbsp;&nbsp;Track 3 — Regulated &amp; High-Stakes</div>
+      <div style="font-size:12.5px;font-weight:600;color:var(--muted);">Band of Agents&nbsp;&nbsp;·&nbsp;&nbsp;Track 3 — Regulated &amp; High-Stakes</div>
     </div>
-
     <div style="position:relative;">
-      <div class="eyebrow" style="margin-bottom:24px;">Multi-agent due-diligence committee</div>
+      <div class="eyebrow" style="margin-bottom:24px;">Multi-agent due-diligence for commercial real estate</div>
       <h1>The institutional<br/>diligence committee,<br/>run by <span style="color:var(--blue);">agents</span>.</h1>
-      <!-- handwritten annotation -->
-      <div class="hw" style="position:absolute;right:96px;top:150px;font-size:30px;color:var(--amber);transform:rotate(-7deg);">real, distinct agents —<br/>&nbsp;&nbsp;&nbsp;not one bot in costumes</div>
+      <div class="hw" style="position:absolute;right:88px;top:150px;font-size:29px;color:var(--amber);transform:rotate(-7deg);">eight distinct agents —<br/>&nbsp;&nbsp;not one model in costumes</div>
       <svg style="position:absolute;right:300px;top:212px;" width="80" height="60"><path d="M75 8 C55 30, 35 38, 12 44" stroke="#B45309" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M12 44 l13 -3 M12 44 l6 11" stroke="#B45309" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
-      <p class="lead" style="margin-top:28px;font-size:21px;">Eight specialist agents across two frameworks read the same room, challenge each
-        other, delegate real tasks, and recruit quantitative help — coordinated end-to-end by
-        <b style="color:var(--ink);">Band</b> as the genuine coordination layer.</p>
+      <p class="lead" style="margin-top:28px;font-size:21px;">Eight specialist agents across two frameworks share one Band room — reading each
+        other's findings, resolving contradictions, delegating tasks, and recruiting quantitative
+        models on demand to produce a defensible deal memo.</p>
     </div>
-
     <div style="display:flex;align-items:center;gap:26px;font-size:14px;color:var(--ink2);font-weight:600;">
-      <span><span class="sq" style="background:var(--blue);"></span>&nbsp; 5 TypeScript agents</span>
+      <span><span class="sq" style="background:var(--blue);"></span>&nbsp; 5 TypeScript reasoning agents</span>
       <span style="color:var(--line);">/</span>
       <span><span class="sq" style="background:var(--green);"></span>&nbsp; 3 Python · LangGraph specialists</span>
       <span style="color:var(--line);">/</span>
-      <span style="color:var(--muted);font-weight:500;">Gemini · Claude · GPT</span>
-      <span style="color:var(--line);">/</span>
-      <span style="color:var(--muted);font-weight:500;">Auditable, deterministic underwriting</span>
+      <span style="color:var(--muted);font-weight:500;">Claude · Gemini · GPT</span>
     </div>
   </div>
   <div class="pagenum">01</div>
@@ -101,34 +94,32 @@
   <div class="pad">
     <div class="eyebrow">The problem</div>
     <h2 style="margin-top:18px;">Real-estate diligence is a committee of experts —<br/>and the committee is the bottleneck.</h2>
-    <p class="lead" style="margin-top:18px;">A single deal needs title, zoning, environmental, structural, insurance and financial review.
-      Today that means weeks of email, siloed PDFs, and a partner manually reconciling contradictions before capital is committed.</p>
-
+    <p class="lead" style="margin-top:18px;">Acquiring a single asset requires title, zoning, environmental, structural, insurance and
+      financial review. Today that means weeks of email, siloed PDFs, and an associate manually reconciling expert findings before capital is committed.</p>
     <div class="grid3" style="margin-top:44px;">
       <div style="border-left:3px solid var(--ink);padding:6px 0 6px 22px;">
         <div class="tag">Slow &amp; serial</div>
         <div style="font-size:46px;font-weight:700;letter-spacing:-.03em;margin:8px 0 8px;">3–6 wks</div>
-        <p style="color:var(--muted);font-size:15px;line-height:1.5;">to clear diligence on a mid-market asset — most of it waiting on hand-offs between specialists.</p>
+        <p style="color:var(--muted);font-size:15px;line-height:1.5;">to clear diligence on a mid-market asset, most of it lost to hand-offs between specialists.</p>
       </div>
       <div style="border-left:3px solid var(--ink);padding:6px 0 6px 22px;">
-        <div class="tag">Costly mistakes</div>
+        <div class="tag">Costly to get wrong</div>
         <div style="font-size:46px;font-weight:700;letter-spacing:-.03em;margin:8px 0 8px;">$100M+</div>
-        <p style="color:var(--muted);font-size:15px;line-height:1.5;">a single missed easement, zoning conflict or remediation liability can swing an IRR underwater.</p>
+        <p style="color:var(--muted);font-size:15px;line-height:1.5;">a single missed easement, zoning conflict or remediation liability can move an IRR below water.</p>
       </div>
       <div style="border-left:3px solid var(--ink);padding:6px 0 6px 22px;">
         <div class="tag">No audit trail</div>
         <div style="font-size:46px;font-weight:700;letter-spacing:-.03em;margin:8px 0 8px;">Opaque</div>
-        <p style="color:var(--muted);font-size:15px;line-height:1.5;">why was the deal approved? The reasoning lives in inboxes — impossible to replay or defend.</p>
+        <p style="color:var(--muted);font-size:15px;line-height:1.5;">the rationale for an approval lives across inboxes — difficult to replay or defend to an IC.</p>
       </div>
     </div>
-
     <div style="margin-top:auto;display:flex;align-items:center;gap:22px;border-top:1px solid var(--line);padding-top:24px;">
-      <div style="font-size:17px;font-weight:700;color:var(--blue-d);white-space:nowrap;">The value</div>
-      <p style="font-size:16px;color:var(--ink2);line-height:1.45;">Compress the committee into minutes, surface contradictions <i>between</i> experts automatically,
-        and leave a fully replayable record of every finding, delegation and number — defensible to an investment committee.</p>
+      <div style="font-size:17px;font-weight:700;color:var(--blue-d);white-space:nowrap;">Our thesis</div>
+      <p style="font-size:16px;color:var(--ink2);line-height:1.45;">The committee can run in minutes if the experts share one context, surface contradictions
+        between themselves, and leave a complete, replayable record of every finding, delegation and number.</p>
     </div>
   </div>
-  <div class="foot">Problem &amp; value</div>
+  <div class="foot">Problem</div>
   <div class="pagenum">02</div>
 </section>
 
@@ -136,27 +127,24 @@
 <section class="slide">
   <div class="pad">
     <div class="eyebrow green">The solution</div>
-    <h2 style="margin-top:16px;">A standing committee of agents that<br/>actually talk to each other.</h2>
-
+    <h2 style="margin-top:16px;">A standing committee of agents that<br/>coordinate through Band.</h2>
     <div class="grid2" style="margin-top:36px;gap:26px;flex:1;align-items:stretch;">
       <div style="display:flex;flex-direction:column;gap:20px;padding-top:4px;">
-        <div style="display:flex;gap:16px;"><b style="color:var(--blue);font-size:15px;width:24px;">01</b><span style="font-size:16px;color:var(--ink2);line-height:1.45;"><b>Read the room.</b> Every agent pulls the live Band conversation as its primary context before reasoning.</span></div>
-        <div style="display:flex;gap:16px;"><b style="color:var(--blue);font-size:15px;width:24px;">02</b><span style="font-size:16px;color:var(--ink2);line-height:1.45;"><b>Challenge.</b> When two agents disagree — say, an easement one found and another didn't — they negotiate it in-thread.</span></div>
-        <div style="display:flex;gap:16px;"><b style="color:var(--blue);font-size:15px;width:24px;">03</b><span style="font-size:16px;color:var(--ink2);line-height:1.45;"><b>Delegate.</b> Any agent can hand any other a concrete task with intent + authority — decided from context.</span></div>
-        <div style="display:flex;gap:16px;"><b style="color:var(--blue);font-size:15px;width:24px;">04</b><span style="font-size:16px;color:var(--ink2);line-height:1.45;"><b>Recruit.</b> The committee pulls in Python quantitative specialists when the deal warrants it.</span></div>
+        <div style="display:flex;gap:16px;"><b style="color:var(--blue);font-size:15px;width:24px;">01</b><span style="font-size:16px;color:var(--ink2);line-height:1.45;"><b>Read the room.</b> Each agent pulls the live Band conversation as its primary context before it reasons.</span></div>
+        <div style="display:flex;gap:16px;"><b style="color:var(--blue);font-size:15px;width:24px;">02</b><span style="font-size:16px;color:var(--ink2);line-height:1.45;"><b>Challenge.</b> When two agents disagree — an easement one finds and another misses — they resolve it in-thread.</span></div>
+        <div style="display:flex;gap:16px;"><b style="color:var(--blue);font-size:15px;width:24px;">03</b><span style="font-size:16px;color:var(--ink2);line-height:1.45;"><b>Delegate.</b> Any agent can assign another a defined task, with intent and authority, derived from context.</span></div>
+        <div style="display:flex;gap:16px;"><b style="color:var(--blue);font-size:15px;width:24px;">04</b><span style="font-size:16px;color:var(--ink2);line-height:1.45;"><b>Recruit.</b> The committee brings Python quantitative specialists into the room when the deal warrants it.</span></div>
         <div style="display:flex;gap:16px;"><b style="color:var(--blue);font-size:15px;width:24px;">05</b><span style="font-size:16px;color:var(--ink2);line-height:1.45;"><b>Synthesize.</b> A Deal Director composes a Red / Yellow / Green memo with conditions precedent.</span></div>
       </div>
-
       <div style="display:flex;flex-direction:column;gap:18px;">
         <div class="card" style="padding:28px;flex:1;display:flex;flex-direction:column;justify-content:center;">
           <div class="tag">Outcome</div>
-          <p style="font-size:23px;font-weight:600;letter-spacing:-.015em;line-height:1.3;margin-top:10px;">A defensible deal memo with a full audit trail — in minutes, not weeks.</p>
+          <p style="font-size:23px;font-weight:600;letter-spacing:-.015em;line-height:1.3;margin-top:10px;">A defensible deal memo with a complete audit trail — in minutes, not weeks.</p>
         </div>
-        <div style="padding:28px;flex:1;border-radius:14px;background:var(--ink);color:#fff;position:relative;">
-          <div class="tag" style="color:#7E8CA8;">Nothing is hardcoded</div>
-          <p style="font-size:16px;line-height:1.5;margin-top:10px;color:#D2DAE8;">Which agents debate, who delegates to whom, and which specialists get recruited are
-            <b style="color:#fff;">all decided from the deal context</b> — not a fixed script.</p>
-          <div class="hw" style="position:absolute;right:24px;bottom:18px;font-size:24px;color:#8DD6A0;transform:rotate(-4deg);">this is the whole game ✶</div>
+        <div style="padding:28px;flex:1;border-radius:14px;background:var(--ink);color:#fff;">
+          <div class="tag" style="color:#7E8CA8;">Decided at runtime</div>
+          <p style="font-size:16px;line-height:1.5;margin-top:10px;color:#D2DAE8;">Which agents debate, who delegates to whom, and which specialists are recruited are all
+            <b style="color:#fff;">determined from the deal context</b> — not a fixed script. The collaboration is emergent.</p>
         </div>
       </div>
     </div>
@@ -165,7 +153,7 @@
   <div class="pagenum">03</div>
 </section>
 
-<!-- ============ 4 · AGENT ROSTER ============ -->
+<!-- ============ 4 · AGENT ROSTER (divider grid) ============ -->
 <section class="slide">
   <div class="pad">
     <div style="display:flex;justify-content:space-between;align-items:flex-end;">
@@ -179,21 +167,22 @@
       </div>
     </div>
 
-    <div class="grid4" style="margin-top:32px;">
-      <div class="card" style="padding:20px;border-top:3px solid var(--blue);"><div class="tag" style="color:var(--blue-d);">Archivist</div><p style="font-size:14px;color:var(--muted);line-height:1.45;margin-top:9px;">Document intake → structured property facts &amp; missing-doc gaps.</p></div>
-      <div class="card" style="padding:20px;border-top:3px solid var(--blue);"><div class="tag" style="color:var(--blue-d);">Regulatory</div><p style="font-size:14px;color:var(--muted);line-height:1.45;margin-top:9px;">Zoning, permits, flood/FEMA, deed restrictions — severity-ranked.</p></div>
-      <div class="card" style="padding:20px;border-top:3px solid var(--blue);"><div class="tag" style="color:var(--blue-d);">Legal Risk</div><p style="font-size:14px;color:var(--muted);line-height:1.45;margin-top:9px;">Title defects, easement conflicts, liens, seller-rep gaps.</p></div>
-      <div class="card" style="padding:20px;border-top:3px solid var(--blue);"><div class="tag" style="color:var(--blue-d);">Financial</div><p style="font-size:14px;color:var(--muted);line-height:1.45;margin-top:9px;">NOI, cap rate, DSCR &amp; a 5-yr IRR — deterministically computed.</p></div>
-      <div class="card" style="padding:20px;border-top:3px solid var(--blue);"><div class="tag" style="color:var(--blue-d);">Synthesis</div><p style="font-size:14px;color:var(--muted);line-height:1.45;margin-top:9px;">Deal Director — composes the R/Y/G memo &amp; conditions precedent.</p></div>
-      <div class="card" style="padding:20px;border-top:3px solid var(--green);"><div class="tag" style="color:var(--green-d);">Environmental</div><p style="font-size:14px;color:var(--muted);line-height:1.45;margin-top:9px;">Contamination risk + Monte-Carlo remediation cost; Phase&nbsp;I call.</p></div>
-      <div class="card" style="padding:20px;border-top:3px solid var(--green);"><div class="tag" style="color:var(--green-d);">CapEx / Constr.</div><p style="font-size:14px;color:var(--muted);line-height:1.45;margin-top:9px;">Renovation/conversion cost &amp; schedule risk, simulated.</p></div>
-      <div class="card" style="padding:20px;border-top:3px solid var(--green);"><div class="tag" style="color:var(--green-d);">Insurance / Cat</div><p style="font-size:14px;color:var(--muted);line-height:1.45;margin-top:9px;">Flood/wind/seismic catastrophe exposure &amp; premium estimate.</p></div>
+    <div class="dgrid" style="grid-template-columns:repeat(4,1fr);margin-top:28px;">
+      <div class="dcell" style="border-right:1px solid var(--line);"><div class="h"><span class="sq" style="background:var(--blue);"></span>Archivist</div><p>Document intake → structured property facts and missing-document gaps.</p></div>
+      <div class="dcell" style="border-right:1px solid var(--line);"><div class="h"><span class="sq" style="background:var(--blue);"></span>Regulatory</div><p>Zoning, permits, FEMA flood and deed restrictions, severity-ranked.</p></div>
+      <div class="dcell" style="border-right:1px solid var(--line);"><div class="h"><span class="sq" style="background:var(--blue);"></span>Legal Risk</div><p>Title defects, easement conflicts, liens and seller-representation gaps.</p></div>
+      <div class="dcell"><div class="h"><span class="sq" style="background:var(--blue);"></span>Financial</div><p>NOI, cap rate, DSCR and a 5-year IRR — computed deterministically.</p></div>
+
+      <div class="dcell" style="border-right:1px solid var(--line);border-bottom:none;"><div class="h"><span class="sq" style="background:var(--blue);"></span>Synthesis</div><p>Deal Director — composes the R / Y / G memo and conditions precedent.</p></div>
+      <div class="dcell" style="border-right:1px solid var(--line);border-bottom:none;"><div class="h"><span class="sq" style="background:var(--green);"></span>Environmental</div><p>Contamination risk and Monte-Carlo remediation cost; Phase&nbsp;I call.</p></div>
+      <div class="dcell" style="border-right:1px solid var(--line);border-bottom:none;"><div class="h"><span class="sq" style="background:var(--green);"></span>CapEx / Construction</div><p>Renovation and conversion cost with schedule risk, simulated.</p></div>
+      <div class="dcell" style="border-bottom:none;"><div class="h"><span class="sq" style="background:var(--green);"></span>Insurance / Catastrophe</div><p>Flood, wind and seismic exposure with a premium estimate.</p></div>
     </div>
 
     <div style="margin-top:auto;display:flex;align-items:center;gap:22px;border-top:1px solid var(--line);padding-top:22px;">
       <div style="font-weight:700;font-size:16px;white-space:nowrap;">Why two frameworks?</div>
-      <p style="font-size:15px;color:var(--muted);line-height:1.45;">The 5 reasoning agents live in TypeScript next to the product. The 3 specialists are Python because they do real
-        <b style="color:var(--ink2);">numerical work</b> — seeded numpy Monte-Carlo over LangGraph state machines. Different jobs, right tool each. Band makes them one team.</p>
+      <p style="font-size:15px;color:var(--muted);line-height:1.45;">The reasoning agents live in TypeScript alongside the product. The specialists are Python because they perform genuine
+        <b style="color:var(--ink2);">numerical work</b> — seeded numpy Monte-Carlo over LangGraph state machines. Band unifies them into one committee.</p>
     </div>
   </div>
   <div class="foot">Agent roster</div>
@@ -205,80 +194,59 @@
   <div class="pad">
     <div class="eyebrow">Architecture</div>
     <h2 style="margin-top:14px;">Band is the spine — not a wrapper.</h2>
+    <p class="lead" style="margin-top:12px;">The orchestrator drives the workflow, but every agent communicates <i>through</i> Band:
+      reading shared context, posting findings, and emitting events.</p>
 
-    <div style="flex:1;margin-top:22px;">
-      <svg viewBox="0 0 1136 452" width="100%" height="100%" font-family="Bricolage Grotesque">
-        <defs>
-          <marker id="a" markerWidth="8" markerHeight="8" refX="6.5" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#AEB7C7"/></marker>
-        </defs>
-        <!-- left tier rail -->
-        <g font-size="11" font-weight="700" letter-spacing="1.2" fill="#AEB7C7" text-anchor="end">
-          <text x="92" y="44">CLIENT</text>
-          <text x="92" y="138">ENGINE</text>
-          <text x="92" y="248">BAND</text>
-          <text x="92" y="372">AGENTS</text>
-        </g>
-        <line x1="104" y1="14" x2="104" y2="438" stroke="#EDEFF4"/>
+    <div style="flex:1;margin-top:18px;">
+      <svg viewBox="0 0 1136 392" width="100%" height="100%" font-family="Bricolage Grotesque">
+        <defs><marker id="a" markerWidth="8" markerHeight="8" refX="6.5" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#AEB7C7"/></marker></defs>
 
         <!-- CLIENT -->
-        <rect x="124" y="18" width="800" height="56" rx="11" fill="#fff" stroke="#E7EAF1"/>
-        <text x="146" y="44" font-size="14" font-weight="700" fill="#222B3B">Next.js 16 · React 19 client</text>
-        <text x="146" y="63" font-size="12.5" fill="#5A6373">Deal intake · live room (SSE) · contradiction &amp; counterfactual UI · auditable memo</text>
-
-        <!-- INFRA sidebar -->
-        <rect x="944" y="18" width="192" height="392" rx="11" fill="#FAFBFD" stroke="#EDEFF4"/>
-        <text x="964" y="42" font-size="11" font-weight="700" letter-spacing="1" fill="#9098A6">CROSS-CUTTING</text>
-        <g font-size="12.5" fill="#222B3B" font-weight="600">
-          <text x="964" y="78">Neon Postgres</text><text x="964" y="96" font-size="11" font-weight="400" fill="#9098A6">+ Drizzle ORM</text>
-          <text x="964" y="138">SSE realtime bus</text><text x="964" y="156" font-size="11" font-weight="400" fill="#9098A6">with event replay</text>
-          <text x="964" y="198">AI/ML API</text><text x="964" y="216" font-size="11" font-weight="400" fill="#9098A6">Gemini · Claude · GPT</text>
-          <text x="964" y="258">jsonrepair</text><text x="964" y="276" font-size="11" font-weight="400" fill="#9098A6">resilient parsing</text>
-          <text x="964" y="318">Bounded loops</text><text x="964" y="336" font-size="11" font-weight="400" fill="#9098A6">26 tests · clean build</text>
-        </g>
-
-        <line x1="524" y1="74" x2="524" y2="96" stroke="#AEB7C7" stroke-width="1.4" marker-end="url(#a)"/>
+        <rect x="218" y="8" width="700" height="56" rx="11" fill="#fff" stroke="#E7EAF1"/>
+        <text x="568" y="32" font-size="13.5" font-weight="700" fill="#222B3B" text-anchor="middle">Next.js 16 · React 19 client</text>
+        <text x="568" y="51" font-size="12" fill="#5A6373" text-anchor="middle">deal intake · live room (SSE) · contradiction &amp; counterfactual views · auditable memo</text>
+        <line x1="568" y1="64" x2="568" y2="84" stroke="#AEB7C7" stroke-width="1.4" marker-end="url(#a)"/>
 
         <!-- ORCHESTRATION -->
-        <rect x="124" y="98" width="800" height="64" rx="11" fill="#0C1422" stroke="#0C1422"/>
-        <text x="146" y="126" font-size="14" font-weight="700" fill="#fff">Orchestration engine · TypeScript</text>
-        <text x="146" y="147" font-size="12.5" fill="#9AA6BE">emergent delegation &amp; recruitment · contradiction negotiation · counterfactual forks</text>
-
-        <line x1="340" y1="162" x2="340" y2="194" stroke="#AEB7C7" stroke-width="1.4" marker-end="url(#a)"/>
-        <line x1="708" y1="162" x2="708" y2="194" stroke="#AEB7C7" stroke-width="1.4" marker-end="url(#a)"/>
+        <rect x="218" y="86" width="700" height="56" rx="11" fill="#0C1422"/>
+        <text x="568" y="110" font-size="13.5" font-weight="700" fill="#fff" text-anchor="middle">Orchestration engine · TypeScript</text>
+        <text x="568" y="129" font-size="12" fill="#9AA6BE" text-anchor="middle">emergent delegation &amp; recruitment · contradiction negotiation · counterfactual forks</text>
+        <line x1="568" y1="142" x2="568" y2="162" stroke="#AEB7C7" stroke-width="1.4" marker-end="url(#a)"/>
 
         <!-- BAND -->
-        <rect x="124" y="196" width="800" height="92" rx="11" fill="#F5F8FF" stroke="#2563EB" stroke-width="1.5"/>
-        <text x="146" y="224" font-size="13" font-weight="700" letter-spacing="1" fill="#1D4FD7">BAND — COORDINATION LAYER</text>
-        <g font-size="12.5" font-weight="600" fill="#1D4FD7">
-          <text x="146" y="262">rooms + handoffs</text>
-          <line x1="280" y1="248" x2="280" y2="276" stroke="#CBD9FB"/>
-          <text x="298" y="262">task state</text>
-          <line x1="392" y1="248" x2="392" y2="276" stroke="#CBD9FB"/>
-          <text x="410" y="262">mention-routed context</text>
-          <line x1="606" y1="248" x2="606" y2="276" stroke="#CBD9FB"/>
-          <text x="624" y="262">events: thought·tool·error</text>
-          <text x="146" y="280" font-size="11.5" font-weight="400" fill="#5C73B5">recruitment · per-agent identity · processing → processed</text>
-        </g>
+        <rect x="118" y="164" width="900" height="72" rx="12" fill="#F5F8FF" stroke="#2563EB" stroke-width="1.5"/>
+        <text x="568" y="190" font-size="13" font-weight="700" letter-spacing="1" fill="#1D4FD7" text-anchor="middle">BAND — COORDINATION LAYER</text>
+        <text x="568" y="216" font-size="13" font-weight="600" fill="#1D4FD7" text-anchor="middle">rooms + handoffs &nbsp;·&nbsp; task state &nbsp;·&nbsp; mention-routed context &nbsp;·&nbsp; thought / tool / error events &nbsp;·&nbsp; recruitment &nbsp;·&nbsp; identity</text>
 
-        <line x1="320" y1="288" x2="320" y2="316" stroke="#AEB7C7" stroke-width="1.4" marker-end="url(#a)"/>
-        <line x1="728" y1="288" x2="728" y2="316" stroke="#AEB7C7" stroke-width="1.4" marker-end="url(#a)"/>
+        <!-- bidirectional arrows -->
+        <g stroke="#AEB7C7" stroke-width="1.4">
+          <line x1="320" y1="236" x2="320" y2="282" marker-end="url(#a)"/>
+          <line x1="360" y1="282" x2="360" y2="238" marker-end="url(#a)"/>
+          <line x1="780" y1="236" x2="780" y2="282" marker-end="url(#a)"/>
+          <line x1="820" y1="282" x2="820" y2="238" marker-end="url(#a)"/>
+        </g>
+        <text x="568" y="262" font-size="11.5" font-style="italic" fill="#9098A6" text-anchor="middle">agents read the room, then post findings &amp; events back</text>
 
         <!-- AGENTS -->
-        <rect x="124" y="318" width="388" height="92" rx="11" fill="#fff" stroke="#CBD9FB"/>
-        <text x="146" y="344" font-size="11.5" font-weight="700" letter-spacing=".8" fill="#1D4FD7">5 REASONING AGENTS · TYPESCRIPT</text>
-        <g font-size="11.5" font-weight="600" fill="#222B3B" text-anchor="middle">
-          <text x="178" y="382">Archivist</text><text x="248" y="382">Regulatory</text><text x="318" y="382">Legal</text><text x="380" y="382">Financial</text><text x="458" y="382">Synthesis</text>
-          <line x1="146" y1="392" x2="490" y2="392" stroke="#EDEFF4"/>
+        <rect x="118" y="284" width="430" height="100" rx="12" fill="#fff" stroke="#CBD9FB"/>
+        <text x="142" y="310" font-size="11.5" font-weight="700" letter-spacing=".8" fill="#1D4FD7">5 REASONING AGENTS · TYPESCRIPT</text>
+        <g font-size="12" font-weight="600" fill="#222B3B" text-anchor="middle">
+          <text x="196" y="350">Archivist</text><text x="270" y="350">Regulatory</text><text x="338" y="350">Legal</text><text x="402" y="350">Financial</text><text x="482" y="350">Synthesis</text>
         </g>
+        <text x="142" y="372" font-size="11" fill="#9098A6">Claude · Gemini · GPT — model chosen per role</text>
 
-        <rect x="536" y="318" width="388" height="92" rx="11" fill="#fff" stroke="#CBEBD6"/>
-        <text x="558" y="344" font-size="11.5" font-weight="700" letter-spacing=".8" fill="#0F7A38">3 SPECIALISTS · PYTHON · LANGGRAPH</text>
-        <g font-size="11.5" font-weight="600" fill="#222B3B" text-anchor="middle">
-          <text x="618" y="382">Environmental</text><text x="722" y="382">CapEx</text><text x="812" y="382">Insurance</text>
-          <text x="884" y="382" fill="#0F7A38">numpy MC</text>
-          <line x1="558" y1="392" x2="902" y2="392" stroke="#EDEFF4"/>
+        <rect x="588" y="284" width="430" height="100" rx="12" fill="#fff" stroke="#CBEBD6"/>
+        <text x="612" y="310" font-size="11.5" font-weight="700" letter-spacing=".8" fill="#0F7A38">3 SPECIALISTS · PYTHON · FASTAPI + LANGGRAPH</text>
+        <g font-size="12" font-weight="600" fill="#222B3B" text-anchor="middle">
+          <text x="672" y="350">Environmental</text><text x="776" y="350">CapEx</text><text x="866" y="350">Insurance</text>
         </g>
+        <text x="612" y="372" font-size="11" fill="#0F7A38">seeded numpy Monte-Carlo · recruited over HTTP</text>
       </svg>
+    </div>
+    <div style="display:flex;gap:26px;font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:14px;margin-top:6px;">
+      <span><b style="color:var(--ink2);">Data</b> &nbsp;Neon Postgres · Drizzle ORM</span>
+      <span><b style="color:var(--ink2);">Realtime</b> &nbsp;SSE bus with replay</span>
+      <span><b style="color:var(--ink2);">Resilience</b> &nbsp;jsonrepair · bounded loops · 26 tests</span>
     </div>
   </div>
   <div class="foot">Architecture</div>
@@ -288,93 +256,89 @@
 <!-- ============ 6 · WORKFLOW ============ -->
 <section class="slide">
   <div class="pad">
-    <div class="eyebrow">Workflow</div>
+    <div class="eyebrow">Flow of context &amp; handoffs</div>
     <h2 style="margin-top:14px;">One deal, end to end.</h2>
 
-    <div style="flex:1;margin-top:24px;">
-      <svg viewBox="0 0 1136 470" width="100%" height="100%" font-family="Bricolage Grotesque">
+    <div style="flex:1;margin-top:26px;">
+      <svg viewBox="0 0 1136 452" width="100%" height="100%" font-family="Bricolage Grotesque">
         <defs>
           <marker id="g" markerWidth="8" markerHeight="8" refX="6.5" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#AEB7C7"/></marker>
           <marker id="gb" markerWidth="8" markerHeight="8" refX="6.5" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#2563EB"/></marker>
           <marker id="gg" markerWidth="8" markerHeight="8" refX="6.5" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#15A34A"/></marker>
         </defs>
 
-        <!-- LANE 1: intake chain  y=40..96 -->
-        <g font-size="12" font-weight="700" fill="#1D4FD7" text-anchor="middle">
-          <rect x="8"   y="40" width="150" height="58" rx="11" fill="#fff" stroke="#CBD9FB"/><text x="83" y="66">Archivist</text>
-          <rect x="198" y="40" width="150" height="58" rx="11" fill="#fff" stroke="#CBD9FB"/><text x="273" y="66">Regulatory</text>
-          <rect x="388" y="40" width="150" height="58" rx="11" fill="#fff" stroke="#CBD9FB"/><text x="463" y="66">Legal Risk</text>
+        <!-- LANE 1: y 8..70 -->
+        <g font-size="12.5" font-weight="700" fill="#1D4FD7" text-anchor="middle">
+          <rect x="4"   y="8" width="150" height="60" rx="11" fill="#fff" stroke="#CBD9FB"/><text x="79" y="35">Archivist</text>
+          <rect x="200" y="8" width="150" height="60" rx="11" fill="#fff" stroke="#CBD9FB"/><text x="275" y="35">Regulatory</text>
+          <rect x="396" y="8" width="150" height="60" rx="11" fill="#fff" stroke="#CBD9FB"/><text x="471" y="35">Legal Risk</text>
         </g>
         <g font-size="11" fill="#9098A6" text-anchor="middle">
-          <text x="83" y="84">facts</text><text x="273" y="84">zoning · flood</text><text x="463" y="84">title · easements</text>
+          <text x="79" y="54">property facts</text><text x="275" y="54">zoning · flood</text><text x="471" y="54">title · easements</text>
         </g>
-        <line x1="158" y1="69" x2="194" y2="69" stroke="#AEB7C7" stroke-width="1.4" marker-end="url(#g)"/>
-        <line x1="348" y1="69" x2="384" y2="69" stroke="#AEB7C7" stroke-width="1.4" marker-end="url(#g)"/>
+        <line x1="154" y1="38" x2="196" y2="38" stroke="#AEB7C7" stroke-width="1.4" marker-end="url(#g)"/>
+        <line x1="350" y1="38" x2="392" y2="38" stroke="#AEB7C7" stroke-width="1.4" marker-end="url(#g)"/>
 
-        <!-- contradiction diamond -->
-        <polygon points="638,69 690,38 742,69 690,100" fill="#fff" stroke="#E2A23C" stroke-width="1.4"/>
-        <text x="690" y="66" font-size="11" font-weight="700" fill="#B45309" text-anchor="middle">conflict?</text>
-        <text x="690" y="80" font-size="9" fill="#B45309" text-anchor="middle">any pair · any topic</text>
-        <line x1="538" y1="69" x2="636" y2="69" stroke="#AEB7C7" stroke-width="1.4" marker-end="url(#g)"/>
+        <!-- conflict diamond -->
+        <polygon points="640,38 694,8 748,38 694,68" fill="#fff" stroke="#E2A23C" stroke-width="1.4"/>
+        <text x="694" y="35" font-size="11" font-weight="700" fill="#B45309" text-anchor="middle">conflict?</text>
+        <text x="694" y="49" font-size="9" fill="#B45309" text-anchor="middle">any pair · any topic</text>
+        <line x1="546" y1="38" x2="638" y2="38" stroke="#AEB7C7" stroke-width="1.4" marker-end="url(#g)"/>
 
-        <!-- negotiate branch (right) -->
-        <rect x="792" y="40" width="300" height="58" rx="11" fill="#FFF9F0" stroke="#F0D5A8"/>
-        <text x="812" y="66" font-size="12" font-weight="700" fill="#B45309">Negotiate in-thread</text>
-        <text x="812" y="84" font-size="11.5" fill="#7A6A4A">agents reconcile → resolved finding</text>
-        <line x1="742" y1="69" x2="788" y2="69" stroke="#E2A23C" stroke-width="1.4" marker-end="url(#g)"/>
-        <text x="760" y="60" font-size="10" font-weight="700" fill="#B45309">yes</text>
+        <!-- negotiate -->
+        <rect x="798" y="8" width="296" height="60" rx="11" fill="#FFF9F0" stroke="#F0D5A8"/>
+        <text x="820" y="34" font-size="12.5" font-weight="700" fill="#B45309">Negotiate in-thread</text>
+        <text x="820" y="53" font-size="11.5" fill="#7A6A4A">agents reconcile → resolved finding</text>
+        <line x1="748" y1="38" x2="794" y2="38" stroke="#E2A23C" stroke-width="1.4" marker-end="url(#g)"/>
+        <text x="768" y="29" font-size="10" font-weight="700" fill="#B45309">yes</text>
 
-        <!-- connector down to recruitment (clear of text) -->
-        <path d="M463,98 L463,128 L300,128 L300,176" fill="none" stroke="#15A34A" stroke-width="1.5" marker-end="url(#gg)"/>
+        <!-- DOWN connector on far left, no crossing -->
+        <path d="M79,68 L79,118 L150,118" fill="none" stroke="#AEB7C7" stroke-width="1.4" marker-end="url(#g)"/>
+        <text x="120" y="110" font-size="10.5" fill="#9098A6" text-anchor="middle">cleared</text>
 
-        <!-- LANE 2 -->
+        <!-- LANE 2: y 140..236 -->
         <!-- recruitment -->
-        <rect x="8" y="178" width="520" height="96" rx="12" fill="#F4FBF6" stroke="#CBEBD6"/>
-        <text x="30" y="204" font-size="12" font-weight="700" letter-spacing=".4" fill="#0F7A38">Dynamic recruitment — specialists join the room</text>
+        <rect x="152" y="140" width="372" height="96" rx="12" fill="#F4FBF6" stroke="#CBEBD6"/>
+        <text x="174" y="166" font-size="12" font-weight="700" fill="#0F7A38">Recruit specialists (from context)</text>
         <g font-size="11.5" font-weight="600" fill="#0F5C2E" text-anchor="middle">
-          <rect x="30"  y="218" width="140" height="40" rx="9" fill="#fff" stroke="#CBEBD6"/><text x="100" y="243">Environmental</text>
-          <rect x="184" y="218" width="110" height="40" rx="9" fill="#fff" stroke="#CBEBD6"/><text x="239" y="243">CapEx</text>
-          <rect x="308" y="218" width="120" height="40" rx="9" fill="#fff" stroke="#CBEBD6"/><text x="368" y="243">Insurance</text>
-          <rect x="442" y="218" width="62"  height="40" rx="9" fill="#fff" stroke="#CBEBD6"/><text x="473" y="243">MC</text>
+          <rect x="174" y="180" width="100" height="38" rx="9" fill="#fff" stroke="#CBEBD6"/><text x="224" y="204">Environmental</text>
+          <rect x="286" y="180" width="78"  height="38" rx="9" fill="#fff" stroke="#CBEBD6"/><text x="325" y="204">CapEx</text>
+          <rect x="376" y="180" width="92"  height="38" rx="9" fill="#fff" stroke="#CBEBD6"/><text x="422" y="204">Insurance</text>
         </g>
-
-        <line x1="528" y1="226" x2="568" y2="226" stroke="#AEB7C7" stroke-width="1.4" marker-end="url(#g)"/>
+        <text x="174" y="231" font-size="10.5" fill="#0F7A38">seeded Monte-Carlo → P50 / P90 posted to the room</text>
+        <line x1="524" y1="188" x2="566" y2="188" stroke="#AEB7C7" stroke-width="1.4" marker-end="url(#g)"/>
 
         <!-- financial -->
-        <rect x="570" y="178" width="206" height="96" rx="12" fill="#fff" stroke="#CBD9FB"/>
-        <text x="592" y="204" font-size="13" font-weight="700" fill="#1D4FD7">Financial</text>
-        <text x="592" y="226" font-size="12" fill="#5A6373">baseline underwrite</text>
-        <text x="592" y="246" font-size="12" fill="#5A6373">deterministic IRR</text>
-        <text x="592" y="264" font-size="11" fill="#9098A6">(solved by bisection)</text>
-
-        <line x1="776" y1="226" x2="816" y2="226" stroke="#AEB7C7" stroke-width="1.4" marker-end="url(#g)"/>
+        <rect x="568" y="140" width="208" height="96" rx="12" fill="#fff" stroke="#CBD9FB"/>
+        <text x="590" y="166" font-size="13" font-weight="700" fill="#1D4FD7">Financial</text>
+        <text x="590" y="188" font-size="12" fill="#5A6373">baseline underwrite</text>
+        <text x="590" y="208" font-size="12" fill="#5A6373">deterministic IRR</text>
+        <text x="590" y="226" font-size="11" fill="#9098A6">(solved by bisection)</text>
+        <line x1="776" y1="188" x2="818" y2="188" stroke="#AEB7C7" stroke-width="1.4" marker-end="url(#g)"/>
 
         <!-- synthesis -->
-        <rect x="818" y="178" width="274" height="96" rx="12" fill="#0C1422" stroke="#0C1422"/>
-        <text x="840" y="204" font-size="11.5" font-weight="700" letter-spacing=".6" fill="#7E8CA8">SYNTHESIS · DEAL DIRECTOR</text>
-        <text x="840" y="230" font-size="15" font-weight="700" fill="#fff">R / Y / G deal memo</text>
-        <text x="840" y="252" font-size="12" fill="#9AA6BE">conditions precedent</text>
+        <rect x="820" y="140" width="274" height="96" rx="12" fill="#0C1422"/>
+        <text x="842" y="166" font-size="11.5" font-weight="700" letter-spacing=".6" fill="#7E8CA8">SYNTHESIS · DEAL DIRECTOR</text>
+        <text x="842" y="192" font-size="15" font-weight="700" fill="#fff">R / Y / G deal memo</text>
+        <text x="842" y="214" font-size="12" fill="#9AA6BE">conditions precedent</text>
 
-        <!-- delegation loop (drawn well below boxes, no overlap) -->
-        <path d="M673,274 L673,310 L360,310 L360,276" fill="none" stroke="#2563EB" stroke-width="1.5" marker-end="url(#gb)"/>
-        <text x="516" y="304" font-size="11.5" font-weight="600" fill="#1D4FD7" text-anchor="middle">emergent delegation · any agent → any agent</text>
+        <!-- delegation loop: own clear band y 260..300, label ABOVE the line -->
+        <text x="540" y="276" font-size="12" font-weight="600" fill="#1D4FD7" text-anchor="middle">emergent delegation · any agent assigns any agent a task (e.g. re-underwrite)</text>
+        <path d="M672,236 L672,290 L380,290 L380,238" fill="none" stroke="#2563EB" stroke-width="1.5" marker-end="url(#gb)"/>
 
         <!-- synthesis down to output -->
-        <path d="M955,274 L955,338" fill="none" stroke="#AEB7C7" stroke-width="1.4" marker-end="url(#g)"/>
+        <path d="M957,236 L957,316" fill="none" stroke="#AEB7C7" stroke-width="1.4" marker-end="url(#g)"/>
 
-        <!-- LANE 3: two footers -->
-        <rect x="8" y="340" width="600" height="98" rx="12" fill="#FAFBFD" stroke="#EDEFF4"/>
-        <text x="30" y="366" font-size="11" font-weight="700" letter-spacing=".8" fill="#9098A6">THROUGHOUT — EMITTED TO BAND</text>
-        <text x="30" y="392" font-size="13" fill="#222B3B">Every step posts <tspan font-family="JetBrains Mono" font-size="12" fill="#2563EB">thought</tspan>, <tspan font-family="JetBrains Mono" font-size="12" fill="#2563EB">tool_call</tspan>, <tspan font-family="JetBrains Mono" font-size="12" fill="#2563EB">tool_result</tspan> &amp;</text>
-        <text x="30" y="412" font-size="13" fill="#222B3B"><tspan font-family="JetBrains Mono" font-size="12" fill="#DC2626">error</tspan> events + task states — the replayable audit trail.</text>
+        <!-- LANE 3: footers y 318..414 -->
+        <rect x="4" y="318" width="600" height="96" rx="12" fill="#FAFBFD" stroke="#EDEFF4"/>
+        <text x="26" y="344" font-size="11" font-weight="700" letter-spacing=".8" fill="#9098A6">EMITTED TO BAND THROUGHOUT</text>
+        <text x="26" y="370" font-size="13" fill="#222B3B">Every step posts <tspan font-family="JetBrains Mono" font-size="12" fill="#2563EB">thought</tspan>, <tspan font-family="JetBrains Mono" font-size="12" fill="#2563EB">tool_call</tspan>, <tspan font-family="JetBrains Mono" font-size="12" fill="#2563EB">tool_result</tspan> &amp;</text>
+        <text x="26" y="390" font-size="13" fill="#222B3B"><tspan font-family="JetBrains Mono" font-size="12" fill="#DC2626">error</tspan> events, plus task states — a replayable audit trail.</text>
 
-        <rect x="624" y="340" width="468" height="98" rx="12" fill="#fff" stroke="#EDEFF4"/>
-        <text x="646" y="366" font-size="11" font-weight="700" letter-spacing=".8" fill="#9098A6">COUNTERFACTUAL FORK + HUMAN DECISION</text>
-        <text x="646" y="392" font-size="13" fill="#222B3B">“What if we drop the as-of-right use?” → fork the room,</text>
-        <text x="646" y="412" font-size="13" fill="#222B3B">re-run, compare memos. Partner approves with conditions.</text>
-
-        <!-- handwritten accent -->
-        <text x="788" y="160" font-family="Caveat" font-weight="700" font-size="24" fill="#B45309" transform="rotate(-5 788 160)">the IRR actually moves here ↓</text>
+        <rect x="620" y="318" width="516" height="96" rx="12" fill="#fff" stroke="#EDEFF4"/>
+        <text x="642" y="344" font-size="11" font-weight="700" letter-spacing=".8" fill="#9098A6">COUNTERFACTUAL FORK + HUMAN DECISION</text>
+        <text x="642" y="370" font-size="13" fill="#222B3B">“What if we drop the as-of-right use?” forks the room, re-runs the</text>
+        <text x="642" y="390" font-size="13" fill="#222B3B">committee, and compares memos. The partner approves with conditions.</text>
       </svg>
     </div>
   </div>
@@ -385,26 +349,26 @@
 <!-- ============ 7 · BAND PRIMITIVES ============ -->
 <section class="slide">
   <div class="pad">
-    <div class="eyebrow">Why this needs Band</div>
-    <h2 style="margin-top:14px;">We use Band as the coordination layer — to the hilt.</h2>
-    <p class="lead" style="margin-top:14px;">Every primitive below is load-bearing. Remove Band and the committee stops being a committee.</p>
+    <div class="eyebrow">Band's role in coordination</div>
+    <h2 style="margin-top:14px;">Every Band primitive is load-bearing.</h2>
+    <p class="lead" style="margin-top:14px;">Remove Band and the committee stops being a committee. These are the primitives the system depends on.</p>
 
-    <div class="grid3" style="margin-top:34px;gap:0;border-top:1px solid var(--line);">
+    <div style="margin-top:34px;display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);">
       <div style="padding:24px 26px 24px 0;border-bottom:1px solid var(--line);border-right:1px solid var(--line);">
         <div style="font-size:17px;font-weight:700;color:var(--blue-d);margin-bottom:8px;">Shared context</div>
-        <p style="font-size:14px;color:var(--muted);line-height:1.5;">Agents <b style="color:var(--ink2);">read the room</b> via mention-routed <span class="mono" style="font-size:12px;">getContext</span> before reasoning — primary context, not spoon-fed payloads.</p>
+        <p style="font-size:14px;color:var(--muted);line-height:1.5;">Agents read the room via mention-routed <span class="mono" style="font-size:12px;">getContext</span> before reasoning — primary context, not spoon-fed payloads.</p>
       </div>
       <div style="padding:24px 26px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);">
         <div style="font-size:17px;font-weight:700;color:var(--blue-d);margin-bottom:8px;">Handoffs</div>
-        <p style="font-size:14px;color:var(--muted);line-height:1.5;">Structured mention-based posting passes the baton along the committee, each agent addressing the next.</p>
+        <p style="font-size:14px;color:var(--muted);line-height:1.5;">Structured, mention-based posting passes the baton along the committee, each agent addressing the next.</p>
       </div>
       <div style="padding:24px 0 24px 26px;border-bottom:1px solid var(--line);">
         <div style="font-size:17px;font-weight:700;color:var(--blue-d);margin-bottom:8px;">Task state</div>
-        <p style="font-size:14px;color:var(--muted);line-height:1.5;">Delegations are real Band tasks with <span class="mono" style="font-size:12px;">processing → processed</span> — accountable, not fire-and-forget.</p>
+        <p style="font-size:14px;color:var(--muted);line-height:1.5;">Delegations are real Band tasks tracked <span class="mono" style="font-size:12px;">processing → processed</span> — accountable, not fire-and-forget.</p>
       </div>
       <div style="padding:24px 26px 0 0;border-right:1px solid var(--line);">
         <div style="font-size:17px;font-weight:700;color:var(--blue-d);margin-bottom:8px;">Rich events</div>
-        <p style="font-size:14px;color:var(--muted);line-height:1.5;"><span class="mono" style="font-size:12px;">thought · tool_call · tool_result · error</span> — the reasoning is visible and replayable.</p>
+        <p style="font-size:14px;color:var(--muted);line-height:1.5;"><span class="mono" style="font-size:12px;">thought · tool_call · tool_result · error</span> make each agent's reasoning visible and replayable.</p>
       </div>
       <div style="padding:24px 26px 0;border-right:1px solid var(--line);">
         <div style="font-size:17px;font-weight:700;color:var(--green-d);margin-bottom:8px;">Recruitment</div>
@@ -412,7 +376,7 @@
       </div>
       <div style="padding:24px 0 0 26px;">
         <div style="font-size:17px;font-weight:700;color:var(--green-d);margin-bottom:8px;">Distinct identity</div>
-        <p style="font-size:14px;color:var(--muted);line-height:1.5;">Each specialist posts under its <b style="color:var(--ink2);">own Band identity</b> (per-agent key) — genuinely separate agents.</p>
+        <p style="font-size:14px;color:var(--muted);line-height:1.5;">Each specialist posts under its own Band identity (per-agent key) — genuinely separate agents.</p>
       </div>
     </div>
   </div>
@@ -420,17 +384,16 @@
   <div class="pagenum">07</div>
 </section>
 
-<!-- ============ 8 · CODE — emergent delegation ============ -->
+<!-- ============ 8 · CODE ============ -->
 <section class="slide">
   <div class="pad">
-    <div class="eyebrow">Under the hood</div>
-    <h2 style="margin-top:14px;">Nothing is hardcoded — it’s in the schema.</h2>
+    <div class="eyebrow">Application of technology</div>
+    <h2 style="margin-top:14px;">Collaboration is data, not hardcoded branches.</h2>
 
     <div class="grid2" style="margin-top:30px;gap:24px;flex:1;align-items:stretch;">
-      <div style="display:flex;flex-direction:column;gap:16px;">
-        <div class="editor" style="flex:1;">
-          <div class="bar"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i><span class="fn">lib/agents/schemas.ts</span></div>
-<pre><span class="c-com">// any agent emits these from the deal context</span>
+      <div class="editor">
+        <div class="bar"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i><span class="fn">lib/agents/schemas.ts</span></div>
+<pre><span class="c-com">// each agent emits these from the deal context</span>
 <span class="c-key">export const</span> <span class="c-fn">ComplianceReportSchema</span> <span class="c-pun">=</span> z.<span class="c-fn">object</span>({
   <span class="c-com">// …findings, risk_score…</span>
   delegations: z.<span class="c-fn">array</span>(<span class="c-fn">DelegationRequestSchema</span>),
@@ -441,15 +404,14 @@
   to: z.<span class="c-fn">enum</span>([<span class="c-str">'archivist'</span>,<span class="c-str">'regulatory'</span>,<span class="c-str">'legal'</span>,
            <span class="c-str">'financial'</span>,<span class="c-str">'synthesis'</span>]),
   intent: z.<span class="c-fn">string</span>(),     <span class="c-com">// what + why</span>
-  authority: z.<span class="c-fn">string</span>(),  <span class="c-com">// what they may change</span>
+  authority: z.<span class="c-fn">string</span>(),  <span class="c-com">// what may change</span>
 });</pre>
-        </div>
       </div>
 
       <div style="display:flex;flex-direction:column;gap:16px;">
         <div class="editor" style="flex:1;">
-          <div class="bar"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i><span class="fn">workflow.ts — runtime</span></div>
-<pre><span class="c-com">// the agents themselves decide who does what</span>
+          <div class="bar"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i><span class="fn">lib/orchestration/workflow.ts</span></div>
+<pre><span class="c-com">// the agents decide who does what next</span>
 <span class="c-key">for</span> (<span class="c-key">const</span> d <span class="c-key">of</span> delegations) {
   <span class="c-key">await</span> <span class="c-fn">delegate</span>(dealId, roomId, d.from, d.to,
                  d.intent, d.authority, <span class="c-key">async</span> () =&gt;
@@ -457,10 +419,10 @@
   <span class="c-com">// → real Band task: processing → processed</span>
 }</pre>
         </div>
-        <div class="card" style="padding:22px;position:relative;">
-          <div class="tag">What this buys us</div>
-          <p style="font-size:15px;color:var(--ink2);line-height:1.5;margin-top:9px;">Delegation and recruitment are <b>data the agents produce</b>, not branches we wrote — a zoning conflict routes Legal → Financial entirely from context.</p>
-          <div class="hw" style="text-align:right;font-size:23px;color:var(--blue);transform:rotate(-3deg);margin-top:14px;">emergent, not scripted</div>
+        <div class="card" style="padding:22px;">
+          <div class="tag">What this enables</div>
+          <p style="font-size:15px;color:var(--ink2);line-height:1.5;margin-top:9px;">Delegation and recruitment are values the agents produce, not control flow we wrote.
+            A zoning conflict can route Legal → Financial, and a contamination flag can recruit Environmental — entirely from context.</p>
         </div>
       </div>
     </div>
@@ -469,34 +431,32 @@
   <div class="pagenum">08</div>
 </section>
 
-<!-- ============ 9 · UI MOCKUP ============ -->
+<!-- ============ 9 · PRODUCT ============ -->
 <section class="slide">
   <div class="pad">
     <div class="eyebrow">The product</div>
-    <h2 style="margin-top:14px;">You watch the committee work, live.</h2>
+    <h2 style="margin-top:14px;">Watch the committee work, in real time.</h2>
 
     <div class="grid2" style="margin-top:28px;gap:28px;flex:1;align-items:stretch;">
-      <!-- chat room mock -->
       <div class="card" style="padding:0;overflow:hidden;display:flex;flex-direction:column;">
         <div style="padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;">
-          <span class="sq" style="background:var(--green);width:8px;height:8px;border-radius:50%;"></span>
+          <span style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;"></span>
           <span style="font-size:13px;font-weight:700;">Cedar Wharf · diligence room</span>
           <span style="margin-left:auto;font-size:11px;color:var(--faint);" class="mono">8 agents · live</span>
         </div>
         <div style="padding:18px;display:flex;flex-direction:column;gap:14px;font-size:13px;">
-          <div style="display:flex;gap:10px;"><span class="sq" style="background:var(--blue);margin-top:3px;"></span><div><b>Archivist</b> <span style="color:var(--faint);">→ Regulatory</span><div style="color:var(--muted);margin-top:2px;line-height:1.4;">Extracted property facts. Flagging 2 missing docs: ALTA survey, Phase I.</div></div></div>
+          <div style="display:flex;gap:10px;"><span class="sq" style="background:var(--blue);margin-top:3px;"></span><div><b>Archivist</b> <span style="color:var(--faint);">→ Regulatory</span><div style="color:var(--muted);margin-top:2px;line-height:1.4;">Extracted property facts. Flagging two missing documents: ALTA survey, Phase&nbsp;I.</div></div></div>
           <div style="display:flex;gap:10px;"><span class="sq" style="background:var(--blue);margin-top:3px;"></span><div><b>Legal Risk</b><div style="color:var(--muted);margin-top:2px;line-height:1.4;">Contract references a neighbour access easement — <b style="color:var(--amber);">conflicts</b> with the title record.</div></div></div>
-          <div style="background:#FFF9F0;border:1px solid #F0D5A8;border-radius:10px;padding:10px 12px;font-size:12px;color:#7A6A4A;"><b style="color:var(--amber);">⚖ Contradiction</b> · Archivist vs Legal — negotiating…</div>
-          <div style="display:flex;gap:10px;"><span class="sq" style="background:var(--green);margin-top:3px;"></span><div><b>Environmental</b> <span style="color:var(--faint);">recruited by Regulatory</span><div style="color:var(--muted);margin-top:2px;line-height:1.4;">Phase I warranted. Remediation P50 ≈ $2.4M.</div></div></div>
+          <div style="background:#FFF9F0;border:1px solid #F0D5A8;border-radius:10px;padding:10px 12px;font-size:12px;color:#7A6A4A;"><b style="color:var(--amber);">Contradiction</b> · Archivist vs Legal — negotiating…</div>
+          <div style="display:flex;gap:10px;"><span class="sq" style="background:var(--green);margin-top:3px;"></span><div><b>Environmental</b> <span style="color:var(--faint);">recruited by Regulatory</span><div style="color:var(--muted);margin-top:2px;line-height:1.4;">Phase&nbsp;I warranted. Remediation P50 ≈ $2.4M.</div></div></div>
           <div style="background:#F5F8FF;border:1px solid #CBD9FB;border-radius:10px;padding:10px 12px;font-size:12px;color:#1D4FD7;"><span class="mono">task</span> &nbsp;Legal → Financial: re-underwrite · <b>processed ✓</b></div>
         </div>
       </div>
 
-      <!-- side: memo + events -->
       <div style="display:flex;flex-direction:column;gap:18px;">
         <div class="card" style="padding:22px;">
           <div style="display:flex;justify-content:space-between;align-items:center;"><div class="tag">Deal memo</div><span style="font-size:12px;font-weight:700;color:var(--amber);background:#FFF4E2;padding:3px 10px;border-radius:6px;">YELLOW</span></div>
-          <p style="font-size:15px;line-height:1.45;margin-top:12px;color:var(--ink2);">Proceed with 3 conditions precedent: resolve easement, complete Phase I, re-price to a <b>9.1% IRR</b> floor.</p>
+          <p style="font-size:15px;line-height:1.45;margin-top:12px;color:var(--ink2);">Proceed with three conditions precedent: resolve the easement, complete Phase&nbsp;I, and re-price to a <b>9.1% IRR</b> floor.</p>
         </div>
         <div class="card" style="padding:22px;flex:1;">
           <div class="tag">Live event stream</div>
@@ -515,37 +475,36 @@
   <div class="pagenum">09</div>
 </section>
 
-<!-- ============ 10 · PYTHON MONTE CARLO ============ -->
+<!-- ============ 10 · PYTHON SPECIALISTS ============ -->
 <section class="slide">
   <div class="pad">
     <div class="eyebrow green">Cross-framework value</div>
-    <h2 style="margin-top:14px;">The Python specialists earn their keep.</h2>
-    <p class="lead" style="margin-top:14px;">Three LangGraph state machines run seeded numpy Monte-Carlo — genuine quantitative work
-      the reasoning agents can’t fake. Recruited live; results posted back to the room.</p>
+    <h2 style="margin-top:14px;">Python specialists that do real quantitative work.</h2>
+    <p class="lead" style="margin-top:14px;">Three LangGraph state machines run seeded numpy Monte-Carlo — quantitative analysis the reasoning agents cannot fabricate.
+      They are recruited live and post results back to the room.</p>
 
     <div class="grid2" style="margin-top:26px;gap:26px;flex:1;align-items:stretch;">
-      <div class="card" style="padding:26px;display:flex;flex-direction:column;position:relative;">
-        <div class="tag">CapEx specialist — live run · Cedar Wharf</div>
+      <div class="card" style="padding:26px;display:flex;flex-direction:column;">
+        <div class="tag">CapEx specialist — sample run · Cedar Wharf</div>
         <div style="display:flex;align-items:flex-end;gap:18px;margin:14px 0 4px;">
           <div><div style="font-size:48px;font-weight:700;letter-spacing:-.03em;">$186M</div><div style="font-size:13px;color:var(--faint);">P50 conversion cost</div></div>
-          <div style="margin-bottom:10px;font-size:13px;font-weight:700;color:var(--amber);">100% over budget @ P50</div>
+          <div style="margin-bottom:10px;font-size:13px;font-weight:700;color:var(--amber);">100% over budget at P50</div>
         </div>
-        <svg viewBox="0 0 470 156" width="100%" height="156" style="margin-top:8px;">
-          <line x1="20" y1="128" x2="458" y2="128" stroke="#EDEFF4"/>
-          <g fill="#CBEBD6"><rect x="34" y="114" width="22" height="14"/><rect x="60" y="100" width="22" height="28"/><rect x="86" y="78" width="22" height="50"/><rect x="112" y="56" width="22" height="72"/><rect x="138" y="40" width="22" height="88"/></g>
-          <g fill="#15A34A"><rect x="164" y="34" width="22" height="94"/><rect x="190" y="46" width="22" height="82"/></g>
-          <g fill="#F3D9AE"><rect x="216" y="58" width="22" height="70"/><rect x="242" y="74" width="22" height="54"/><rect x="268" y="90" width="22" height="38"/><rect x="294" y="102" width="22" height="26"/><rect x="320" y="112" width="22" height="16"/><rect x="346" y="118" width="22" height="10"/></g>
-          <line x1="186" y1="20" x2="186" y2="128" stroke="#15A34A" stroke-width="1.5" stroke-dasharray="4 3"/><text x="190" y="29" font-size="11" font-weight="700" fill="#15A34A">P50</text>
-          <line x1="312" y1="20" x2="312" y2="128" stroke="#B45309" stroke-width="1.5" stroke-dasharray="4 3"/><text x="316" y="29" font-size="11" font-weight="700" fill="#B45309">P90</text>
-          <text x="20" y="148" font-size="10" fill="#9098A6">10,000 simulated trials · seeded · reproducible</text>
+        <svg viewBox="0 0 470 160" width="100%" height="160" style="margin-top:8px;">
+          <line x1="20" y1="132" x2="458" y2="132" stroke="#EDEFF4"/>
+          <g fill="#CBEBD6"><rect x="34" y="118" width="22" height="14"/><rect x="60" y="104" width="22" height="28"/><rect x="86" y="82" width="22" height="50"/><rect x="112" y="60" width="22" height="72"/><rect x="138" y="44" width="22" height="88"/></g>
+          <g fill="#15A34A"><rect x="164" y="38" width="22" height="94"/><rect x="190" y="50" width="22" height="82"/></g>
+          <g fill="#F3D9AE"><rect x="216" y="62" width="22" height="70"/><rect x="242" y="78" width="22" height="54"/><rect x="268" y="94" width="22" height="38"/><rect x="294" y="106" width="22" height="26"/><rect x="320" y="116" width="22" height="16"/><rect x="346" y="122" width="22" height="10"/></g>
+          <line x1="186" y1="24" x2="186" y2="132" stroke="#15A34A" stroke-width="1.5" stroke-dasharray="4 3"/><text x="190" y="33" font-size="11" font-weight="700" fill="#15A34A">P50</text>
+          <line x1="312" y1="24" x2="312" y2="132" stroke="#B45309" stroke-width="1.5" stroke-dasharray="4 3"/><text x="316" y="33" font-size="11" font-weight="700" fill="#B45309">P90</text>
+          <text x="20" y="152" font-size="10" fill="#9098A6">10,000 simulated trials · seeded · reproducible</text>
         </svg>
-        <div class="hw" style="position:absolute;right:24px;top:22px;font-size:22px;color:var(--green-d);transform:rotate(-5deg);">real numbers,<br/>not vibes</div>
       </div>
 
       <div style="display:flex;flex-direction:column;gap:16px;">
-        <div class="card" style="padding:22px;"><div class="tag" style="color:var(--green-d);">Environmental</div><p style="font-size:14px;color:var(--muted);line-height:1.45;margin-top:8px;">Contamination-risk score + remediation-cost distribution → a defensible <b style="color:var(--ink2);">Phase I</b> recommendation.</p></div>
-        <div class="card" style="padding:22px;"><div class="tag" style="color:var(--green-d);">Insurance / Catastrophe</div><p style="font-size:14px;color:var(--muted);line-height:1.45;margin-top:8px;">Flood/wind/seismic event simulation → expected annual loss &amp; a grounded premium estimate.</p></div>
-        <div style="padding:22px;background:#F4FBF6;border:1px solid #CBEBD6;border-radius:14px;"><div class="tag" style="color:var(--green-d);">Why Python, honestly</div><p style="font-size:14px;color:#0F5C2E;line-height:1.45;margin-top:8px;">Different framework isn’t the point — <b>value</b> is. numpy + LangGraph is the right stack for stochastic modelling. Band makes it one committee regardless.</p></div>
+        <div class="card" style="padding:22px;"><div class="tag" style="color:var(--green-d);">Environmental</div><p style="font-size:14px;color:var(--muted);line-height:1.45;margin-top:8px;">Contamination-risk score and a remediation-cost distribution → a defensible <b style="color:var(--ink2);">Phase&nbsp;I</b> recommendation.</p></div>
+        <div class="card" style="padding:22px;"><div class="tag" style="color:var(--green-d);">Insurance / Catastrophe</div><p style="font-size:14px;color:var(--muted);line-height:1.45;margin-top:8px;">Flood, wind and seismic event simulation → expected annual loss and a grounded premium estimate.</p></div>
+        <div style="padding:22px;background:#F4FBF6;border:1px solid #CBEBD6;border-radius:14px;"><div class="tag" style="color:var(--green-d);">Why Python</div><p style="font-size:14px;color:#0F5C2E;line-height:1.45;margin-top:8px;">The framework is not the point — the value is. numpy and LangGraph are the right tools for stochastic modelling, and Band makes them one committee regardless.</p></div>
       </div>
     </div>
   </div>
@@ -562,14 +521,14 @@
     <div class="grid2" style="margin-top:30px;gap:26px;flex:1;align-items:stretch;">
       <div class="card" style="padding:30px;display:flex;flex-direction:column;justify-content:center;">
         <div class="tag">Deterministic underwriting</div>
-        <p style="font-size:16px;color:var(--ink2);line-height:1.5;margin-top:12px;">The IRR isn’t hallucinated. The Financial agent’s headline number is computed in code —
-          DSCR and a levered 5-year IRR solved by <b>bisection</b> — so the same inputs always produce the same answer.</p>
+        <p style="font-size:16px;color:var(--ink2);line-height:1.5;margin-top:12px;">The IRR is not generated by a language model. The Financial agent's headline number is computed in code —
+          DSCR and a levered 5-year IRR solved by <b>bisection</b> — so identical inputs always yield the same answer.</p>
         <div style="display:flex;align-items:center;gap:16px;margin-top:24px;">
           <div style="flex:1;border:1px solid var(--line);border-radius:12px;padding:16px;"><div style="font-size:12px;color:var(--faint);">Baseline IRR</div><div style="font-size:32px;font-weight:700;">14.2%</div></div>
           <div style="font-size:24px;color:var(--faint);">→</div>
           <div style="flex:1;border:1px solid #F0D5A8;background:#FFF9F0;border-radius:12px;padding:16px;"><div style="font-size:12px;color:var(--amber);">After zoning cascade</div><div style="font-size:32px;font-weight:700;color:var(--amber);">9.1%</div></div>
         </div>
-        <p style="font-size:13px;color:var(--faint);margin-top:12px;">A Critical upstream flag delegates a re-underwrite — and the IRR visibly moves.</p>
+        <p style="font-size:13px;color:var(--faint);margin-top:12px;">A critical upstream flag delegates a re-underwrite, and the IRR moves accordingly.</p>
       </div>
 
       <div class="card" style="padding:30px;">
@@ -581,7 +540,7 @@
           <div style="display:flex;gap:14px;padding:13px 0;border-bottom:1px solid var(--line2);"><span class="mono" style="font-size:11px;color:var(--blue);width:62px;flex:none;">task</span><span style="font-size:13.5px;color:var(--ink2);">Legal → Financial: re-underwrite · processed ✓</span></div>
           <div style="display:flex;gap:14px;padding:13px 0;"><span class="mono" style="font-size:11px;color:var(--ink2);width:62px;flex:none;">memo</span><span style="font-size:13.5px;color:var(--ink2);">Synthesis: <b style="color:var(--amber);">YELLOW</b> — 3 conditions precedent</span></div>
         </div>
-        <p style="font-size:13px;color:var(--faint);margin-top:14px;">Every line persisted to Postgres &amp; replayable — the answer to “why did we approve this?”</p>
+        <p style="font-size:13px;color:var(--faint);margin-top:14px;">Every line is persisted to Postgres and replayable — the answer to “why did we approve this?”</p>
       </div>
     </div>
   </div>
@@ -589,71 +548,99 @@
   <div class="pagenum">11</div>
 </section>
 
-<!-- ============ 12 · TECH ORBIT ============ -->
+<!-- ============ 12 · BUSINESS VALUE ============ -->
 <section class="slide">
   <div class="pad">
-    <div class="eyebrow">The stack</div>
-    <h2 style="margin-top:14px;">One room. Many stacks.</h2>
+    <div class="eyebrow">Business value</div>
+    <h2 style="margin-top:14px;">A large, underserved, high-value market.</h2>
 
-    <div style="flex:1;display:flex;align-items:center;justify-content:center;position:relative;">
-      <svg viewBox="0 0 1000 430" width="100%" height="100%" font-family="Bricolage Grotesque">
-        <!-- orbit rings -->
-        <circle cx="500" cy="215" r="105" fill="none" stroke="#EDEFF4"/>
-        <circle cx="500" cy="215" r="170" fill="none" stroke="#EDEFF4"/>
-        <circle cx="500" cy="215" r="200" fill="none" stroke="#F4F6FA"/>
-        <!-- center: Band -->
-        <circle cx="500" cy="215" r="50" fill="#2563EB"/>
-        <path d="M484 222 L498 208 L506 216 L520 200" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-        <text x="500" y="250" font-size="13" font-weight="700" fill="#fff" text-anchor="middle">Band</text>
+    <div class="grid2" style="margin-top:32px;gap:36px;flex:1;align-items:stretch;">
+      <div style="display:flex;flex-direction:column;gap:24px;">
+        <div>
+          <div class="tag">Target user</div>
+          <p style="font-size:16px;color:var(--ink2);line-height:1.5;margin-top:8px;">Institutional and mid-market commercial-real-estate acquirers — private-equity real-estate funds, REITs and family offices closing 20–100+ assets a year.</p>
+        </div>
+        <div>
+          <div class="tag">Why now</div>
+          <p style="font-size:16px;color:var(--ink2);line-height:1.5;margin-top:8px;">Reliable multi-agent reasoning and a coordination layer like Band have only just become production-viable. Diligence is the ideal first wedge: structured, repetitive, and expensive to get wrong.</p>
+        </div>
+        <div>
+          <div class="tag">Revenue model</div>
+          <p style="font-size:16px;color:var(--ink2);line-height:1.5;margin-top:8px;">Enterprise SaaS seats plus per-deal pricing — on the order of a few thousand dollars per completed diligence, against the $50k+ a single deal spends on outside counsel and consultants.</p>
+        </div>
+      </div>
 
-        <!-- node helper: circle + label -->
-        <!-- ring 1 (r=105) -->
-        <g text-anchor="middle">
-          <g><circle cx="500" cy="110" r="30" fill="#fff" stroke="#CBD9FB" stroke-width="1.5"/><text x="500" y="115" font-size="12" font-weight="700" fill="#1D4FD7">Next</text></g>
-          <g><circle cx="591" cy="268" r="30" fill="#fff" stroke="#CBD9FB" stroke-width="1.5"/><text x="591" y="273" font-size="12" font-weight="700" fill="#1D4FD7">React</text></g>
-          <g><circle cx="409" cy="268" r="30" fill="#fff" stroke="#CBD9FB" stroke-width="1.5"/><text x="409" y="273" font-size="11" font-weight="700" fill="#1D4FD7">TS</text></g>
-        </g>
-        <!-- ring 2 (r=170) -->
-        <g text-anchor="middle">
-          <g><circle cx="650" cy="130" r="30" fill="#fff" stroke="#CBEBD6" stroke-width="1.5"/><text x="650" y="135" font-size="11" font-weight="700" fill="#0F7A38">Python</text></g>
-          <g><circle cx="668" cy="300" r="30" fill="#fff" stroke="#CBEBD6" stroke-width="1.5"/><text x="668" y="298" font-size="10" font-weight="700" fill="#0F7A38">Lang</text><text x="668" y="310" font-size="10" font-weight="700" fill="#0F7A38">Graph</text></g>
-          <g><circle cx="332" cy="300" r="30" fill="#fff" stroke="#CBEBD6" stroke-width="1.5"/><text x="332" y="305" font-size="11" font-weight="700" fill="#0F7A38">numpy</text></g>
-          <g><circle cx="350" cy="130" r="30" fill="#fff" stroke="#CBEBD6" stroke-width="1.5"/><text x="350" y="135" font-size="10" font-weight="700" fill="#0F7A38">FastAPI</text></g>
-        </g>
-        <!-- ring 3 (r=200) outer infra -->
-        <g text-anchor="middle">
-          <g><circle cx="760" cy="215" r="30" fill="#fff" stroke="#E7EAF1" stroke-width="1.5"/><text x="760" y="212" font-size="10" font-weight="700" fill="#222B3B">Neon</text><text x="760" y="224" font-size="9" fill="#9098A6">Postgres</text></g>
-          <g><circle cx="240" cy="215" r="30" fill="#fff" stroke="#E7EAF1" stroke-width="1.5"/><text x="240" y="219" font-size="10" font-weight="700" fill="#222B3B">Drizzle</text></g>
-          <g><circle cx="500" cy="400" r="30" fill="#fff" stroke="#E7EAF1" stroke-width="1.5"/><text x="500" y="404" font-size="11" font-weight="700" fill="#222B3B">SSE</text></g>
-          <g><circle cx="500" cy="30" r="30" fill="#fff" stroke="#E7EAF1" stroke-width="1.5"/><text x="500" y="27" font-size="10" font-weight="700" fill="#222B3B">AI/ML</text><text x="500" y="39" font-size="9" fill="#9098A6">API</text></g>
-        </g>
-
-        <text x="858" y="180" font-family="Caveat" font-weight="700" font-size="26" fill="#B45309" transform="rotate(-6 858 180)">two frameworks,</text>
-        <text x="858" y="205" font-family="Caveat" font-weight="700" font-size="26" fill="#B45309" transform="rotate(-6 858 205)">one committee</text>
-        <path d="M852 195 C800 205, 790 212, 762 214" stroke="#B45309" stroke-width="1.6" fill="none" stroke-linecap="round"/>
-        <path d="M762 214 l11 -5 M762 214 l5 9" stroke="#B45309" stroke-width="1.6" fill="none" stroke-linecap="round"/>
-      </svg>
+      <div style="display:flex;flex-direction:column;gap:16px;">
+        <div class="card" style="padding:24px;display:flex;align-items:center;gap:20px;">
+          <div style="font-size:40px;font-weight:700;letter-spacing:-.03em;color:var(--blue);white-space:nowrap;">~$24B</div>
+          <div><div style="font-weight:700;font-size:14px;">TAM</div><p style="font-size:13px;color:var(--muted);line-height:1.4;">Annual US spend on diligence, legal and advisory across commercial-real-estate transactions.</p></div>
+        </div>
+        <div class="card" style="padding:24px;display:flex;align-items:center;gap:20px;">
+          <div style="font-size:40px;font-weight:700;letter-spacing:-.03em;color:var(--blue);white-space:nowrap;">~$3.5B</div>
+          <div><div style="font-weight:700;font-size:14px;">SAM</div><p style="font-size:13px;color:var(--muted);line-height:1.4;">Technology-forward institutional and mid-market acquirers reachable with a software product.</p></div>
+        </div>
+        <div class="card" style="padding:24px;display:flex;align-items:center;gap:20px;">
+          <div style="font-size:40px;font-weight:700;letter-spacing:-.03em;color:var(--green-d);white-space:nowrap;">10×</div>
+          <div><div style="font-weight:700;font-size:14px;">Cost &amp; time advantage</div><p style="font-size:13px;color:var(--muted);line-height:1.4;">Minutes instead of weeks, at a fraction of per-deal advisory cost — with a defensible audit trail.</p></div>
+        </div>
+        <p style="font-size:11px;color:var(--faint);line-height:1.4;">Market figures are internal estimates for illustration; the wedge is the per-deal value, not the headline TAM.</p>
+      </div>
     </div>
   </div>
-  <div class="foot">Stack</div>
+  <div class="foot">Business value</div>
   <div class="pagenum">12</div>
 </section>
 
-<!-- ============ 13 · JUDGING MAP ============ -->
+<!-- ============ 13 · STACK (logos) ============ -->
 <section class="slide">
   <div class="pad">
-    <div class="eyebrow">How it scores</div>
-    <h2 style="margin-top:14px;">Mapped to the judging criteria.</h2>
+    <div class="eyebrow">The stack</div>
+    <h2 style="margin-top:14px;">One room. A modern, cross-framework stack.</h2>
 
-    <div style="margin-top:30px;display:flex;flex-direction:column;flex:1;border-top:1px solid var(--line);">
-      <div style="display:grid;grid-template-columns:240px 1fr;gap:24px;align-items:center;padding:20px 0;border-bottom:1px solid var(--line);"><div style="font-size:19px;font-weight:700;">Band coordination</div><div style="font-size:14.5px;color:var(--muted);line-height:1.45;">Shared context, handoffs, task-state delegation, rich events, live recruitment, per-agent identity — every primitive load-bearing, verified live.</div></div>
-      <div style="display:grid;grid-template-columns:240px 1fr;gap:24px;align-items:center;padding:20px 0;border-bottom:1px solid var(--line);"><div style="font-size:19px;font-weight:700;">Real multi-agent</div><div style="font-size:14.5px;color:var(--muted);line-height:1.45;">8 distinct agents that read each other, disagree, delegate and recruit — emergent from context, nothing hardcoded.</div></div>
-      <div style="display:grid;grid-template-columns:240px 1fr;gap:24px;align-items:center;padding:20px 0;border-bottom:1px solid var(--line);"><div style="font-size:19px;font-weight:700;">Cross-framework</div><div style="font-size:14.5px;color:var(--muted);line-height:1.45;">TypeScript reasoning agents + Python/LangGraph quantitative specialists + 3 model families, all in one Band room.</div></div>
-      <div style="display:grid;grid-template-columns:240px 1fr;gap:24px;align-items:center;padding:20px 0;border-bottom:1px solid var(--line);"><div style="font-size:19px;font-weight:700;">Regulated fit</div><div style="font-size:14.5px;color:var(--muted);line-height:1.45;">Deterministic underwriting, severity-ranked findings, conditions precedent, and a complete replayable audit trail.</div></div>
-      <div style="display:grid;grid-template-columns:240px 1fr;gap:24px;align-items:center;padding:20px 0;"><div style="font-size:19px;font-weight:700;color:var(--blue-d);">Polish &amp; reliability</div><div style="font-size:14.5px;color:var(--ink2);line-height:1.45;">Bounded loops, JSON-repair on every agent, SSE replay, 26 passing tests, clean build — a finished submission, not a prototype.</div></div>
+    <div style="margin-top:26px;display:flex;align-items:center;gap:14px;border:1px solid #CBD9FB;background:#F5F8FF;border-radius:14px;padding:16px 22px;">
+      <svg width="30" height="30" viewBox="0 0 30 30"><rect width="30" height="30" rx="8" fill="#2563EB"/><path d="M9 18 L14 13 L17 16 L22 10" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div><b style="font-size:15px;color:var(--blue-d);">Coordinated by Band</b><span style="font-size:13px;color:#5C73B5;"> — the layer every agent reads from and writes to.</span></div>
+    </div>
+
+    <div class="grid4" style="margin-top:24px;flex:1;align-items:stretch;">
+      <div class="card" style="padding:22px;">
+        <div class="tag" style="margin-bottom:18px;">Frontend &amp; app</div>
+        <div style="display:flex;flex-wrap:wrap;gap:16px;">
+          <div class="lt"><div class="box"><img src="logos/nextdotjs.svg"></div><span>Next.js</span></div>
+          <div class="lt"><div class="box"><img src="logos/react.svg"></div><span>React</span></div>
+          <div class="lt"><div class="box"><img src="logos/typescript.svg"></div><span>TypeScript</span></div>
+          <div class="lt"><div class="box"><img src="logos/tailwindcss.svg"></div><span>Tailwind</span></div>
+        </div>
+      </div>
+      <div class="card" style="padding:22px;">
+        <div class="tag" style="margin-bottom:18px;">Python specialists</div>
+        <div style="display:flex;flex-wrap:wrap;gap:16px;">
+          <div class="lt"><div class="box"><img src="logos/python.svg"></div><span>Python</span></div>
+          <div class="lt"><div class="box"><img src="logos/fastapi.svg"></div><span>FastAPI</span></div>
+          <div class="lt"><div class="box"><img src="logos/langchain.svg"></div><span>LangGraph</span></div>
+          <div class="lt"><div class="box"><img src="logos/numpy.svg"></div><span>numpy</span></div>
+        </div>
+      </div>
+      <div class="card" style="padding:22px;">
+        <div class="tag" style="margin-bottom:18px;">AI models</div>
+        <div style="display:flex;flex-wrap:wrap;gap:16px;">
+          <div class="lt"><div class="box"><img src="logos/anthropic.svg"></div><span>Claude</span></div>
+          <div class="lt"><div class="box"><img src="logos/googlegemini.svg"></div><span>Gemini</span></div>
+          <div class="lt"><div class="box mono" style="font-weight:700;font-size:13px;color:var(--ink);">GPT</div><span>OpenAI</span></div>
+        </div>
+      </div>
+      <div class="card" style="padding:22px;">
+        <div class="tag" style="margin-bottom:18px;">Data &amp; infra</div>
+        <div style="display:flex;flex-wrap:wrap;gap:16px;">
+          <div class="lt"><div class="box"><img src="logos/neon.svg"></div><span>Neon</span></div>
+          <div class="lt"><div class="box"><img src="logos/postgresql.svg"></div><span>Postgres</span></div>
+          <div class="lt"><div class="box"><img src="logos/drizzle.svg"></div><span>Drizzle</span></div>
+          <div class="lt"><div class="box"><img src="logos/vercel.svg"></div><span>Vercel</span></div>
+        </div>
+      </div>
     </div>
   </div>
-  <div class="foot">Judging criteria</div>
+  <div class="foot">Stack</div>
   <div class="pagenum">13</div>
 </section>
 
@@ -664,8 +651,8 @@
       <svg width="32" height="32" viewBox="0 0 30 30"><rect width="30" height="30" rx="8" fill="#fff"/><path d="M9 18 L14 13 L17 16 L22 10" stroke="#0C1422" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="22" cy="10" r="1.6" fill="#2563EB"/></svg>
       <span style="color:#fff;">DueDiligenceOS</span>
     </div>
-    <div style="font-size:42px;font-weight:700;letter-spacing:-.025em;line-height:1.12;color:#fff;max-width:980px;">An institutional diligence committee where Band isn’t plumbing — it’s the thing that makes eight agents a team.</div>
-    <p style="font-size:18px;color:#9AA6BE;margin-top:24px;max-width:780px;line-height:1.55;">Real coordination. Real cross-framework value. Real, defensible numbers.</p>
+    <div style="font-size:42px;font-weight:700;letter-spacing:-.025em;line-height:1.12;color:#fff;max-width:980px;">An institutional diligence committee where Band is not plumbing — it is what makes eight agents a team.</div>
+    <p style="font-size:18px;color:#9AA6BE;margin-top:24px;max-width:820px;line-height:1.55;">Real coordination, real cross-framework value, and numbers an investment committee can defend.</p>
     <div class="hw" style="font-size:30px;color:#8DD6A0;margin-top:18px;transform:rotate(-2deg);">…and nothing hardcoded.</div>
   </div>
   <div class="pagenum" style="color:#5A6373;">14</div>
