@@ -21,6 +21,10 @@ DueDiligenceOS compresses that committee into minutes: specialist agents that **
 | Synthesis (Deal Director) | GPT | Weighs findings into the memo; runs the human gate |
 | Environmental *(recruited)* | **LangGraph / Python** | Contamination, Phase I–II — pulled in only when needed |
 
+### Why the Environmental agent is in Python (the value, not a checkbox)
+
+Regulated due diligence shouldn't accept an LLM *guessing* "medium risk." This agent produces an **auditable, deterministic** contamination score and remediation-cost range from a rules-based model ([`services/environmental-agent/model.py`](services/environmental-agent/model.py)) — same facts in, same numbers out, with an itemized rationale a reviewer can defend in front of a regulator. The **LLM only extracts the facts**; **Python computes the number**; **LangGraph** orchestrates extract → quantify → (branch to a Phase II only if elevated) → report. That's the right tool for the job — and a single TS LLM call would do it *worse* (non-reproducible, unauditable). The fact that this Python agent joins the *same Band room* as the TS agents is the bonus, not the reason.
+
 ## Band's role in coordination — the 20-second answer
 
 > **Band is the room the agents live in, the shared memory they read, and the rails they coordinate on. Our orchestrator only decides *turn order*; everything the agents say, read, hand off, delegate, and escalate happens *through Band*.**

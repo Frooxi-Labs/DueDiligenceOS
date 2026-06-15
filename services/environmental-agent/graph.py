@@ -1,20 +1,24 @@
 """The Environmental specialist as a LangGraph state machine.
 
-This is the cross-framework member of the committee. It runs on LangGraph (Python)
-yet joins the SAME Band room as the TypeScript agents and collaborates through it:
-it READS the room (getContext), reasons, and POSTS its thoughts and assessment back.
+What Python actually brings to this project (not "a different framework"): an
+**auditable, deterministic environmental risk + remediation-cost computation**.
+A regulated due-diligence committee shouldn't accept an LLM *guessing* "medium
+risk" — it needs a reproducible, rules-based number with an itemized rationale.
 
-The graph is a genuine branching pipeline — not a single LLM call:
+So the division of labor is deliberate:
+  • the LLM only EXTRACTS facts from the shared Band room (prior use, USTs, flood, age)
+  • `model.py` (pure Python) COMPUTES the score, risk band, Phase-I/II call, and cost
+  • LangGraph orchestrates it and routes on the computed result
 
     gather (read Band room)
-      → assess (contamination risk + recognized environmental conditions)
-        → [risk high/medium] → scope_phase_ii (Phase II scope + remediation $)
-        → [risk low/none]    ──────────────────────────────┐
-      → govern (deterministic Phase-I safety override) ◄────┘
-        → announce (post the assessment into the Band room)
+      ▶ extract (LLM → structured risk factors)
+        ▶ quantify (PYTHON model → score, band, Phase-I/II, remediation $)   ← the value
+          ├─ band high/medium ▶ scope_phase_ii (LLM narrates the sampling plan)
+          └─ band low/none ────────────────────────────────┐
+      ▶ finalize (assemble the report) ◀────────────────────┘
+        ▶ announce (post into the Band room)
 
-State accumulates across nodes; the conditional edge is the reason this is a graph
-and not a function. It is acyclic and bounded — it cannot loop.
+Same facts → same numbers, every run. Acyclic and bounded.
 """
 from __future__ import annotations
 
@@ -29,6 +33,7 @@ from langgraph.graph import END, StateGraph
 from pydantic import BaseModel, Field
 
 import band
+from model import RiskFactors, score_environment, usd
 
 AIML_BASE_URL = os.getenv("AIML_BASE_URL", "https://api.aimlapi.com/v1")
 AIML_API_KEY = os.getenv("AIML_API_KEY", "")
@@ -36,7 +41,6 @@ MODEL = os.getenv("MODEL_ENVIRONMENTAL", "gpt-4o-mini")
 BAND_KEY_PRESENT = bool(os.getenv("BAND_ENVIRONMENTAL_API_KEY"))
 
 
-# ── Output contract — mirrors the TS EnvironmentalReportSchema (Zod) ──────────
 class Finding(BaseModel):
     id: str
     title: str
@@ -59,11 +63,9 @@ class AssessState(TypedDict, total=False):
     room_id: str
     mention_ids: list[str]
     room_context: str
-    risk: str
-    findings: list[dict]
-    summary: str
-    phase_i_recommended: bool
-    phase_ii: str  # Phase-II scope + remediation estimate (high/medium risk only)
+    factors: dict
+    risk: dict          # output of model.score_environment
+    phase_ii_plan: str
     report: dict
     band_message: str
     posted_to_band: bool
@@ -77,9 +79,9 @@ def _llm() -> ChatOpenAI:
 
 def _extract_json(text: str) -> dict:
     text = re.sub(r"^```(?:json)?|```$", "", text.strip(), flags=re.MULTILINE).strip()
-    start, end = text.find("{"), text.rfind("}")
-    if start != -1 and end != -1:
-        text = text[start : end + 1]
+    s, e = text.find("{"), text.rfind("}")
+    if s != -1 and e != -1:
+        text = text[s : e + 1]
     return json.loads(text)
 
 
@@ -107,84 +109,86 @@ def gather(state: AssessState) -> AssessState:
     return {"room_context": context}
 
 
-# ── Node 2: assess — contamination risk + recognized environmental conditions ──
-def assess(state: AssessState) -> AssessState:
-    _event(state, "thought", "Assessing prior site use, RECs, and contamination risk.")
+# ── Node 2: extract — the LLM's ONLY job: pull structured facts ───────────────
+def extract(state: AssessState) -> AssessState:
+    _event(state, "thought", "Extracting environmental risk factors from the deal and the room.")
     pf = state.get("property_fact", {})
     comp = state.get("compliance", {})
     deal = state.get("deal", {})
-    prompt = f"""You are an Environmental due-diligence specialist recruited into a \
-real-estate committee. Read the shared room context, then assess contamination / \
-recognized environmental conditions (RECs) and the overall contamination risk.
+    prompt = f"""You are an environmental analyst. From the context below, EXTRACT factual risk \
+factors only — do NOT score or judge. If a fact is absent, use the conservative default.
 
-SHARED BAND ROOM CONTEXT:
-{state.get('room_context') or '(none available)'}
-
-DEAL: {deal.get('title', 'n/a')} — {deal.get('intended_use', 'n/a')}
+SHARED BAND ROOM:
+{state.get('room_context') or '(none)'}
+DEAL: {deal.get('title','n/a')} — {deal.get('intended_use','n/a')}
 PROPERTY NOTES: {json.dumps(pf.get('notable_conditions', []))[:600]}
-MISSING DOCS: {json.dumps(pf.get('missing_documents', []))[:400]}
-COMPLIANCE FINDINGS: {json.dumps(comp.get('findings', []))[:900]}
+COMPLIANCE FINDINGS: {json.dumps(comp.get('findings', []))[:800]}
 
 Return ONLY JSON:
-{{"contamination_risk":"none|low|medium|high","findings":[{{"id":"env-1","title":"...",\
-"detail":"...","severity":"critical|material|minor"}}],"summary":"<20-300 chars>"}}"""
+{{"prior_use":"<short, e.g. fueling depot / dry cleaner / printing / none>","ust_present":true|false,\
+"ust_removed":true|false,"flood_zone":true|false,"building_year":<int|null>,"phase_i_done":true|false,\
+"adjacent_risk":true|false}}"""
     try:
         resp = _llm().invoke(
-            [
-                SystemMessage(content="You are a precise environmental analyst. Output strict JSON only."),
-                HumanMessage(content=prompt),
-            ]
+            [SystemMessage(content="Extract facts as strict JSON only."), HumanMessage(content=prompt)]
         )
-        data = _extract_json(resp.content)
-        risk = data.get("contamination_risk", "low")
-        findings = data.get("findings", []) or []
-        summary = data.get("summary", "Environmental assessment complete.")
+        factors = _extract_json(resp.content)
     except Exception:  # noqa: BLE001
-        risk, findings, summary = "low", [], "Environmental assessment unavailable; defaulting to conservative posture."
-    return {"risk": risk, "findings": findings, "summary": summary}
+        factors = {"prior_use": "unknown", "phase_i_done": False}
+    return {"factors": factors}
 
 
-# ── Conditional edge: only scope a Phase II when risk warrants it ─────────────
-def route_after_assess(state: AssessState) -> Literal["scope", "skip"]:
-    return "scope" if state.get("risk") in ("high", "medium") else "skip"
+# ── Node 3: quantify — PURE PYTHON, deterministic & auditable (the value) ─────
+def quantify(state: AssessState) -> AssessState:
+    factors: RiskFactors = state.get("factors", {})  # type: ignore[assignment]
+    _event(state, "tool_call", "score_environment(factors) — deterministic risk + cost model")
+    risk = score_environment(factors)
+    _event(state, "tool_result", f"score {risk['score']}/100 → {risk['band']} risk; remediation {usd(risk['remediation_cost_low'])}–{usd(risk['remediation_cost_high'])}")
+    return {"risk": risk}
 
 
-# ── Node 3 (conditional): scope_phase_ii — deeper work a single call wouldn't do ─
+def route_after_quantify(state: AssessState) -> Literal["scope", "skip"]:
+    return "scope" if state.get("risk", {}).get("phase_ii_recommended") else "skip"
+
+
+# ── Node 4 (conditional): scope_phase_ii — LLM narrates the sampling plan ──────
 def scope_phase_ii(state: AssessState) -> AssessState:
-    _event(state, "thought", "Risk is elevated — scoping a Phase II and estimating remediation cost.")
+    _event(state, "thought", "Elevated risk — scoping a Phase II sampling plan.")
+    risk = state.get("risk", {})
     deal = state.get("deal", {})
-    prompt = f"""Risk for {deal.get('title', 'the property')} is {state.get('risk')}. Based on this summary: \
-"{state.get('summary')}", briefly scope a Phase II Environmental Site Assessment (what to sample/test) and give \
-a rough order-of-magnitude remediation cost range. 1-2 sentences, plain text."""
+    prompt = f"""Risk for {deal.get('title','the property')} computed at {risk.get('score')}/100 ({risk.get('band')}). \
+Drivers: {'; '.join(risk.get('drivers', []))}. In 1-2 sentences, scope a Phase II ESA (what to sample/test). Plain text."""
     try:
-        resp = _llm().invoke([HumanMessage(content=prompt)])
-        phase_ii = resp.content.strip()
+        plan = _llm().invoke([HumanMessage(content=prompt)]).content.strip()
     except Exception:  # noqa: BLE001
-        phase_ii = "Recommend a Phase II ESA (soil and groundwater sampling near the former use); remediation cost to be scoped."
-    return {"phase_ii": phase_ii, "phase_i_recommended": True}
+        plan = "Phase II: soil and groundwater sampling near the former use; vapor intrusion screening."
+    return {"phase_ii_plan": plan}
 
 
-# ── Node 4: govern — deterministic safety override ────────────────────────────
-def govern(state: AssessState) -> AssessState:
-    findings = state.get("findings", [])
-    critical = any(f.get("severity") == "critical" for f in findings)
-    phase_i = bool(state.get("phase_i_recommended")) or state.get("risk") == "high" or critical
-    summary = state.get("summary", "")
-    if state.get("phase_ii"):
-        summary = f"{summary} Phase II: {state['phase_ii']}"
+# ── Node 5: finalize — assemble the schema-valid report ───────────────────────
+def finalize(state: AssessState) -> AssessState:
+    risk = state.get("risk", {})
+    drivers = risk.get("drivers", [])
+    sev = "material" if risk.get("band") in ("high", "medium") else "minor"
+    findings = [Finding(id=f"env-{i+1}", title="Risk driver", detail=d, severity=sev) for i, d in enumerate(drivers[:4])]
+    cost = f"{usd(risk.get('remediation_cost_low', 0))}–{usd(risk.get('remediation_cost_high', 0))}"
+    parts = [f"Computed contamination risk {risk.get('score', 0)}/100 ({risk.get('band', 'low')}).",
+             f"Est. remediation {cost}." if risk.get("remediation_cost_high") else "No remediation cost anticipated."]
+    if state.get("phase_ii_plan"):
+        parts.append(state["phase_ii_plan"])
     report = EnvironmentalReport(
-        contamination_risk=state.get("risk", "low"),  # type: ignore[arg-type]
-        phase_i_recommended=phase_i,
-        findings=[Finding(**f) for f in findings if isinstance(f, dict)],
-        summary=summary[:400] or "Environmental assessment complete.",
+        contamination_risk=risk.get("band", "low"),  # type: ignore[arg-type]
+        phase_i_recommended=bool(risk.get("phase_i_recommended")),
+        findings=findings,
+        summary=" ".join(parts)[:400],
     )
-    return {"report": report.model_dump(), "phase_i_recommended": phase_i}
+    return {"report": report.model_dump()}
 
 
-# ── Node 5: announce — post the assessment into the shared Band room ──────────
+# ── Node 6: announce — post the assessment into the shared Band room ──────────
 def announce(state: AssessState) -> AssessState:
     report = state["report"]
-    rec = "I recommend a Phase I ESA before closing." if report.get("phase_i_recommended") else "No Phase I appears warranted at this stage."
+    rec = "I recommend a Phase I ESA before closing." if report.get("phase_i_recommended") else "No Phase I appears warranted."
     band_message = f"{report.get('summary')}\n\nContamination risk: {report.get('contamination_risk')}. {rec}"
     posted = False
     room_id = state.get("room_id")
@@ -200,15 +204,17 @@ def announce(state: AssessState) -> AssessState:
 def build_graph():
     g = StateGraph(AssessState)
     g.add_node("gather", gather)
-    g.add_node("assess", assess)
+    g.add_node("extract", extract)
+    g.add_node("quantify", quantify)
     g.add_node("scope_phase_ii", scope_phase_ii)
-    g.add_node("govern", govern)
+    g.add_node("finalize", finalize)
     g.add_node("announce", announce)
     g.set_entry_point("gather")
-    g.add_edge("gather", "assess")
-    g.add_conditional_edges("assess", route_after_assess, {"scope": "scope_phase_ii", "skip": "govern"})
-    g.add_edge("scope_phase_ii", "govern")
-    g.add_edge("govern", "announce")
+    g.add_edge("gather", "extract")
+    g.add_edge("extract", "quantify")
+    g.add_conditional_edges("quantify", route_after_quantify, {"scope": "scope_phase_ii", "skip": "finalize"})
+    g.add_edge("scope_phase_ii", "finalize")
+    g.add_edge("finalize", "announce")
     g.add_edge("announce", END)
     return g.compile()
 

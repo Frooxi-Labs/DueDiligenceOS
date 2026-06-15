@@ -8,25 +8,32 @@ participant posting into the conversation.
 
 ## How it fits
 
+**Why this agent is in Python (the actual value):** regulated due diligence
+shouldn't accept an LLM *guessing* "medium risk." This agent produces an
+**auditable, deterministic risk score + remediation-cost estimate** from a
+rules-based model ([`model.py`](model.py)) — same facts in, same numbers out,
+with an itemized rationale a reviewer can defend. The LLM only *extracts facts*;
+Python does the *scoring*. That separation is the point, and Python is the right
+home for the computation.
+
 When Regulatory or Legal decides a property needs environmental review (emergent
 dispatch), the orchestrator recruits this agent into the Band room and calls it
-over HTTP. The agent runs its LangGraph state machine — which **reads the Band
-room**, reasons, branches, and posts its thoughts + assessment back as a
-first-class participant.
+over HTTP. It **reads the room**, extracts facts, computes the score, branches,
+and posts its assessment back as a first-class participant.
 
 ```
-gather (read Band room via getContext)
-  ▶ assess (contamination risk + recognized environmental conditions)
-      ├─ risk high/medium ▶ scope_phase_ii (Phase II scope + remediation $)
-      └─ risk low/none ─────────────────────────────┐
-  ▶ govern (deterministic Phase-I safety override) ◀─┘
+gather   (read Band room via getContext)
+  ▶ extract  (LLM → structured risk factors only)
+    ▶ quantify  (PYTHON model.py → score, band, Phase-I/II, remediation $)   ← the value
+        ├─ band high/medium ▶ scope_phase_ii (LLM narrates the sampling plan)
+        └─ band low/none ──────────────────────────────────┐
+  ▶ finalize (assemble the report) ◀────────────────────────┘
   ▶ announce (post the assessment into the Band room) ▶ END
 ```
 
-State accumulates across nodes and the **conditional edge** (scope a Phase II
-only when risk warrants it) is what makes this a real graph rather than a single
-call. It is acyclic and bounded — it cannot loop. Each node posts a Band
-`thought` / `tool_call` event so the specialist's reasoning is visible in the room.
+`quantify` is pure Python and unit-testable; the conditional edge routes on its
+result. Each node posts a Band `thought` / `tool_call` event so the reasoning —
+including the deterministic computation — is visible in the room. Acyclic, bounded.
 
 ## Run
 
