@@ -50,6 +50,28 @@ describe('detectContradictions', () => {
   it('no contradiction when both agree there are no easements', () => {
     expect(detectContradictions(pf({ no_easements_recorded: true }), legal({ easement_found_in_contract: false }))).toHaveLength(0);
   });
+
+  it('fires even when the Archivist reconciled the flag but never recorded the easement', () => {
+    // The robustness fix: no_easements_recorded=false, yet the title record omits it.
+    const c = detectContradictions(pf({ no_easements_recorded: false, encumbrances: [] }), legal({ easement_found_in_contract: true }));
+    expect(c).toHaveLength(1);
+  });
+
+  it('fires off a Legal finding mentioning an easement, without the boolean', () => {
+    const c = detectContradictions(
+      pf({ no_easements_recorded: false, encumbrances: [] }),
+      legal({ easement_found_in_contract: false, findings: [{ id: 'l1', title: 'Title omits recorded easement', detail: 'contract references an access easement', severity: 'critical' }] })
+    );
+    expect(c).toHaveLength(1);
+  });
+
+  it('does NOT fire when the easement is consistently recorded in the title (no fake conflict)', () => {
+    const c = detectContradictions(
+      pf({ no_easements_recorded: false, encumbrances: [{ kind: 'access easement', description: 'shared driveway', recorded: true }] }),
+      legal({ easement_found_in_contract: true })
+    );
+    expect(c).toHaveLength(0);
+  });
 });
 
 describe('cascadeFromCompliance', () => {

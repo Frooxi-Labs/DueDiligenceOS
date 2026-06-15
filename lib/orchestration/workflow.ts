@@ -5,7 +5,7 @@ import { dealBriefs, bandRooms, agentEvaluations, mentions as mentionsTable, wor
 import { BandClient, getAgentConfigs } from '@/lib/band';
 import { runAgent, assessEnvironmentalViaLangGraph, type PropertyFact, type ComplianceReport, type LegalRisk, type FinancialModel, type EnvironmentalReport, type DealMemo } from '@/lib/agents';
 import { broadcast } from '@/lib/realtime';
-import { detectContradictions, cascadeFromCompliance, compositeRiskScore } from './contradiction';
+import { detectContradictions, discoverContradictions, cascadeFromCompliance, compositeRiskScore } from './contradiction';
 import { negotiateContradiction } from './negotiation';
 import type { AgentType, DealRecord, DealEvent, WorkflowStatus } from '@/types';
 
@@ -233,8 +233,21 @@ export async function runWorkflow(dealId: string): Promise<void> {
     const legal = await run('legal', { deal, propertyFact, compliance }, ['synthesis']);
     const legalRisk = legal.raw as LegalRisk;
 
-    // ── CONTRADICTION DETECTION (code-level, deterministic) ─────────────
-    const contradictions = detectContradictions(propertyFact, legalRisk);
+    // ── CONTRADICTION DETECTION — deterministic baseline + dynamic discovery ──
+    // The baseline guarantees the signature easement case fires; the dynamic scan
+    // reads what the agents actually said and surfaces ANY real conflict, between
+    // whichever agents, on whatever topic (not hardcoded to one pair/subject).
+    const deterministic = detectContradictions(propertyFact, legalRisk);
+    await think(dealId, roomId, 'synthesis', "Scanning the room for contradictions across every agent's findings.");
+    const dynamic = await discoverContradictions(
+      [
+        { agent: 'archivist', summary: archivist.bandMessage, findings: [] },
+        { agent: 'regulatory', summary: regulatory.bandMessage, findings: compliance.findings },
+        { agent: 'legal', summary: legal.bandMessage, findings: legalRisk.findings },
+      ],
+      deterministic
+    );
+    const contradictions = [...deterministic, ...dynamic].slice(0, 3);
     const negotiatedConditions: string[] = [];
     for (const c of contradictions) {
       emit(dealId, { type: 'contradiction.detected', title: c.title, detail: c.detail, agents: c.agents });
