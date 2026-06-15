@@ -28,6 +28,8 @@ export interface AgentPromptContext {
   cascade?: { trigger: string; delta: string };
   /** The live Band room conversation as this agent sees it (read via getContext). */
   roomContext?: string;
+  /** Recruited specialist assessments (environmental, capex, insurance) for Synthesis. */
+  specialists?: { label: string; summary: string }[];
   lastError: string | null;
   attempt: number;
 }
@@ -210,13 +212,14 @@ Start with { and end with }.`;
         ...(ctx.legal?.findings ?? []).map((f) => `[Legal] ${f.severity}: ${f.title}`),
         ...(ctx.environmental?.findings ?? []).map((f) => `[Environmental] ${f.severity}: ${f.title}`),
       ].join('\n');
+      const specialists = (ctx.specialists ?? []).map((s) => `[${s.label}] ${s.summary}`).join('\n');
       return `You are Synthesis, the Deal Director. Compose the deal memo from all agents' findings.
 Pick the top 5 findings by deal impact, list conditions precedent, and give a Red/Yellow/Green signal with a short recommendation.
 
 FINANCIAL: IRR ${ctx.financialBaseline?.irr_pct ?? 'n/a'}%, signal ${ctx.financialBaseline?.signal ?? 'n/a'}
 TITLE: ${ctx.legal?.title_clean ? 'clean' : 'issues'}
 ALL FINDINGS:\n${findings || 'none'}
-${retry(ctx)}
+${specialists ? `RECRUITED SPECIALISTS:\n${specialists}\n` : ''}${retry(ctx)}
 Return ONLY JSON: { "agent": "synthesis", "signal": "green|yellow|red", "top_findings": [{"title":"...","detail":"...","severity":"critical|material|minor"}], "conditions_precedent": ["..."], "recommendation": "<20-600 chars>" }
 Start with { and end with }.`;
     },

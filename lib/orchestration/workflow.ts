@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { dealBriefs, bandRooms, agentEvaluations, mentions as mentionsTable, workflowEvents } from '@/lib/db/schema';
 import { BandClient, getAgentConfigs } from '@/lib/band';
-import { runAgent, assessEnvironmentalViaLangGraph, type PropertyFact, type ComplianceReport, type LegalRisk, type FinancialModel, type EnvironmentalReport, type DealMemo } from '@/lib/agents';
+import { runAgent, assessSpecialist, type PropertyFact, type ComplianceReport, type LegalRisk, type FinancialModel, type DealMemo } from '@/lib/agents';
 import { broadcast } from '@/lib/realtime';
 import { computeUnderwriting } from '@/lib/finance/underwrite';
 import { detectContradictions, discoverContradictions, cascadeFromCompliance, compositeRiskScore } from './contradiction';
@@ -176,6 +176,27 @@ function needsEnvironmental(pf: PropertyFact, compliance: ComplianceReport, lega
   return flagged ? `Environmental concern flagged: ${flagged.title}` : null;
 }
 
+/** Recruit the CapEx specialist when the deal involves real construction scope. */
+function needsCapex(deal: DealRecord): string | null {
+  const t = `${deal.intended_use} ${deal.acquisition_type} ${deal.documents}`.toLowerCase();
+  if (/\bconvert|conversion|redevelop|renovat|reposition|value[\s-]?add|gut|rehab|build[\s-]?out|tenant improvement/.test(t)) {
+    return `the plan involves significant construction (${deal.intended_use})`;
+  }
+  if (deal.acquisition_type === 'development') return 'a development/repositioning scope';
+  return null;
+}
+
+/** Recruit the Insurance/Catastrophe specialist when the deal carries hazard exposure. */
+function needsInsurance(compliance: ComplianceReport, deal: DealRecord, pf: PropertyFact): string | null {
+  const fz = (compliance.flood_zone ?? '').toLowerCase();
+  if (fz && !/\b(no|none|not|n\/a|outside)\b/.test(fz)) return `the property sits in a flood zone (${compliance.flood_zone})`;
+  const t = `${deal.documents} ${pf.notable_conditions.join(' ')}`.toLowerCase();
+  if (/\bflood|fema\b|coastal|hurricane|seismic|earthquake|wildfire|storm surge/.test(t)) {
+    return 'catastrophe (flood/wind/seismic) exposure is flagged in the package';
+  }
+  return null;
+}
+
 /**
  * Drive a deal through the committee. Agents post to the Band room and hand off
  * via targeted @mentions; this orchestrator owns ordering, contradiction
@@ -234,6 +255,51 @@ export async function runWorkflow(dealId: string): Promise<void> {
       emit(dealId, { type: 'agent.completed', agent, headline: result.headline, model: result.model });
       await logEvent(dealId, 'agent.completed', { headline: result.headline }, agent);
       return result;
+    };
+
+    // Recruit a cross-framework specialist into the room and fold its assessment
+    // back in. Best-effort: a specialist that fails never aborts the committee
+    // (Environmental additionally has an in-process TS fallback).
+    const recruitSpecialist = async (
+      id: AgentType,
+      displayName: string,
+      reason: string,
+      recruiter: CoreAgentType,
+      ask: string
+    ): Promise<{ label: string; summary: string } | null> => {
+      const configs = getAgentConfigs();
+      await say(dealId, roomId, recruiter, `I've hit something outside my lane — ${reason}. I'm pulling in a ${displayName} specialist.`, ['synthesis']);
+      try {
+        await new BandClient(recruiter).addParticipant(roomId, configs[id].agentId);
+      } catch {
+        /* best-effort */
+      }
+      await systemSay(dealId, `${displayName} specialist joined the room — running on LangGraph (Python)`);
+      emit(dealId, { type: 'agent.recruited', by: recruiter, agent: id, reason });
+      await logEvent(dealId, 'agent.recruited', { by: recruiter, agent: id, reason }, recruiter);
+      await recordMention(dealId, recruiter, id, reason);
+      await say(dealId, roomId, recruiter, `Thanks for joining. ${ask}`, [id]);
+      emit(dealId, { type: 'agent.processing', agent: id });
+      try {
+        const a = await assessSpecialist(id, { deal, propertyFact, compliance }, roomId, [configs[recruiter].agentId, configs.synthesis.agentId]);
+        await persistEval(dealId, id, { headline: a.headline, bandMessage: a.bandMessage, raw: (a.report as Record<string, unknown>) ?? {}, model: a.model });
+        emit(dealId, { type: 'band.message', agent: id, content: a.bandMessage });
+        emit(dealId, { type: 'agent.completed', agent: id, headline: a.headline, model: a.model });
+        await logEvent(dealId, 'agent.completed', { headline: a.headline, framework: 'langgraph' }, id);
+        return { label: displayName, summary: a.summary };
+      } catch (err) {
+        await logEvent(dealId, 'langgraph.fallback', { id, reason: (err as Error).message }, id);
+        if (id === 'environmental') {
+          try {
+            const envRes = await run('environmental', { deal, propertyFact, compliance }, ['synthesis']);
+            return { label: displayName, summary: envRes.bandMessage };
+          } catch {
+            /* ignore */
+          }
+        }
+        emit(dealId, { type: 'agent.completed', agent: id, headline: 'unavailable' });
+        return null;
+      }
     };
 
     // ── INTAKE — Archivist ──────────────────────────────────────────────
@@ -300,61 +366,32 @@ export async function runWorkflow(dealId: string): Promise<void> {
       }
     }
 
-    // ── EMERGENT DISPATCH — an agent decides it needs a specialist ──────────
-    // Prefer the agents' own requests; fall back to a deterministic heuristic.
-    let environmental: EnvironmentalReport | undefined;
-    const recruiter: AgentType =
-      compliance.requested_specialist === 'environmental' ? 'regulatory'
-      : legalRisk.requested_specialist === 'environmental' ? 'legal'
-      : 'regulatory';
-    const envReason =
-      (compliance.requested_specialist === 'environmental' && compliance.specialist_reason) ||
-      (legalRisk.requested_specialist === 'environmental' && legalRisk.specialist_reason) ||
-      needsEnvironmental(propertyFact, compliance, legalRisk);
-    const envConfigured = !!getAgentConfigs().environmental.agentId;
-    if (envReason && envConfigured) {
-      // 1) The requesting agent tells the room it's bringing in outside help.
-      await say(dealId, roomId, recruiter, `I've hit something outside my lane — ${envReason.toLowerCase()}. I'm pulling in an Environmental specialist to take a look.`, ['synthesis']);
-      try {
-        // 2) The requesting agent recruits the specialist via Band's peer API.
-        await new BandClient(recruiter).addParticipant(roomId, getAgentConfigs().environmental.agentId);
-      } catch {
-        /* best-effort */
+    // ── EMERGENT DISPATCH — recruit the quantitative specialists this deal needs ──
+    // Each specialist is a cross-framework LangGraph (Python) agent recruited into
+    // the same Band room on a context-driven trigger. Bounded; best-effort.
+    const specialistSummaries: { label: string; summary: string }[] = [];
+    const recruiter: CoreAgentType = legalRisk.requested_specialist === 'environmental' ? 'legal' : 'regulatory';
+    const recruits: { id: AgentType; display: string; reason: string | null; ask: string }[] = [
+      {
+        id: 'environmental',
+        display: 'Environmental',
+        reason:
+          (compliance.requested_specialist === 'environmental' && compliance.specialist_reason) ||
+          (legalRisk.requested_specialist === 'environmental' && legalRisk.specialist_reason) ||
+          needsEnvironmental(propertyFact, compliance, legalRisk),
+        ask: 'Could you assess the contamination risk and whether a Phase I is warranted before Financial underwrites?',
+      },
+      { id: 'capex', display: 'CapEx / Construction', reason: needsCapex(deal), ask: 'Could you model the renovation/conversion cost and schedule risk?' },
+      { id: 'insurance', display: 'Insurance / Catastrophe', reason: needsInsurance(compliance, deal, propertyFact), ask: 'Could you estimate the catastrophe exposure and the insurance cost?' },
+    ];
+    for (const r of recruits) {
+      if (!r.reason) continue;
+      if (!getAgentConfigs()[r.id].agentId) {
+        await logEvent(dealId, 'recruitment.skipped', { id: r.id, reason: 'agent not configured' });
+        continue;
       }
-      // 3) Group-chat join notice, like a teammate entering the room.
-      await systemSay(dealId, 'Environmental specialist joined the room — running on LangGraph (Python)');
-      emit(dealId, { type: 'agent.recruited', by: recruiter, agent: 'environmental', reason: envReason });
-      await logEvent(dealId, 'agent.recruited', { by: recruiter, agent: 'environmental', reason: envReason }, recruiter);
-      await recordMention(dealId, recruiter, 'environmental', envReason);
-      // 4) The requesting agent asks the specialist directly — it's our ask, so we ask.
-      await say(dealId, roomId, recruiter, `Thanks for joining. Could you assess the contamination risk on this property and tell us whether a Phase I is warranted? We'd value your read before Financial underwrites.`, ['environmental']);
-
-      // 5) The specialist is a cross-framework agent: a LangGraph (Python) service
-      //    that posts into this same Band room. Fall back in-process if it's down.
-      emit(dealId, { type: 'agent.processing', agent: 'environmental' });
-      try {
-        const configs = getAgentConfigs();
-        const lg = await assessEnvironmentalViaLangGraph(
-          { deal, propertyFact, compliance },
-          roomId,
-          [configs[recruiter].agentId, configs.synthesis.agentId]
-        );
-        environmental = lg.report;
-        await persistEval(dealId, 'environmental', { headline: lg.headline, bandMessage: lg.bandMessage, raw: lg.report, model: lg.model });
-        emit(dealId, { type: 'band.message', agent: 'environmental', content: lg.bandMessage });
-        emit(dealId, { type: 'agent.completed', agent: 'environmental', headline: lg.headline, model: lg.model });
-        await logEvent(dealId, 'agent.completed', { headline: lg.headline, framework: 'langgraph' }, 'environmental');
-      } catch (err) {
-        await logEvent(dealId, 'langgraph.fallback', { reason: (err as Error).message }, 'environmental');
-        try {
-          const envRes = await run('environmental', { deal, propertyFact, compliance }, ['regulatory', 'synthesis']);
-          environmental = envRes.raw as EnvironmentalReport;
-        } catch {
-          /* a failed specialist must not abort the committee */
-        }
-      }
-    } else if (envReason && !envConfigured) {
-      await logEvent(dealId, 'recruitment.skipped', { reason: 'environmental agent not configured' });
+      const out = await recruitSpecialist(r.id, r.display, r.reason, recruiter, r.ask);
+      if (out) specialistSummaries.push(out);
     }
 
     // ── FINANCIAL — baseline, then cascade re-underwrite if Critical ────
@@ -389,7 +426,7 @@ export async function runWorkflow(dealId: string): Promise<void> {
 
     // ── SYNTHESIS + human gate ──────────────────────────────────────────
     await setStatus(dealId, 'synthesis');
-    const synth = await run('synthesis', { deal, propertyFact, compliance, legal: legalRisk, environmental, financialBaseline: financial }, []);
+    const synth = await run('synthesis', { deal, propertyFact, compliance, legal: legalRisk, specialists: specialistSummaries, financialBaseline: financial }, []);
     const memo = synth.raw as DealMemo;
 
     const composite = compositeRiskScore(propertyFact, compliance, legalRisk);

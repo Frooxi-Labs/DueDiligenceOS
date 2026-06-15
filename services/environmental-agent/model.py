@@ -141,6 +141,67 @@ class CostSimulation(TypedDict):
     components: list[str]
 
 
+# ── CapEx / construction specialist — Monte Carlo cost + schedule overrun ──────
+_CAPEX_PER_SF = {  # $/sf triangular by scope of work
+    "cosmetic": (20, 45, 90),
+    "moderate": (60, 130, 280),
+    "heavy": (150, 320, 650),
+    "conversion": (250, 520, 1_200),  # change-of-use (e.g. warehouse → lab)
+}
+_CAPEX_MONTHS = {"cosmetic": (2, 4, 8), "moderate": (5, 9, 16), "heavy": (9, 16, 30), "conversion": (12, 22, 42)}
+
+
+def simulate_capex(factors: dict, purchase_price: int, n: int = 20_000) -> dict:
+    scope = (factors.get("scope") or "moderate").lower()
+    if scope not in _CAPEX_PER_SF:
+        scope = "conversion" if factors.get("conversion") else "moderate"
+    sqft = int(factors.get("gross_sqft") or 0) or max(int(purchase_price / 250), 5_000)  # proxy if unknown
+    budget = int(factors.get("budget") or 0)
+    rng = np.random.default_rng(_SEED)
+    lo, mode, hi = _CAPEX_PER_SF[scope]
+    psf = rng.triangular(lo, mode, hi, n)
+    overrun = rng.triangular(1.0, 1.1, 1.45, n)  # contingency / overrun multiplier
+    total = psf * sqft * overrun
+    ml, mm, mh = _CAPEX_MONTHS[scope]
+    months = rng.triangular(ml, mm, mh, n)
+    p50, p90 = (int(x) for x in np.percentile(total, [50, 90]))
+    sp50, sp90 = (int(x) for x in np.percentile(months, [50, 90]))
+    prob_over = float(np.mean(total > budget)) if budget else 0.0
+    return {"scope": scope, "sqft": sqft, "p50": p50, "p90": p90, "mean": int(total.mean()),
+            "schedule_p50_months": sp50, "schedule_p90_months": sp90,
+            "budget": budget, "prob_over_budget": round(prob_over, 2), "iterations": n}
+
+
+# ── Insurance / catastrophe specialist — Monte Carlo expected annual loss ──────
+# Per peril: annual probability of an event × loss severity (fraction of value).
+_PERILS = {  # name: (base_prob, elevated_prob, sev_low, sev_mode, sev_high)
+    "flood": (0.004, 0.04, 0.05, 0.18, 0.55),
+    "wind": (0.010, 0.06, 0.02, 0.08, 0.30),
+    "quake": (0.002, 0.03, 0.05, 0.22, 0.60),
+}
+
+
+def simulate_catastrophe(factors: dict, purchase_price: int, n: int = 20_000) -> dict:
+    rv = int(factors.get("replacement_value") or 0) or int(purchase_price * 0.8)  # building value proxy
+    flags = {"flood": bool(factors.get("flood_zone")), "wind": bool(factors.get("coastal_wind")), "quake": bool(factors.get("seismic"))}
+    rng = np.random.default_rng(_SEED)
+    annual = np.zeros(n)
+    drivers: list[str] = []
+    for peril, (p_base, p_hi, slo, smode, shi) in _PERILS.items():
+        p = p_hi if flags[peril] else p_base
+        hits = rng.random(n) < p
+        sev = rng.triangular(slo, smode, shi, n)
+        annual += hits * sev * rv
+        if flags[peril]:
+            drivers.append(f"Elevated {peril} exposure (annual p≈{int(p*100)}%)")
+    eal = int(annual.mean())
+    p99 = int(np.percentile(annual, 99))
+    premium = int(eal * 1.4 + rv * 0.0008)  # loaded EAL + base expense load
+    return {"replacement_value": rv, "expected_annual_loss": eal, "p99_year_loss": p99,
+            "annual_premium_est": premium, "drivers": drivers or ["No elevated catastrophe exposure"],
+            "iterations": n}
+
+
 def simulate_remediation_cost(f: RiskFactors, contingency: int = 0, n: int = 20_000) -> CostSimulation:
     comps = _cost_components(f)
     if not comps:

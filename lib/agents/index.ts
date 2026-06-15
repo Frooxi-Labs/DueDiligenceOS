@@ -12,6 +12,6 @@ export type { AgentRunResult } from './run';
 export { AGENTS, AGENT_SEQUENCE } from './definitions';
 export type { AgentDefinition, AgentPromptContext } from './definitions';
 export { parseAgentOutput, validateBusinessLogic, hasCriticalFinding, BusinessLogicError } from './validation';
-export { assessEnvironmentalViaLangGraph } from './environmental-langgraph';
-export type { LangGraphAssessment } from './environmental-langgraph';
+export { assessSpecialist } from './specialist-langgraph';
+export type { SpecialistAssessment } from './specialist-langgraph';
 export * from './schemas';

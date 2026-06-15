@@ -19,9 +19,13 @@ DueDiligenceOS compresses that committee into minutes: specialist agents that **
 | Legal Risk | Claude | Title, easements, liens, contract terms |
 | Financial | GPT | NOI, DSCR, IRR — re-underwrites on a cascade |
 | Synthesis (Deal Director) | GPT | Weighs findings into the memo; runs the human gate |
-| Environmental *(recruited)* | **LangGraph / Python** | Contamination, Phase I–II — pulled in only when needed |
+| Environmental *(recruited)* | **LangGraph / Python** | Contamination risk + Monte-Carlo remediation cost |
+| CapEx / Construction *(recruited)* | **LangGraph / Python** | Monte-Carlo renovation/conversion cost + schedule overrun |
+| Insurance / Catastrophe *(recruited)* | **LangGraph / Python** | Flood/wind/quake expected annual loss + premium |
 
-### Why the Environmental agent is in Python (the value, not a checkbox)
+The three Python agents form a **quantitative specialist tier**: TypeScript handles the *language* work (extraction, compliance, legal, synthesis); Python is recruited **on demand** when a deal needs probabilistic/numeric modeling an LLM shouldn't guess. CapEx is pulled in for conversions/value-add, Insurance for flood/seismic exposure, Environmental for contamination — each a cross-framework agent that joins the same Band room.
+
+### Why these agents are in Python (the value, not a checkbox)
 
 Regulated due diligence shouldn't accept an LLM *guessing* "medium risk." This agent produces an **auditable, deterministic** contamination score *and* a **probabilistic remediation-cost estimate** ([`services/environmental-agent/model.py`](services/environmental-agent/model.py)): a rules-based score with an itemized rationale, plus a **Monte-Carlo cost simulation (numpy, 20k runs)** that returns P50/P90 and the **probability of blowing the deal's environmental contingency** — real environmental-engineering practice, seeded so it's reproducible. The **LLM only extracts the facts**; **Python computes the numbers** (the kind of probabilistic modeling a single TS LLM call genuinely can't do well); **LangGraph** orchestrates extract → quantify → (Phase II only if elevated) → report. The framework follows the value — joining the same Band room is the bonus, not the reason.
 
