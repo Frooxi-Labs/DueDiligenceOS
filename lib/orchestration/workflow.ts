@@ -51,7 +51,6 @@ const THINKING: Record<CoreAgentType, string> = {
   legal: "Reviewing title, contract terms, and easements against the Archivist's facts in the room.",
   financial: "Underwriting NOI, DSCR, and IRR from the room's facts and compliance findings.",
   synthesis: 'Reading the whole room to weigh every agent’s findings into the memo.',
-  environmental: 'Assessing contamination risk and whether a Phase I is warranted from the room context.',
 };
 
 async function logEvent(dealId: string, eventType: string, payload: Record<string, unknown> = {}, agent?: AgentType) {
@@ -288,15 +287,9 @@ export async function runWorkflow(dealId: string): Promise<void> {
         await logEvent(dealId, 'agent.completed', { headline: a.headline, framework: 'langgraph' }, id);
         return { label: displayName, summary: a.summary };
       } catch (err) {
-        await logEvent(dealId, 'langgraph.fallback', { id, reason: (err as Error).message }, id);
-        if (id === 'environmental') {
-          try {
-            const envRes = await run('environmental', { deal, propertyFact, compliance }, ['synthesis']);
-            return { label: displayName, summary: envRes.bandMessage };
-          } catch {
-            /* ignore */
-          }
-        }
+        // No in-process fallback — specialists live in the Python service. If it's
+        // down the committee proceeds without that specialist (best-effort).
+        await logEvent(dealId, 'specialist.unavailable', { id, reason: (err as Error).message }, id);
         emit(dealId, { type: 'agent.completed', agent: id, headline: 'unavailable' });
         return null;
       }
