@@ -5,5 +5,5 @@ export function agentAvatar(type: AgentType): string {
   return `/avatars/${type}.svg`;
 }
 
-/** The Band hub logo. Set NEXT_PUBLIC_BAND_LOGO_URL to override the built-in mark. */
-export const bandLogo = process.env.NEXT_PUBLIC_BAND_LOGO_URL || '';
+/** The Band hub logo (the mascot). */
+export const bandLogo = '/band-logo.svg';

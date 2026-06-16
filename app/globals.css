@@ -88,3 +88,16 @@ html, body {
 @keyframes accordion-up { from { height: var(--radix-accordion-content-height); opacity: 1; } to { height: 0; opacity: 0; } }
 .animate-accordion-down { animation: accordion-down 0.2s ease-out; }
 .animate-accordion-up { animation: accordion-up 0.2s ease-out; }
+
+/* ───────────────────────────────────────────────────────────────────────────
+   REVERSIBLE app background (landing-like depth on inner pages).
+   To revert: remove the `app-bg` class from <main> in app/layout.tsx and
+   delete this block — the app returns to the flat #141414 background.
+   ─────────────────────────────────────────────────────────────────────────── */
+.app-bg {
+  background-color: #121316;
+  background-image:
+    radial-gradient(circle, rgba(255,255,255,0.028) 1px, transparent 1.4px),
+    radial-gradient(120% 85% at 50% -8%, rgba(53,210,119,0.05) 0%, transparent 52%);
+  background-size: 26px 26px, 100% 100%;
+}

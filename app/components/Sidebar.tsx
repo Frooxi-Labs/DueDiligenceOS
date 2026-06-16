@@ -81,34 +81,36 @@ export default function Sidebar() {
   if (pathname === '/') return null;
 
   return (
+    <>
+    {/* Floating reopen control — shown only when the sidebar is fully collapsed. */}
+    {collapsed && (
+      <button
+        onClick={() => setCollapsed(false)}
+        title="Open sidebar"
+        className="fixed top-[14px] left-[14px] z-50 flex items-center justify-center rounded-lg transition-colors"
+        style={{ width: 30, height: 30, background: '#1a1a1a', border: '1px solid #2d2d2d', color: '#9b9a97' }}
+      >
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M2 3.5h11M2 7.5h11M2 11.5h11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+      </button>
+    )}
     <aside
       data-tour="sidebar"
-      className="flex-shrink-0 flex flex-col h-full py-[10px] transition-all duration-300"
-      style={{ width: collapsed ? 52 : 240, paddingLeft: collapsed ? 6 : 10, paddingRight: collapsed ? 6 : 0, background: '#040404' }}
+      className="flex-shrink-0 flex flex-col h-full py-[10px] overflow-hidden transition-all duration-300"
+      style={{ width: collapsed ? 0 : 240, paddingLeft: collapsed ? 0 : 10, paddingRight: 0, background: '#040404' }}
     >
-      <div className="flex items-center h-10 mb-3 px-2" style={{ gap: collapsed ? 0 : 8 }}>
-        <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0 mx-auto">
+      <div className="flex items-center h-10 mb-3 px-2 gap-2">
+        <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M2 13V6l6-4 6 4v7H10V9H6v4H2z" fill="white" />
           </svg>
         </div>
-        {!collapsed && (
-          <>
-            <span className="text-[14px] font-semibold flex-1 truncate" style={{ color: '#e8e8e6', letterSpacing: '-0.01em' }}>
-              DueDiligenceOS
-            </span>
-            <button onClick={() => setCollapsed(true)} title="Collapse" className="flex-shrink-0 rounded p-1" style={{ color: '#444', background: 'none', border: 'none', cursor: 'pointer' }}>
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L5 7l4 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            </button>
-          </>
-        )}
-      </div>
-
-      {collapsed && (
-        <button onClick={() => setCollapsed(false)} title="Expand" className="mx-auto mb-3 rounded-lg p-2" style={{ color: '#555', background: 'none', border: 'none', cursor: 'pointer', display: 'flex' }}>
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 2l4 5-4 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        <span className="text-[14px] font-semibold flex-1 truncate" style={{ color: '#e8e8e6', letterSpacing: '-0.01em' }}>
+          DueDiligenceOS
+        </span>
+        <button onClick={() => setCollapsed(true)} title="Collapse" className="flex-shrink-0 rounded p-1" style={{ color: '#444', background: 'none', border: 'none', cursor: 'pointer' }}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L5 7l4 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </button>
-      )}
+      </div>
 
       <div className={collapsed ? 'px-1 mb-3' : 'px-2 mb-4'}>
         <Link href="/deals/new" data-tour="sidebar-newrun" title="New run" className="df-sidebar-btn flex items-center rounded-lg" style={{ gap: collapsed ? 0 : 8, padding: collapsed ? '8px' : '8px 12px', color: '#e8e8e6', justifyContent: collapsed ? 'center' : 'flex-start' }}>
@@ -206,5 +208,6 @@ export default function Sidebar() {
         </div>
       )}
     </aside>
+    </>
   );
 }

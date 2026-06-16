@@ -19,8 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="h-full flex antialiased overflow-hidden" style={{ background: '#040404', fontFamily: 'var(--font-inter), system-ui, sans-serif' }}>
         <Suspense fallback={<div style={{ width: 240, flexShrink: 0, background: '#040404' }} />}><Sidebar /></Suspense>
         <main
-          className="flex-1 my-[10px] mr-[10px] rounded-[18px] overflow-hidden flex flex-col relative min-w-0"
-          style={{ background: '#141414' }}
+          className="app-bg flex-1 my-[10px] mr-[10px] rounded-[18px] overflow-hidden flex flex-col relative min-w-0"
         >
           <PageTransition>{children}</PageTransition>
         </main>

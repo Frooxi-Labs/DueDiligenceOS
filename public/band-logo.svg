@@ -1,0 +1,15 @@
+<svg viewBox="0 0 288 288" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="band-body" x1="0.1" y1="0.05" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#6BEC97"/>
+      <stop offset="0.55" stop-color="#33D277"/>
+      <stop offset="1" stop-color="#15B455"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="146" cy="262" rx="76" ry="11" fill="#0B1A26" opacity="0.5"/>
+  <circle cx="144" cy="134" r="128" fill="#0B1A26"/>
+  <circle cx="144" cy="134" r="119" fill="url(#band-body)"/>
+  <circle cx="148" cy="148" r="86" fill="#0B1A26"/>
+  <ellipse cx="122" cy="132" rx="13.5" ry="24" fill="#3FE0FF"/>
+  <ellipse cx="174" cy="132" rx="13.5" ry="24" fill="#3FE0FF"/>
+</svg>
