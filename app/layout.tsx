@@ -4,6 +4,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import Sidebar from './components/Sidebar';
 import PageTransition from './components/PageTransition';
+import RouteLoader from './components/RouteLoader';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -23,6 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           <PageTransition>{children}</PageTransition>
         </main>
+        <RouteLoader />
       </body>
     </html>
   );

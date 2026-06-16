@@ -95,9 +95,11 @@ html, body {
    delete this block — the app returns to the flat #141414 background.
    ─────────────────────────────────────────────────────────────────────────── */
 .app-bg {
-  background-color: #121316;
+  background-color: #0c0d10;
   background-image:
-    radial-gradient(circle, rgba(255,255,255,0.028) 1px, transparent 1.4px),
-    radial-gradient(120% 85% at 50% -8%, rgba(53,210,119,0.05) 0%, transparent 52%);
-  background-size: 26px 26px, 100% 100%;
+    radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1.4px),
+    radial-gradient(85% 55% at 50% -8%, rgba(120,150,200,0.12) 0%, transparent 55%),
+    radial-gradient(60% 50% at 88% 8%, rgba(53,210,119,0.07) 0%, transparent 60%),
+    radial-gradient(130% 110% at 50% 45%, #15171c 0%, #0d0e11 55%, #08090b 100%);
+  background-size: 26px 26px, 100% 100%, 100% 100%, 100% 100%;
 }
