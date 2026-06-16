@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useDealWorkflow, type WorkflowState } from '@/hooks/useDealWorkflow';
 import Markdown from '@/app/components/Markdown';
@@ -56,6 +56,30 @@ const LABELS: Record<AgentType, string> = {
 };
 const ORDER: AgentType[] = ['archivist', 'regulatory', 'legal', 'financial', 'synthesis'];
 const signalColor: Record<string, string> = { green: 'text-emerald-400', yellow: 'text-amber-400', red: 'text-red-400' };
+
+/** A single overlapping avatar in the committee face-pile, ring-coloured by status. */
+function PileAvatar({ agent, c, i, z }: { agent: AgentType; c: { status: string; headline?: string | null }; i: number; z: number }) {
+  const ring = c.status === 'processing' ? '#3b82f6' : c.status === 'done' ? '#22c55e' : c.status === 'failed' ? '#ef4444' : '#2d2d2d';
+  return (
+    <div
+      title={`${LABELS[agent]} — ${c.status === 'processing' ? 'working…' : c.headline ?? c.status}`}
+      className={`rounded-[11px] ${c.status === 'processing' ? 'agent-pulse' : ''}`}
+      style={{ marginLeft: i ? -9 : 0, padding: 2, background: '#141414', border: `1.6px solid ${ring}`, position: 'relative', zIndex: z }}
+    >
+      <AgentAvatar type={agent} size={26} />
+    </div>
+  );
+}
+
+/** A labelled group in the Activity panel. */
+function Section({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500 mb-2">{label}</p>
+      <div className="space-y-2">{children}</div>
+    </div>
+  );
+}
 const riskColor: Record<string, string> = { low: 'text-emerald-400', medium: 'text-amber-400', high: 'text-red-400' };
 const BRANCH_META: Record<SimBranch, { label: string; btn: string }> = {
   proceed: { label: 'Proceed with conditions', btn: 'bg-emerald-500 text-black hover:bg-emerald-400' },
@@ -219,30 +243,19 @@ export default function DealPage() {
               <p className="text-xs text-neutral-500">Counterfactual Band child room{activeProjection?.child_room_id ? <span className="font-mono ml-1">· {activeProjection.child_room_id.slice(0, 8)}</span> : ''}</p>
             </>
           ) : (
-            <>
-              <h1 className="text-lg font-semibold">Due-Diligence Committee</h1>
-              <p className="text-xs text-neutral-500">Status: <span className="text-neutral-300">{s.status.replace(/_/g, ' ')}</span>{s.bandRoomId && <span className="ml-2">· Band room live</span>}</p>
-            </>
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <h1 className="text-lg font-semibold">Due-Diligence Committee</h1>
+                <p className="text-xs text-neutral-500">Status: <span className="text-neutral-300">{s.status.replace(/_/g, ' ')}</span>{s.bandRoomId && <span className="ml-2">· Band room live</span>}</p>
+              </div>
+              <div data-tour="roster" className="flex items-center pr-1">
+                {ORDER.map((a, i) => <PileAvatar key={a} agent={a} c={s.agents[a]} i={i} z={20 - i} />)}
+                {rosterAgents.some((a) => !ORDER.includes(a)) && <span className="mx-2.5 w-px h-7" style={{ background: '#2d2d2d' }} />}
+                {rosterAgents.filter((a) => !ORDER.includes(a)).map((a, i) => <PileAvatar key={a} agent={a} c={s.agents[a]} i={i} z={12 - i} />)}
+              </div>
+            </div>
           )}
         </header>
-
-        {!inChildRoom && (
-        <div data-tour="roster" className="grid grid-cols-5 gap-3 px-6 mb-3 shrink-0">
-          {rosterAgents.map((a) => {
-            const c = s.agents[a];
-            return (
-              <div key={a} className={`rounded-xl border p-2.5 ${c.status === 'processing' ? 'border-blue-500/60 bg-blue-500/5' : 'border-neutral-800 bg-neutral-900/40'}`}>
-                <div className="flex items-center gap-2 mb-0.5">
-                  <AgentAvatar type={a} size={20} />
-                  <span className="text-xs font-medium flex-1 truncate">{LABELS[a]}</span>
-                  <span className={`w-2 h-2 rounded-full shrink-0 ${c.status === 'processing' ? 'bg-blue-400 agent-pulse' : c.status === 'done' ? 'bg-emerald-400' : c.status === 'failed' ? 'bg-red-400' : 'bg-neutral-600'}`} />
-                </div>
-                <p className="text-[11px] text-neutral-500 truncate">{c.status === 'processing' ? 'working…' : c.headline ?? c.status}</p>
-              </div>
-            );
-          })}
-        </div>
-        )}
 
         <div ref={scrollRef} className="flex-1 overflow-auto df-scroll px-6 pb-2">
           {inChildRoom ? (
@@ -500,50 +513,80 @@ export default function DealPage() {
               </div>
             </div>
           ) : (
-            <div className="flex-1 overflow-auto df-scroll p-4 space-y-3">
-              {s.delegations.map((d) => (
-                <div key={d.id} className="rounded-lg border border-indigo-500/40 bg-indigo-500/10 px-3 py-2 text-xs">
-                  <div className="flex items-center justify-between mb-0.5">
-                    <p className="text-indigo-300 font-medium">⇄ Delegated task</p>
-                    <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded ${d.status === 'done' ? 'bg-emerald-500/20 text-emerald-400' : d.status === 'processing' ? 'bg-amber-500/20 text-amber-400 agent-pulse' : 'bg-neutral-700/40 text-neutral-400'}`}>{d.status}</span>
-                  </div>
-                  <p className="text-neutral-300">{LABELS[d.from]} → {LABELS[d.to]}: {d.intent}</p>
-                  <p className="text-neutral-500 mt-1">Authority: {d.authority}</p>
-                </div>
-              ))}
+            <div className="flex-1 overflow-auto df-scroll p-4 space-y-5">
+              {s.contradictions.length > 0 && (
+                <Section label="Contradictions resolved">
+                  {s.contradictions.map((c, i) => (
+                    <div key={i} className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs">
+                      <p className="text-red-300 font-semibold mb-0.5">{c.title}</p>
+                      <p className="text-neutral-400">{c.detail}</p>
+                      <p className="text-neutral-600 mt-1">{c.agents.map((a) => LABELS[a]).join(' vs ')}</p>
+                    </div>
+                  ))}
+                </Section>
+              )}
               {s.cascade && (
-                <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs"><p className="text-amber-300 font-medium mb-0.5">↻ Cascading recalculation</p>IRR <span className="text-neutral-400 line-through">{s.cascade.irr_before.toFixed(1)}%</span> <span className="text-white font-semibold">→ {s.cascade.irr_after.toFixed(1)}%</span><p className="text-neutral-500 mt-1">Triggered by {s.cascade.trigger}</p></div>
-              )}
-              {s.contradictions.map((c, i) => (
-                <div key={i} className="rounded-lg border border-red-500/50 bg-red-500/10 px-3 py-2 text-xs"><p className="text-red-300 font-semibold mb-0.5">⚠ Contradiction</p><p className="text-neutral-300">{c.title}</p><p className="text-neutral-500 mt-1">{c.detail}</p><p className="text-neutral-600 mt-1">{c.agents.map((a) => LABELS[a]).join(' vs ')}</p></div>
-              ))}
-              {s.recruited.map((r, i) => (
-                <div key={`r-${i}`} className="rounded-lg border border-blue-500/40 bg-blue-500/10 px-3 py-2 text-xs">
-                  <p className="text-blue-300 font-medium mb-0.5">🤝 Recruited {LABELS[r.agent]}</p>
-                  <p className="text-neutral-400">{LABELS[r.by]} pulled a specialist into the room — {r.reason}</p>
-                </div>
-              ))}
-              {s.missingDocs.length > 0 && <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-300">Missing documents: {s.missingDocs.join(', ')}</div>}
-              {s.status === 'failed' && <div className="rounded-lg border border-red-500/50 bg-red-500/10 px-3 py-2 text-xs text-red-300">Workflow failed{s.failureReason ? `: ${s.failureReason}` : ''}</div>}
-              {s.bandRoomId && (
-                <div className="rounded-lg border border-neutral-700/60 bg-neutral-800/30 px-3 py-2 text-xs">
-                  <div className="flex items-center justify-between">
-                    <p className="text-neutral-300 font-medium">Band room</p>
-                    <button onClick={verifyBand} disabled={bandBusy} className="text-[11px] text-indigo-300 hover:text-indigo-200 disabled:opacity-50">{bandBusy ? 'checking…' : '↻ verify live'}</button>
+                <Section label="Recalculation">
+                  <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs">
+                    <p className="text-neutral-200">IRR <span className="text-neutral-500 line-through">{s.cascade.irr_before.toFixed(1)}%</span> <span className="text-white font-semibold">→ {s.cascade.irr_after.toFixed(1)}%</span></p>
+                    <p className="text-neutral-500 mt-1">Triggered by {s.cascade.trigger}</p>
                   </div>
-                  {bandCheck ? (
-                    <p className="text-neutral-500 mt-1">Context preserved in Band: <span className="text-neutral-300">{bandCheck.message_count} messages</span> across {bandCheck.participants_polled} participants — survives restarts &amp; rejoins.</p>
-                  ) : (
-                    <p className="text-neutral-600 mt-1">Reconstruct this room straight from Band to confirm it&apos;s the source of truth.</p>
-                  )}
-                </div>
+                </Section>
               )}
-              <div className="pt-2">
-                <p className="text-[11px] font-semibold uppercase tracking-widest text-neutral-600 mb-2">Audit trail</p>
-                {!audit || audit.length === 0 ? <p className="text-xs text-neutral-600">No events yet.</p> : (
-                  <ol className="space-y-1.5">{audit.filter((e) => !e.event_type.startsWith('chat.')).map((e) => (<li key={e.id} className="text-[11px] flex gap-2"><span className="text-neutral-600 tabular-nums shrink-0">{new Date(e.created_at).toLocaleTimeString()}</span><span className="text-neutral-400">{e.event_type}</span>{e.agent_type && <span className="text-neutral-600">· {e.agent_type}</span>}</li>))}</ol>
+              {s.delegations.length > 0 && (
+                <Section label="Delegated tasks">
+                  {s.delegations.map((d) => (
+                    <div key={d.id} className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-2 text-xs">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-neutral-200 font-medium">{LABELS[d.from]} → {LABELS[d.to]}</p>
+                        <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded ${d.status === 'done' ? 'bg-emerald-500/20 text-emerald-400' : d.status === 'processing' ? 'bg-amber-500/20 text-amber-400 agent-pulse' : 'bg-neutral-700/40 text-neutral-400'}`}>{d.status}</span>
+                      </div>
+                      <p className="text-neutral-400">{d.intent}</p>
+                    </div>
+                  ))}
+                </Section>
+              )}
+              {s.recruited.length > 0 && (
+                <Section label="Recruited specialists">
+                  {s.recruited.map((r, i) => (
+                    <div key={`r-${i}`} className="flex items-start gap-2.5 rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-xs">
+                      <AgentAvatar type={r.agent} size={22} />
+                      <div className="min-w-0">
+                        <p className="text-neutral-200 font-medium">{LABELS[r.agent]}</p>
+                        <p className="text-neutral-400">{LABELS[r.by]} pulled it in — {r.reason}</p>
+                      </div>
+                    </div>
+                  ))}
+                </Section>
+              )}
+              {(s.missingDocs.length > 0 || s.status === 'failed') && (
+                <Section label="Flags">
+                  {s.missingDocs.length > 0 && <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-300">Missing documents: {s.missingDocs.join(', ')}</div>}
+                  {s.status === 'failed' && <div className="rounded-lg border border-red-500/50 bg-red-500/10 px-3 py-2 text-xs text-red-300">Workflow failed{s.failureReason ? `: ${s.failureReason}` : ''}</div>}
+                </Section>
+              )}
+              {s.bandRoomId && (
+                <Section label="Band room">
+                  <div className="rounded-lg border border-neutral-700/60 bg-neutral-800/30 px-3 py-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <p className="text-neutral-300 font-medium">Context preserved in Band</p>
+                      <button onClick={verifyBand} disabled={bandBusy} className="text-[11px] text-indigo-300 hover:text-indigo-200 disabled:opacity-50">{bandBusy ? 'checking…' : '↻ verify live'}</button>
+                    </div>
+                    {bandCheck ? (
+                      <p className="text-neutral-500 mt-1"><span className="text-neutral-300">{bandCheck.message_count} messages</span> across {bandCheck.participants_polled} participants — survives restarts &amp; rejoins.</p>
+                    ) : (
+                      <p className="text-neutral-600 mt-1">Reconstruct this room straight from Band to confirm it&apos;s the source of truth.</p>
+                    )}
+                  </div>
+                </Section>
+              )}
+              <Section label="Event log">
+                {!audit || audit.filter((e) => !e.event_type.startsWith('chat.')).length === 0 ? (
+                  <p className="text-xs text-neutral-600">No events yet.</p>
+                ) : (
+                  <ol className="space-y-1.5">{audit.filter((e) => !e.event_type.startsWith('chat.')).map((e) => (<li key={e.id} className="text-[11px] flex gap-2"><span className="text-neutral-600 tabular-nums shrink-0">{new Date(e.created_at).toLocaleTimeString()}</span><span className="text-neutral-400">{e.event_type.replace(/[._]/g, ' ')}</span>{e.agent_type && <span className="text-neutral-600">· {LABELS[e.agent_type as AgentType] ?? e.agent_type}</span>}</li>))}</ol>
                 )}
-              </div>
+              </Section>
             </div>
           )}
         </aside>

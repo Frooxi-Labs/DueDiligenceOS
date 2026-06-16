@@ -11,8 +11,8 @@ export default function AgentAvatar({ type, size = 28, className = '' }: { type:
       alt=""
       width={size}
       height={size}
-      className={`rounded-lg shrink-0 ${className}`}
-      style={{ background: '#161616', objectFit: 'contain', padding: 2 }}
+      className={`self-start shrink-0 rounded-lg ${className}`}
+      style={{ width: size, height: size, minWidth: size, flex: 'none', background: '#161616', objectFit: 'contain', padding: 2 }}
     />
   );
 }
