@@ -59,12 +59,12 @@ const signalColor: Record<string, string> = { green: 'text-emerald-400', yellow:
 
 /** A single overlapping avatar in the committee face-pile, ring-coloured by status. */
 function PileAvatar({ agent, c, i, z }: { agent: AgentType; c: { status: string; headline?: string | null }; i: number; z: number }) {
-  const ring = c.status === 'processing' ? '#3b82f6' : c.status === 'done' ? '#22c55e' : c.status === 'failed' ? '#ef4444' : '#2d2d2d';
+  const working = c.status === 'processing';
   return (
     <div
-      title={`${LABELS[agent]} — ${c.status === 'processing' ? 'working…' : c.headline ?? c.status}`}
-      className={`rounded-[11px] ${c.status === 'processing' ? 'agent-pulse' : ''}`}
-      style={{ marginLeft: i ? -9 : 0, padding: 2, background: '#141414', border: `1.6px solid ${ring}`, position: 'relative', zIndex: z }}
+      title={`${LABELS[agent]} — ${working ? 'working…' : c.headline ?? c.status}`}
+      className={`rounded-[11px] ${working ? 'agent-pulse' : ''}`}
+      style={{ marginLeft: i ? -9 : 0, padding: 2, background: '#141414', border: `1.6px solid ${working ? '#ffffff' : 'transparent'}`, position: 'relative', zIndex: z }}
     >
       <AgentAvatar type={agent} size={26} />
     </div>

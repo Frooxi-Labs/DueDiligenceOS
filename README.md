@@ -2,11 +2,12 @@
 
 # DueDiligenceOS
 
-**A multi-agent investment committee for commercial real estate — five specialist AI agents that collaborate _through_ [Band](https://band.ai) to evaluate a deal, resolve their disagreements, and reach a decision a human approves.**
+**An AI due-diligence committee for commercial real estate.** Eight specialist agents
+across two frameworks share one [Band](https://band.ai) room per deal — they read
+each other's findings, resolve their disagreements, delegate work, recruit
+quantitative help, and hand a human a defensible deal memo.
 
-Built for the **Band of Agents Hackathon** · Track 3 — Regulated & High-Stakes Workflows
-
-📄 **[Read the judge's guide → PITCH.md](PITCH.md)** — problem, agent roles, and exactly how Band coordinates the committee.
+**Band of Agents Hackathon · Track 3 — Regulated & High-Stakes Workflows**
 
 </div>
 
@@ -14,55 +15,145 @@ Built for the **Band of Agents Hackathon** · Track 3 — Regulated & High-Stake
 
 ## The problem
 
-Real-estate due diligence is slow and error-prone because five-to-ten specialists work in silos. The market analyst's optimism never meets the risk officer's tenant-credit concern; the legal team's easement finding never reaches the underwriter whose model assumed clean title. Findings compound in ways no single reviewer holds in their head at once — and committees still take days to weeks.
+Closing a commercial-real-estate deal takes a committee — title, zoning,
+environmental, structural, insurance, and financial review. Today those experts
+work in sequence over email and PDFs: the legal team's easement finding never
+reaches the underwriter whose model assumed clean title; the contamination flag
+never makes it into the price. It takes weeks, a single missed liability can sink
+an IRR, and the reasoning behind an approval is scattered across inboxes —
+impossible to replay or defend to an investment committee.
 
 ## What it does
 
-DueDiligenceOS runs the committee as Band agents in one shared room per deal — each on a different model provider, one on a different framework:
+DueDiligenceOS runs that committee as Band agents in **one shared room per deal**.
+Five reasoning agents (TypeScript, three model providers) plus three quantitative
+specialists (Python · LangGraph) collaborate **through Band** and produce a
+Red / Yellow / Green memo that a human approves.
 
-| Agent | Provider / framework | Responsibility |
-|:------|:---------------------|:---------------|
-| **Archivist** | Gemini (TS) | Extracts property facts, encumbrances, and the missing-document checklist |
-| **Regulatory** | Claude (TS) | Zoning, permits, flood/FEMA, environmental flags, code violations |
-| **Legal Risk** | Claude (TS) | Title, contract terms, easements, liens, reps & warranties |
-| **Financial** | GPT (TS) | NOI, cap rate, DSCR, IRR, sensitivity — re-underwrites on a cascade |
-| **Synthesis (Deal Director)** | GPT (TS) | Weighs every finding into the memo; triggers the human gate |
-| **Environmental** *(recruited)* | **LangGraph (Python)** | Contamination / Phase I–II — pulled in only when a deal needs it |
+| Agent | Stack | Responsibility |
+|:--|:--|:--|
+| **Archivist** | Gemini · TS | Extracts property facts, encumbrances, missing-document checklist |
+| **Regulatory** | Claude · TS | Zoning, permits, flood/FEMA, environmental flags |
+| **Legal Risk** | Claude · TS | Title, contract terms, easements, liens, seller reps |
+| **Financial** | GPT-4o · TS | NOI, cap rate, DSCR and a **deterministically computed** 5-yr IRR |
+| **Synthesis** *(Deal Director)* | GPT · TS | Weighs every finding into the memo; holds for the human gate |
+| **Environmental** | **LangGraph · Python** | Contamination risk + Monte-Carlo remediation cost; Phase I call |
+| **CapEx** | **LangGraph · Python** | Renovation / conversion cost and schedule risk, simulated |
+| **Insurance** | **LangGraph · Python** | Flood / wind / seismic catastrophe exposure and premium |
 
-They don't just run in parallel — they **collaborate through Band**:
-
-- **Read the room.** Before reasoning, each agent calls Band `getContext` to pull the shared room conversation, then builds on it — it is not spoon-fed context out of band.
-- **Hand off through the room.** An agent finishes, then `@mentions` the specific next agent; that agent acts _because of_ the mention.
-- **Delegate with task state.** The cascade is a Band `task` event (intent + authority) that the assignee marks `processing` → `processed` — accountable work, not a chat line.
-- **Think out loud.** Agents post Band `thought` / `tool_call` / `error` events, so their reasoning (and their reads of the room) are visible and auditable in Band itself.
-- **Disagree and negotiate in the room.** A detected contradiction triggers a real multi-turn debate between the two agents, in the room, converging on a condition.
-- **Discover and recruit.** When a deal needs a specialist, an agent pulls a new participant into the room mid-workflow (`addParticipant`) — including the cross-framework LangGraph agent.
-- **Defer to a human.** The committee composes a deal memo and **holds** for a human decision (proceed / remediate / renegotiate / reject), stamped into a permanent audit trail.
+The three specialists are **recruited into the room on demand** — only when the
+reasoning agents decide a deal needs them.
 
 ## How Band is used
 
-Band is the collaboration layer, not a notification channel. The agents share context, route work via `@mentions`, negotiate, and record their reasoning **inside a Band room**. The core committee also runs across **four model providers** (Gemini, Claude, GPT) — distinct Band identities collaborating with no glue code — and when a deal needs environmental review, an **Environmental specialist built on a different framework (LangGraph, Python)** is recruited into the *same* Band room as a first-class participant. That is genuine cross-framework, cross-model collaboration: Band makes the boundary disappear. See [`services/environmental-agent`](services/environmental-agent).
+Band is the coordination layer, not a notification channel. Every primitive below
+is load-bearing:
 
-## Architecture
+- **Shared context** — before reasoning, each agent reads the live room via
+  mention-routed `getContext` and builds on it (it is not spoon-fed context).
+- **Handoffs** — agents pass the baton with structured `@mentions`; the next
+  agent acts *because* it was mentioned.
+- **Task state** — a delegation is a Band `task` event (intent + authority) that
+  the assignee marks `processing → processed` — accountable work, not a chat line.
+- **Rich events** — agents post `thought` / `tool_call` / `tool_result` / `error`
+  events, so their reasoning is visible and replayable inside Band.
+- **Recruitment** — when a deal needs a specialist, an agent pulls a new
+  participant into the room mid-deal (`addParticipant`), including the
+  cross-framework Python agents.
+- **Distinct identity** — each agent (specialists included) posts under its own
+  Band identity via its own API key — genuinely separate participants.
+- **Human gate** — the committee composes the memo and **holds** for a human
+  decision (proceed / remediate / renegotiate / reject), recorded in a permanent
+  audit trail.
 
-- **Next.js 16 / React 19 / Tailwind 4** — app + live UI
-- **Neon Postgres + Drizzle** — persistence and the full audit trail
-- **Band** — REST + SDK; one shared room per deal
-- **Server-Sent Events + Redis** — the deliberation streams to the browser live
+## Signature mechanics
 
-See [`docs/architecture.md`](docs/architecture.md) and [`docs/PRD.md`](docs/PRD.md).
+- **Contradiction negotiation** — when two agents disagree (any pair, any topic), they
+  debate it in-thread until resolved. A deterministic detector guarantees the
+  classic conflicts fire; an LLM pass discovers novel ones.
+- **Emergent delegation** — any agent can hand any other a concrete task with
+  intent + authority, decided from context — not a fixed cascade.
+- **Dynamic recruitment** — the committee itself decides which Python specialists a
+  deal warrants and pulls them in live.
+- **Counterfactual forking** — fork the room on a "what if", re-run the committee
+  under a changed assumption, and compare memos side by side.
+- **Deterministic underwriting** — the headline IRR is not LLM-generated: DSCR and a
+  levered 5-year IRR are solved in code (bisection), so identical inputs always
+  produce the same number.
 
-## Running locally
+## Why two frameworks
+
+The reasoning agents live in TypeScript next to the product. The specialists are
+**Python because they do real numerical work** — seeded numpy Monte-Carlo over
+LangGraph state machines (10k trials, P50/P90), which an LLM can't fake. Band makes
+the framework boundary disappear: they join the *same* room as first-class agents.
+See [`services/environmental-agent`](services/environmental-agent).
+
+## Tech stack
+
+| Layer | Technology |
+|:--|:--|
+| App & UI | Next.js 16 (Turbopack), React 19, Tailwind 4, TypeScript |
+| Coordination | **Band** REST — rooms, handoffs, tasks, events, recruitment |
+| Specialists | Python · FastAPI · LangGraph · numpy |
+| Data & realtime | Neon Postgres + Drizzle ORM · SSE bus with replay |
+| Models | AI/ML API gateway — Gemini · Claude · GPT |
+
+## Getting started
+
+**Prerequisites:** Node 20+, a [Neon](https://neon.tech) Postgres database, eight
+[Band](https://app.band.ai) agents, and an [AI/ML API](https://aimlapi.com) key.
+Python 3.11+ for the specialist service (optional).
 
 ```bash
+# 1. App
 npm install
-cp .env.example .env.local   # add your database + Band agent credentials
-npm run dev
+cp .env.example .env.local      # add DB, Band agent credentials, AI/ML key
+npm run db:push                 # create the schema in Neon
+npm run dev                     # http://localhost:3000
+
+# 2. Python specialist service (optional — recruited live when a deal needs it)
+cd services/environmental-agent
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app:app --port 8000
 ```
 
-Optionally run the cross-framework Environmental specialist (LangGraph/Python) so it
-joins the Band room live — see [`services/environmental-agent`](services/environmental-agent/README.md).
-If it isn't running, the committee falls back to an in-process implementation.
+All credentials are read from the environment — see [`.env.example`](.env.example).
+If the specialist service or a specialist's Band identity isn't configured,
+recruitment of that specialist is skipped gracefully.
+
+## Project structure
+
+```
+app/                  Next.js routes, API endpoints, UI components
+lib/
+  agents/             agent definitions, schemas, validation, runner
+  orchestration/      workflow, contradiction detection, negotiation, forking
+  band/               BandClient (REST), context reconstruction
+  finance/            deterministic DSCR / IRR underwriting
+  security/           request guard (auth, CSRF, rate limit, validation)
+services/
+  environmental-agent/  Python · FastAPI · LangGraph specialists (Monte-Carlo)
+tests/                vitest suites (underwriting, validation, contradiction, security)
+middleware.ts         security headers
+```
+
+## Testing & quality
+
+```bash
+npm test          # 38 vitest tests
+npm run lint      # eslint
+npm run build     # production build
+```
+
+## Security
+
+Write endpoints are hardened with an opt-in bearer-token gate, same-origin (CSRF)
+checks, per-IP rate limiting, input/body-size bounds, and baseline security
+headers — see [`lib/security/guard.ts`](lib/security/guard.ts) and
+[`middleware.ts`](middleware.ts). All outbound URLs come from the environment
+(no SSRF surface), and DB access is parameterised via Drizzle.
 
 ## License
 
