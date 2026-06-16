@@ -77,6 +77,9 @@ export default function Sidebar() {
     }
   }
 
+  // The landing page is a full-bleed hero — no sidebar there.
+  if (pathname === '/') return null;
+
   return (
     <aside
       data-tour="sidebar"

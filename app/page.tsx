@@ -1,23 +1,23 @@
 import Link from 'next/link';
 import { Bricolage_Grotesque } from 'next/font/google';
+import { agentAvatar, bandLogo } from '@/lib/agents/avatars';
+import type { AgentType } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
 const brico = Bricolage_Grotesque({ subsets: ['latin'], weight: ['400', '500', '600', '700'] });
 
-const TS = '#cfd6e6', PY = '#86efac';
-
 // Eight agent tiles: four left, four right. Coords in the SVG viewBox (1200×520).
 const HUB = { cx: 600, cy: 262, s: 90 };
-const TILES = [
-  { code: 'AR', accent: TS, x: 300, y: 108, side: 'l', sy: 240, mx: 442 },
-  { code: 'RG', accent: TS, x: 168, y: 228, side: 'l', sy: 252, mx: 398 },
-  { code: 'LG', accent: TS, x: 168, y: 388, side: 'l', sy: 272, mx: 398 },
-  { code: 'FN', accent: TS, x: 322, y: 452, side: 'l', sy: 286, mx: 462 },
-  { code: 'SY', accent: TS, x: 900, y: 108, side: 'r', sy: 240, mx: 758 },
-  { code: 'EN', accent: PY, x: 1032, y: 228, side: 'r', sy: 252, mx: 802 },
-  { code: 'CX', accent: PY, x: 1032, y: 388, side: 'r', sy: 272, mx: 802 },
-  { code: 'IN', accent: PY, x: 878, y: 452, side: 'r', sy: 286, mx: 738 },
+const TILES: { id: AgentType; x: number; y: number; side: 'l' | 'r'; sy: number; mx: number }[] = [
+  { id: 'archivist', x: 300, y: 108, side: 'l', sy: 240, mx: 442 },
+  { id: 'regulatory', x: 168, y: 228, side: 'l', sy: 252, mx: 398 },
+  { id: 'legal', x: 168, y: 388, side: 'l', sy: 272, mx: 398 },
+  { id: 'financial', x: 322, y: 452, side: 'l', sy: 286, mx: 462 },
+  { id: 'synthesis', x: 900, y: 108, side: 'r', sy: 240, mx: 758 },
+  { id: 'environmental', x: 1032, y: 228, side: 'r', sy: 252, mx: 802 },
+  { id: 'capex', x: 1032, y: 388, side: 'r', sy: 272, mx: 802 },
+  { id: 'insurance', x: 878, y: 452, side: 'r', sy: 286, mx: 738 },
 ];
 
 /** Orthogonal connector (H → V → H) with rounded corners. */
@@ -80,19 +80,23 @@ export default function Landing() {
           {TILES.map((t) => {
             const sx = t.side === 'l' ? HUB.cx - HUB.s / 2 : HUB.cx + HUB.s / 2;
             const ex = t.side === 'l' ? t.x + 32 : t.x - 32;
-            return <path key={`c${t.code}`} d={orth(sx, t.sy, ex, t.y, t.mx)} fill="none" stroke="#2b2b2b" strokeWidth="1.4" />;
+            return <path key={`c${t.id}`} d={orth(sx, t.sy, ex, t.y, t.mx)} fill="none" stroke="#2b2b2b" strokeWidth="1.4" />;
           })}
 
           {/* hub glow + node */}
           <circle cx={HUB.cx} cy={HUB.cy} r="180" fill="url(#hubGlow)" />
           <rect x={HUB.cx - HUB.s / 2} y={HUB.cy - HUB.s / 2} width={HUB.s} height={HUB.s} rx="20" fill="url(#hubFill)" stroke="#3a3a3a" />
-          <path d={`M ${HUB.cx - 18} ${HUB.cy + 14} V ${HUB.cy - 6} l 18 -12 l 18 12 v 20 h -12 v -12 h -12 v 12 z`} fill="#f5f5f5" />
+          {bandLogo ? (
+            <image href={bandLogo} x={HUB.cx - 28} y={HUB.cy - 28} width="56" height="56" preserveAspectRatio="xMidYMid meet" />
+          ) : (
+            <path d={`M ${HUB.cx - 18} ${HUB.cy + 14} V ${HUB.cy - 6} l 18 -12 l 18 12 v 20 h -12 v -12 h -12 v 12 z`} fill="#f5f5f5" />
+          )}
 
-          {/* tiles */}
+          {/* agent tiles (avatars) */}
           {TILES.map((t) => (
-            <g key={t.code}>
+            <g key={t.id}>
               <rect x={t.x - 32} y={t.y - 32} width="64" height="64" rx="15" fill="#0c0c0c" stroke="#262626" />
-              <text x={t.x} y={t.y + 5} textAnchor="middle" fontSize="16" fontWeight="700" fill={t.accent} style={{ fontFamily: 'inherit' }}>{t.code}</text>
+              <image href={agentAvatar(t.id)} x={t.x - 26} y={t.y - 26} width="52" height="52" preserveAspectRatio="xMidYMid meet" />
             </g>
           ))}
         </svg>

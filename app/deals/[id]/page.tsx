@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useDealWorkflow, type WorkflowState } from '@/hooks/useDealWorkflow';
 import Markdown from '@/app/components/Markdown';
 import Guide, { type GuideStep } from '@/app/components/Guide';
+import AgentAvatar from '@/app/components/AgentAvatar';
 import type { AgentType, ForkProjection, HumanDecision, SimBranch } from '@/types';
 
 // Shown once when a committee room first opens.
@@ -232,8 +233,9 @@ export default function DealPage() {
             return (
               <div key={a} className={`rounded-xl border p-2.5 ${c.status === 'processing' ? 'border-blue-500/60 bg-blue-500/5' : 'border-neutral-800 bg-neutral-900/40'}`}>
                 <div className="flex items-center gap-2 mb-0.5">
-                  <span className={`w-2 h-2 rounded-full ${c.status === 'processing' ? 'bg-blue-400 agent-pulse' : c.status === 'done' ? 'bg-emerald-400' : c.status === 'failed' ? 'bg-red-400' : 'bg-neutral-600'}`} />
-                  <span className="text-xs font-medium">{LABELS[a]}</span>
+                  <AgentAvatar type={a} size={20} />
+                  <span className="text-xs font-medium flex-1 truncate">{LABELS[a]}</span>
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${c.status === 'processing' ? 'bg-blue-400 agent-pulse' : c.status === 'done' ? 'bg-emerald-400' : c.status === 'failed' ? 'bg-red-400' : 'bg-neutral-600'}`} />
                 </div>
                 <p className="text-[11px] text-neutral-500 truncate">{c.status === 'processing' ? 'working…' : c.headline ?? c.status}</p>
               </div>
@@ -272,7 +274,7 @@ export default function DealPage() {
                   </div>
                 ) : (
                   <div key={i} className="fade-up flex gap-3">
-                    <div className="w-7 h-7 rounded-lg bg-neutral-800 flex items-center justify-center text-[10px] font-semibold text-neutral-300 shrink-0">{t.agent ? LABELS[t.agent].slice(0, 2) : '··'}</div>
+                    <AgentAvatar type={t.agent} />
                     <div className="min-w-0 flex-1">
                       <span className="text-xs font-medium text-neutral-200">{t.agent ? LABELS[t.agent] : ''}</span>
                       <div className="mt-0.5 text-sm text-neutral-300 leading-relaxed df-msg"><Markdown>{t.content}</Markdown></div>
@@ -282,7 +284,7 @@ export default function DealPage() {
               )}
               {live?.thinking && (
                 <div className="fade-up flex gap-3 items-center">
-                  <div className="w-7 h-7 rounded-lg bg-neutral-800 flex items-center justify-center text-[10px] font-semibold text-neutral-400 shrink-0">{LABELS[live.thinking].slice(0, 2)}</div>
+                  <AgentAvatar type={live.thinking} />
                   <div className="flex items-center gap-1 px-1 py-1"><span className="text-xs text-neutral-500 mr-1">{LABELS[live.thinking]} is analysing</span>{[0, 1, 2].map((d) => <span key={d} className="w-1.5 h-1.5 rounded-full bg-neutral-500 thinking-dot" style={{ animationDelay: `${d * 0.15}s` }} />)}</div>
                 </div>
               )}
@@ -309,7 +311,7 @@ export default function DealPage() {
               </div>
             ) : (
               <div key={i} className="fade-up flex gap-3">
-                <div className="w-7 h-7 rounded-lg bg-neutral-800 flex items-center justify-center text-[10px] font-semibold text-neutral-300 shrink-0">{LABELS[m.agent].slice(0, 2)}</div>
+                <AgentAvatar type={m.agent} />
                 <div className="min-w-0 flex-1">
                   <span className="text-xs font-medium text-neutral-200">{LABELS[m.agent]}</span>
                   <div className="mt-0.5 text-sm text-neutral-300 leading-relaxed df-msg"><Markdown>{m.content}</Markdown></div>
@@ -319,7 +321,7 @@ export default function DealPage() {
           ))}
           {rosterAgents.filter((a) => s.agents[a].status === 'processing').map((a) => (
             <div key={`t-${a}`} className="fade-up flex gap-3 items-center">
-              <div className="w-7 h-7 rounded-lg bg-neutral-800 flex items-center justify-center text-[10px] font-semibold text-neutral-400 shrink-0">{LABELS[a].slice(0, 2)}</div>
+              <AgentAvatar type={a} />
               <div className="flex items-center gap-1 px-1 py-1"><span className="text-xs text-neutral-500 mr-1">{LABELS[a]} is analysing</span>{[0, 1, 2].map((d) => <span key={d} className="w-1.5 h-1.5 rounded-full bg-neutral-500 thinking-dot" style={{ animationDelay: `${d * 0.15}s` }} />)}</div>
             </div>
           ))}
@@ -327,7 +329,7 @@ export default function DealPage() {
           {/* Deal memo — as a file card */}
           {s.recommendation && (
             <div className="fade-up flex gap-3">
-              <div className="w-7 h-7 rounded-lg bg-neutral-800 flex items-center justify-center text-[10px] font-semibold text-neutral-300 shrink-0">SY</div>
+              <AgentAvatar type="synthesis" />
               <div className="min-w-0 flex-1">
                 <span className="text-xs font-medium text-neutral-200">Synthesis</span>
                 <div data-tour="memo-card" className="mt-0.5 flex items-center gap-3 rounded-xl border border-neutral-700 bg-neutral-800/60 px-3 py-2.5 max-w-md">
@@ -354,7 +356,7 @@ export default function DealPage() {
           {/* Counterfactual prompt — simulate a path before committing */}
           {s.recommendation && !shownDecision && activeRoom === 'parent' && (
             <div className="fade-up flex gap-3">
-              <div className="w-7 h-7 rounded-lg bg-neutral-800 flex items-center justify-center text-[10px] font-semibold text-neutral-300 shrink-0">SY</div>
+              <AgentAvatar type="synthesis" />
               <div className="min-w-0 flex-1">
                 <span className="text-xs font-medium text-neutral-200">Synthesis</span>
                 <div className="mt-0.5 text-sm text-neutral-300 leading-relaxed df-msg">Want to see what your decision would lead to? I&apos;ll open a side room and have the team work through each path before you commit.</div>
@@ -401,7 +403,7 @@ export default function DealPage() {
               </div>
             ) : (
               <div key={`c-${i}`} className="fade-up flex gap-3">
-                <div className="w-7 h-7 rounded-lg bg-neutral-800 flex items-center justify-center text-[10px] font-semibold text-neutral-300 shrink-0">{(m.agent ? LABELS[m.agent] : 'Synthesis').slice(0, 2)}</div>
+                <AgentAvatar type={m.agent} />
                 <div className="min-w-0 flex-1">
                   <span className="text-xs font-medium text-neutral-200">{m.agent ? LABELS[m.agent] : 'Synthesis'}</span>
                   <div className="mt-0.5 text-sm text-neutral-300 leading-relaxed df-msg"><Markdown>{m.content}</Markdown></div>
@@ -411,7 +413,7 @@ export default function DealPage() {
           ))}
           {chatBusy && (
             <div className="fade-up flex gap-3 items-center">
-              <div className="w-7 h-7 rounded-lg bg-neutral-800 flex items-center justify-center text-[10px] font-semibold text-neutral-400 shrink-0">··</div>
+              <AgentAvatar type={null} />
               <div className="flex items-center gap-1 px-1 py-1">{[0, 1, 2].map((d) => <span key={d} className="w-1.5 h-1.5 rounded-full bg-neutral-500 thinking-dot" style={{ animationDelay: `${d * 0.15}s` }} />)}</div>
             </div>
           )}
