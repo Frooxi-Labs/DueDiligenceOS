@@ -4,7 +4,21 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useDealWorkflow, type WorkflowState } from '@/hooks/useDealWorkflow';
 import Markdown from '@/app/components/Markdown';
+import Guide, { type GuideStep } from '@/app/components/Guide';
 import type { AgentType, ForkProjection, HumanDecision, SimBranch } from '@/types';
+
+const MEMO_GUIDE: GuideStep[] = [
+  {
+    target: 'memo-card',
+    title: 'The committee reached a verdict',
+    body: 'A Red / Yellow / Green memo with a composite risk score and the top findings. Open it to read the full reasoning, or download it as a PDF.',
+  },
+  {
+    target: 'simulate-paths',
+    title: 'Simulate before you decide',
+    body: 'The memo is held for your call. Pick a path and the committee opens a side room to work through the outcome — compare proceed / remediate / renegotiate, then commit from there.',
+  },
+];
 
 const LABELS: Record<AgentType, string> = {
   archivist: 'Archivist', regulatory: 'Regulatory', legal: 'Legal Risk', financial: 'Financial', synthesis: 'Synthesis', environmental: 'Environmental', capex: 'CapEx', insurance: 'Insurance',
@@ -286,7 +300,7 @@ export default function DealPage() {
               <div className="w-7 h-7 rounded-lg bg-neutral-800 flex items-center justify-center text-[10px] font-semibold text-neutral-300 shrink-0">SY</div>
               <div className="min-w-0 flex-1">
                 <span className="text-xs font-medium text-neutral-200">Synthesis</span>
-                <div className="mt-0.5 flex items-center gap-3 rounded-xl border border-neutral-700 bg-neutral-800/60 px-3 py-2.5 max-w-md">
+                <div data-tour="memo-card" className="mt-0.5 flex items-center gap-3 rounded-xl border border-neutral-700 bg-neutral-800/60 px-3 py-2.5 max-w-md">
                   <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: s.signal === 'green' ? '#0e2a1a' : s.signal === 'yellow' ? '#2a230e' : '#2a0e0e' }}>
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 1.5h5L13 5.5V14a.5.5 0 01-.5.5h-9A.5.5 0 013 14V2a.5.5 0 01.5-.5z" stroke={s.signal === 'green' ? '#22c55e' : s.signal === 'red' ? '#ef4444' : '#f59e0b'} strokeWidth="1.2" /></svg>
                   </div>
@@ -314,7 +328,7 @@ export default function DealPage() {
               <div className="min-w-0 flex-1">
                 <span className="text-xs font-medium text-neutral-200">Synthesis</span>
                 <div className="mt-0.5 text-sm text-neutral-300 leading-relaxed df-msg">Want to see what your decision would lead to? I&apos;ll open a side room and have the team work through each path before you commit.</div>
-                <div className="mt-2 flex flex-col gap-2 max-w-md">
+                <div data-tour="simulate-paths" className="mt-2 flex flex-col gap-2 max-w-md">
                   {(['proceed', 'remediate', 'renegotiate'] as SimBranch[]).map((br) => {
                     const created = !!projections?.some((p) => p.branch === br);
                     return (
@@ -334,6 +348,13 @@ export default function DealPage() {
               </div>
             </div>
           )}
+
+          <Guide
+            storageKey="ddos.sim.v1"
+            steps={MEMO_GUIDE}
+            trigger={!!s.recommendation && !shownDecision && activeRoom === 'parent'}
+            finalLabel="Got it"
+          />
 
           {chatLog.map((m, i) => (
             m.role === 'user' ? (

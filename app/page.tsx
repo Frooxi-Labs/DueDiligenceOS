@@ -1,139 +1,126 @@
 import Link from 'next/link';
-import { desc } from 'drizzle-orm';
+import { gte } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { dealBriefs } from '@/lib/db/schema';
+import { dealBriefs, workflowEvents } from '@/lib/db/schema';
+import AgentConstellation from './components/dashboard/AgentConstellation';
+import Heatmap from './components/dashboard/Heatmap';
 
 export const dynamic = 'force-dynamic';
 
-const STATUS_META: Record<string, { label: string; color: string }> = {
-  pending: { label: 'Pending', color: '#555555' },
-  intake: { label: 'Intake', color: '#2383e2' },
-  analysis: { label: 'Analysis', color: '#2383e2' },
-  financial: { label: 'Underwriting', color: '#2383e2' },
-  synthesis: { label: 'Synthesis', color: '#2383e2' },
-  escalated: { label: 'Needs documents', color: '#f59e0b' },
-  awaiting_human: { label: 'Needs decision', color: '#f59e0b' },
-  decided: { label: 'Decided', color: '#22c55e' },
-  failed: { label: 'Failed', color: '#ef4444' },
-};
-
-const AGENTS = [
-  { code: 'AR', name: 'Archivist', desc: 'Extracts the facts' },
-  { code: 'RG', name: 'Regulatory', desc: 'Compliance & zoning' },
-  { code: 'LG', name: 'Legal', desc: 'Title & contract' },
-  { code: 'FN', name: 'Financial', desc: 'Underwriting' },
-  { code: 'SY', name: 'Synthesis', desc: 'Deal memo' },
+const WORKFLOW = [
+  { n: '1', label: 'Intake' },
+  { n: '2', label: 'Analysis' },
+  { n: '3', label: 'Negotiation' },
+  { n: '4', label: 'Recruitment' },
+  { n: '5', label: 'Underwrite' },
+  { n: '6', label: 'Memo + sign-off' },
 ];
 
-const STEPS = [
-  { n: '01', title: 'Upload the deal package', desc: 'Attach the title deed, contract, inspection, and disclosures — or describe the deal.' },
-  { n: '02', title: 'Agents collaborate through Band', desc: 'Archivist extracts the facts; Regulatory, Legal, and Financial analyze and hand off — contradictions and cascading recalculations surface in real time.' },
-  { n: '03', title: 'You make the call', desc: 'Review the deal memo and composite risk score, then proceed with conditions, request remediation, or flag for renegotiation.' },
-];
-
-function Badge({ status }: { status: string }) {
-  const m = STATUS_META[status] ?? { label: status, color: '#555' };
-  return (
-    <span className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: `${m.color}20`, color: m.color }}>
-      <span className="w-1.5 h-1.5 rounded-full" style={{ background: m.color }} />
-      {m.label}
-    </span>
-  );
+/** Pull dashboard data. Kept outside the component so request-time values
+ *  (Date.now) and DB reads don't trip the render-purity lint. */
+async function loadData() {
+  let deals: { status: string }[] = [];
+  let events: { t: string; a: string | null; c: Date }[] = [];
+  try {
+    deals = (await db.select({ status: dealBriefs.status }).from(dealBriefs)) as { status: string }[];
+  } catch { /* DB not configured */ }
+  try {
+    const since = new Date(Date.now() - 130 * 86_400_000);
+    events = (await db
+      .select({ t: workflowEvents.event_type, a: workflowEvents.agent_type, c: workflowEvents.created_at })
+      .from(workflowEvents)
+      .where(gte(workflowEvents.created_at, since))) as { t: string; a: string | null; c: Date }[];
+  } catch { /* DB not configured */ }
+  return { deals, events };
 }
 
 export default async function Dashboard() {
-  let deals: (typeof dealBriefs.$inferSelect)[] = [];
-  try {
-    deals = await db.select().from(dealBriefs).orderBy(desc(dealBriefs.created_at)).limit(20);
-  } catch {
-    /* DB not configured — show empty dashboard */
-  }
+  const { deals, events } = await loadData();
 
-  const active = deals.filter((d) => ['intake', 'analysis', 'financial', 'synthesis', 'escalated'].includes(d.status));
-  const awaiting = deals.filter((d) => d.status === 'awaiting_human');
-  const decided = deals.filter((d) => d.status === 'decided');
+  // ── Aggregate ───────────────────────────────────────────────────────────
+  const count = (t: string) => events.filter((e) => e.t === t).length;
+  const messages = count('room.agent');
+  const contradictions = count('contradiction.detected');
+  const recruited = count('agent.recruited');
+  const decided = deals.filter((d) => d.status === 'decided').length;
+  const failed = deals.filter((d) => d.status === 'failed').length;
+  const successRate = decided + failed > 0 ? Math.round((decided / (decided + failed)) * 100) : null;
+
+  const dayCounts: Record<string, number> = {};
+  for (const e of events) {
+    const k = new Date(e.c).toISOString().slice(0, 10);
+    dayCounts[k] = (dayCounts[k] ?? 0) + 1;
+  }
+  const perAgent: Record<string, number> = {};
+  for (const e of events) if (e.t === 'room.agent' && e.a) perAgent[e.a] = (perAgent[e.a] ?? 0) + 1;
 
   const stats = [
     { label: 'Total runs', value: deals.length, color: '#e8e8e6' },
-    { label: 'Active now', value: active.length, color: '#2383e2' },
-    { label: 'Needs decision', value: awaiting.length, color: '#f59e0b' },
-    { label: 'Decided', value: decided.length, color: '#22c55e' },
+    { label: 'Messages', value: messages.toLocaleString(), color: '#2383e2' },
+    { label: 'Contradictions resolved', value: contradictions, color: '#a78bfa' },
+    { label: 'Specialists recruited', value: recruited, color: '#22c55e' },
+    { label: 'Success rate', value: successRate === null ? '—' : `${successRate}%`, color: '#22c55e' },
+    { label: 'Errors', value: failed, color: failed ? '#ef4444' : '#787774' },
   ];
 
   const card = { background: '#1c1c1c', border: '1px solid #2d2d2d' };
+  const sectionLabel = { color: '#787774', letterSpacing: '0.08em' } as const;
 
   return (
-    <div className="overflow-y-auto df-scroll flex-1 min-h-0 p-8" style={{ color: '#e8e8e6' }}>
-      <div className="mb-8 flex items-end justify-between gap-4">
-        <div>
-          <h1 className="text-[22px] font-semibold mb-1">Due-Diligence Committee</h1>
-          <p className="text-[13px]" style={{ color: '#9b9a97' }}>
-            Five specialist AI agents collaborate through Band to evaluate a real-estate deal, surface contradictions, and reach a decision you approve.
+    <div className="overflow-y-auto df-scroll flex-1 min-h-0 px-10 py-9" style={{ color: '#e8e8e6' }}>
+      {/* Header */}
+      <div className="mb-8 flex items-start justify-between gap-8">
+        <div style={{ maxWidth: 620 }}>
+          <h1 className="text-[26px] font-semibold tracking-tight mb-2">Committee command center</h1>
+          <p className="text-[13.5px] leading-relaxed" style={{ color: '#9b9a97' }}>
+            Eight specialist agents — five reasoning, three quantitative — coordinated through Band. Click an agent to meet it.
           </p>
         </div>
-        <Link href="/deals/new" data-tour="new-run" className="text-[12px] font-medium px-3 py-2 rounded-lg flex-shrink-0" style={{ background: '#2383e2', color: '#fff' }}>+ New run</Link>
+        <Link href="/deals/new" data-tour="new-run" className="text-[12.5px] font-medium px-3.5 py-2 rounded-lg flex-shrink-0 mt-1 transition-[filter] hover:brightness-110" style={{ background: '#2383e2', color: '#fff' }}>+ New run</Link>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-3 mb-8">
+      {/* Constellation */}
+      <div data-tour="committee" className="rounded-2xl mb-8 px-4 pt-5 pb-2" style={{ ...card, background: 'radial-gradient(120% 90% at 50% 30%, #1f1f1f 0%, #161616 60%, #141414 100%)' }}>
+        <AgentConstellation counts={perAgent} />
+      </div>
+
+      {/* Ops stats */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-9">
         {stats.map((s) => (
-          <div key={s.label} className="rounded-xl p-4" style={card}>
-            <p className="text-[10px] mb-2 uppercase tracking-widest font-semibold" style={{ color: '#555' }}>{s.label}</p>
-            <p className="text-[28px] font-semibold leading-none" style={{ color: s.color }}>{s.value}</p>
+          <div key={s.label} className="rounded-xl px-4 py-3.5" style={card}>
+            <p className="text-[10px] mb-2 uppercase tracking-widest font-semibold leading-tight" style={{ color: '#555' }}>{s.label}</p>
+            <p className="text-[24px] font-semibold leading-none" style={{ color: s.color }}>{s.value}</p>
           </div>
         ))}
       </div>
 
-      {/* The committee */}
-      <p className="text-[13px] font-semibold mb-3" style={{ color: '#9b9a97' }}>The committee</p>
-      <div data-tour="committee" className="grid grid-cols-5 gap-3 mb-8">
-        {AGENTS.map((a) => (
-          <div key={a.code} className="rounded-xl p-4" style={card}>
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-bold mb-2" style={{ background: '#1a3a5c', color: '#2383e2' }}>{a.code}</div>
-            <p className="text-[13px] font-semibold">{a.name}</p>
-            <p className="text-[11px] mt-0.5" style={{ color: '#9b9a97' }}>{a.desc}</p>
+      {/* Activity + workflow */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        {/* Heatmap */}
+        <div className="lg:col-span-2 rounded-2xl p-5" style={card}>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-[11px] font-semibold uppercase" style={sectionLabel}>Committee activity</p>
+            <p className="text-[11px]" style={{ color: '#555' }}>{events.length.toLocaleString()} events · last 18 weeks</p>
           </div>
-        ))}
-      </div>
-
-      {/* How it works */}
-      <div data-tour="how" className="grid grid-cols-3 gap-3 mb-8">
-        {STEPS.map((s) => (
-          <div key={s.n} className="rounded-xl p-4" style={card}>
-            <p className="text-[10px] font-bold mb-2 uppercase tracking-widest" style={{ color: '#2383e2' }}>Step {s.n}</p>
-            <p className="text-[13px] font-semibold mb-1">{s.title}</p>
-            <p className="text-[12px] leading-relaxed" style={{ color: '#9b9a97' }}>{s.desc}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Recent runs */}
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-[13px] font-semibold" style={{ color: '#9b9a97' }}>Recent runs</h2>
-      </div>
-      {deals.length === 0 ? (
-        <div className="rounded-xl p-16 text-center" style={card}>
-          <p className="text-[13px] mb-4" style={{ color: '#9b9a97' }}>No runs yet. Start one to watch the committee deliberate in real time.</p>
-          <Link href="/deals/new" className="inline-flex text-[13px] font-medium px-4 py-2 rounded-lg" style={{ background: '#2383e2', color: '#fff' }}>Start your first run →</Link>
+          <Heatmap counts={dayCounts} />
         </div>
-      ) : (
-        <div className="space-y-1.5">
-          {[...awaiting, ...active, ...decided, ...deals.filter((d) => d.status === 'failed' || d.status === 'pending')].map((deal) => (
-            <Link key={deal.id} href={`/deals/${deal.id}`} className="flex items-center gap-4 px-4 py-3 rounded-xl group transition-colors" style={card}>
-              <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-medium truncate group-hover:text-white transition-colors">{deal.title}</p>
-                <p className="text-[11px] mt-0.5 truncate" style={{ color: '#555' }}>
-                  {deal.intended_use} · ${Number(deal.purchase_price).toLocaleString()}
-                </p>
+
+        {/* Workflow */}
+        <div className="rounded-2xl p-5" style={card}>
+          <p className="text-[11px] font-semibold uppercase mb-4" style={sectionLabel}>How a run flows</p>
+          <div className="flex flex-col gap-2">
+            {WORKFLOW.map((w, i) => (
+              <div key={w.n} className="flex items-center gap-3">
+                <span className="flex items-center justify-center rounded-full text-[11px] font-bold flex-shrink-0" style={{ width: 24, height: 24, background: i === WORKFLOW.length - 1 ? '#0d1f12' : '#13243a', color: i === WORKFLOW.length - 1 ? '#22c55e' : '#2383e2' }}>{w.n}</span>
+                <span className="text-[13px]" style={{ color: '#c9c8c5' }}>{w.label}</span>
               </div>
-              <Badge status={deal.status} />
-              <p className="text-[11px] flex-shrink-0 w-16 text-right" style={{ color: '#444' }}>
-                {deal.created_at ? new Date(deal.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
-              </p>
-            </Link>
-          ))}
+            ))}
+          </div>
+          <p className="text-[11px] leading-relaxed mt-4 pt-4" style={{ color: '#787774', borderTop: '1px solid #2d2d2d' }}>
+            Stages run in order; who debates, who delegates, and which specialists join are decided from the deal.
+          </p>
         </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -2,6 +2,20 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Guide, { type GuideStep } from '@/app/components/Guide';
+
+const NEW_GUIDE: GuideStep[] = [
+  {
+    target: 'load-sample',
+    title: 'First time? Try the sample',
+    body: 'Loads a deliberately tricky mixed-use redevelopment — zoning conflict, an undisclosed easement, a buried oil tank — so you can watch the committee catch them.',
+  },
+  {
+    target: 'composer',
+    title: 'Or bring your own deal',
+    body: 'Describe the deal here, or attach the documents (PDF / TXT / MD). Press Enter to convene the committee.',
+  },
+];
 
 interface Msg {
   role: 'user' | 'system';
@@ -144,7 +158,7 @@ export default function NewDealPage() {
               <path d="M10 16h12M10 11h12M10 21h7" stroke="#2d2d2d" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
             <p className="text-[13px]">Describe the deal or attach the documents to begin</p>
-            <button onClick={() => setInput(SAMPLE_TEXT)} className="text-[12px] border border-neutral-800 rounded-md px-3 py-1.5 hover:text-white">Load sample</button>
+            <button data-tour="load-sample" onClick={() => setInput(SAMPLE_TEXT)} className="text-[12px] border border-neutral-800 rounded-md px-3 py-1.5 hover:text-white">Load sample</button>
           </div>
         ) : (
           <div className="absolute inset-0 overflow-y-auto df-scroll">
@@ -181,7 +195,7 @@ export default function NewDealPage() {
               ))}
             </div>
           )}
-          <div className="rounded-2xl px-4 py-3" style={{ background: '#212121' }}>
+          <div data-tour="composer" className="rounded-2xl px-4 py-3" style={{ background: '#212121' }}>
             <textarea ref={taRef} rows={1} value={input} onChange={autoResize} onKeyDown={onKeyDown}
               placeholder="Describe the deal — price, use, financing… or attach the documents"
               className="w-full resize-none bg-transparent text-[14px] leading-6 outline-none" style={{ maxHeight: 180, overflowY: 'auto', color: '#e8e8e6' }} />
@@ -202,6 +216,8 @@ export default function NewDealPage() {
           </div>
         </div>
       </div>
+
+      <Guide storageKey="ddos.new.v1" steps={NEW_GUIDE} trigger={msgs.length === 0 && !busy} finalLabel="Got it" />
     </div>
   );
 }
