@@ -79,16 +79,24 @@ export default function Guide({
     try { localStorage.setItem(storageKey, 'done'); } catch { /* ignore */ }
   }, [storageKey]);
 
-  // Track the highlighted element across resize / scroll / step change.
+  // Track the highlighted element across resize / scroll / step change. We scroll
+  // the target into view first (so the spotlight is never off-screen) and
+  // re-measure a couple of times once layout settles — fixing mis-anchored cards.
   useLayoutEffect(() => {
     if (!active) return;
-    const update = () => setRect(targetRect(step?.target));
-    update();
-    window.addEventListener('resize', update);
-    window.addEventListener('scroll', update, true);
+    const measure = () => setRect(targetRect(step?.target));
+    if (step?.target) {
+      document.querySelector(`[data-tour="${step.target}"]`)?.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+    }
+    measure();
+    const t1 = setTimeout(measure, 130);
+    const t2 = setTimeout(measure, 380);
+    window.addEventListener('resize', measure);
+    window.addEventListener('scroll', measure, true);
     return () => {
-      window.removeEventListener('resize', update);
-      window.removeEventListener('scroll', update, true);
+      clearTimeout(t1); clearTimeout(t2);
+      window.removeEventListener('resize', measure);
+      window.removeEventListener('scroll', measure, true);
     };
   }, [active, step?.target, i]);
 

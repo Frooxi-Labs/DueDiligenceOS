@@ -1,70 +1,74 @@
 /**
- * GitHub-style activity heatmap. Pure presentational: takes a date→count map
- * and renders the trailing `weeks` of committee activity, week-per-column.
+ * Contribution graph — month rows × day-of-month columns, like a GitHub-style
+ * grid. Pure presentational: takes a date→count map and renders the trailing
+ * `months`. Dark theme with a green intensity scale and bucket legend.
  */
 
-const SCALE = ['#161616', '#173656', '#1f4f80', '#2a6cb0', '#3b82f6'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const SCALE = ['#1a1a1a', '#14391f', '#1f6b38', '#2f9e54', '#4ade80'];
+const BUCKETS = [
+  { c: SCALE[1], label: '1–2' },
+  { c: SCALE[2], label: '3–5' },
+  { c: SCALE[3], label: '6–8' },
+  { c: SCALE[4], label: '9+' },
+];
 
-function bucket(count: number, max: number): number {
+function level(count: number): number {
   if (count <= 0) return 0;
-  if (max <= 1) return 4;
-  const r = count / max;
-  return r > 0.66 ? 4 : r > 0.33 ? 3 : r > 0.12 ? 2 : 1;
+  if (count <= 2) return 1;
+  if (count <= 5) return 2;
+  if (count <= 8) return 3;
+  return 4;
 }
 
-export default function Heatmap({ counts, weeks = 18 }: { counts: Record<string, number>; weeks?: number }) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const total = weeks * 7;
-  const start = new Date(today);
-  start.setDate(today.getDate() - (total - 1));
-  start.setDate(start.getDate() - start.getDay()); // align to Sunday
-
-  const days: { key: string; count: number; date: Date }[] = [];
-  for (let d = new Date(start); d <= today; d.setDate(d.getDate() + 1)) {
-    const key = d.toISOString().slice(0, 10);
-    days.push({ key, count: counts[key] ?? 0, date: new Date(d) });
+export default function Heatmap({ counts, months = 7 }: { counts: Record<string, number>; months?: number }) {
+  const now = new Date();
+  // Build the list of (year, month) rows, newest at the top.
+  const rows: { y: number; m: number }[] = [];
+  for (let k = 0; k < months; k++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - k, 1);
+    rows.push({ y: d.getFullYear(), m: d.getMonth() });
   }
-  const max = Math.max(1, ...days.map((d) => d.count));
+  const days = Array.from({ length: 31 }, (_, i) => i + 1);
+  const daysInMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
 
-  // Group into week-columns.
-  const cols: typeof days[] = [];
-  for (let i = 0; i < days.length; i += 7) cols.push(days.slice(i, i + 7));
-
-  // Month labels: show a label on the first column whose first day starts a new month.
-  const monthLabels = cols.map((col, i) => {
-    const first = col[0]?.date;
-    if (!first) return '';
-    const prev = cols[i - 1]?.[0]?.date;
-    return !prev || prev.getMonth() !== first.getMonth() ? MONTHS[first.getMonth()] : '';
-  });
-
-  const cell = 12, gap = 3;
   return (
-    <div>
-      <div className="flex" style={{ gap, marginLeft: 2, marginBottom: 4 }}>
-        {monthLabels.map((m, i) => (
-          <span key={i} className="text-[9px]" style={{ width: cell, color: '#555', overflow: 'visible', whiteSpace: 'nowrap' }}>{m}</span>
-        ))}
-      </div>
-      <div className="flex" style={{ gap }}>
-        {cols.map((col, ci) => (
-          <div key={ci} className="flex flex-col" style={{ gap }}>
-            {col.map((d) => (
-              <div
-                key={d.key}
-                title={`${d.count} event${d.count === 1 ? '' : 's'} · ${d.key}`}
-                style={{ width: cell, height: cell, borderRadius: 3, background: SCALE[bucket(d.count, max)] }}
-              />
-            ))}
+    <div className="overflow-x-auto df-scroll">
+      <div style={{ minWidth: 660 }}>
+        {/* rows */}
+        {rows.map(({ y, m }) => (
+          <div key={`${y}-${m}`} className="flex items-center" style={{ gap: 4, marginBottom: 4 }}>
+            <span className="text-[10px] font-medium" style={{ width: 28, color: '#787774', flexShrink: 0 }}>{MONTHS[m]}</span>
+            {days.map((day) => {
+              if (day > daysInMonth(y, m)) return <span key={day} style={{ width: 16, height: 16, flexShrink: 0 }} />;
+              const key = `${y}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+              const c = counts[key] ?? 0;
+              return (
+                <span
+                  key={day}
+                  title={`${c} event${c === 1 ? '' : 's'} · ${MONTHS[m]} ${day}`}
+                  style={{ width: 16, height: 16, borderRadius: 5, background: SCALE[level(c)], flexShrink: 0 }}
+                />
+              );
+            })}
           </div>
         ))}
+        {/* day axis */}
+        <div className="flex items-center" style={{ gap: 4, marginTop: 2 }}>
+          <span style={{ width: 28, flexShrink: 0 }} />
+          {days.map((day) => (
+            <span key={day} className="text-[8px] text-center" style={{ width: 16, color: '#444', flexShrink: 0 }}>{day}</span>
+          ))}
+        </div>
       </div>
-      <div className="flex items-center justify-end gap-1.5 mt-2 text-[10px]" style={{ color: '#555' }}>
-        <span>Less</span>
-        {SCALE.map((c) => <span key={c} style={{ width: 11, height: 11, borderRadius: 3, background: c }} />)}
-        <span>More</span>
+
+      {/* legend */}
+      <div className="flex items-center gap-2 mt-4 text-[10px]" style={{ color: '#787774' }}>
+        {BUCKETS.map((b) => (
+          <span key={b.label} className="flex items-center gap-1.5">
+            <span style={{ width: 12, height: 12, borderRadius: 4, background: b.c }} />{b.label}
+          </span>
+        ))}
       </div>
     </div>
   );

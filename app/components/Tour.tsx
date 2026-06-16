@@ -16,13 +16,13 @@ const STEPS: GuideStep[] = [
   },
   {
     target: 'committee',
-    title: 'The committee',
-    body: 'Five TypeScript agents handle intake, regulatory, legal, financial and synthesis, and they recruit three Python quantitative specialists when a deal needs them.',
+    title: 'Meet the committee',
+    body: 'Five TypeScript agents plus three Python specialists. Tap any agent to see what it does and how active it’s been.',
   },
   {
-    target: 'how',
-    title: 'How they work',
-    body: 'Agents read each other through Band, reconcile contradictions, delegate tasks, then hand you a Red / Yellow / Green memo with conditions.',
+    target: 'analytics',
+    title: 'Track the work',
+    body: 'Committee throughput and a contribution graph of every event — messages, contradictions, recruitments — over time.',
   },
   {
     target: 'sidebar',
