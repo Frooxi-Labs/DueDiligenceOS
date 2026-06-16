@@ -71,7 +71,7 @@ export default async function Dashboard() {
             Five specialist AI agents collaborate through Band to evaluate a real-estate deal, surface contradictions, and reach a decision you approve.
           </p>
         </div>
-        <Link href="/deals/new" className="text-[12px] font-medium px-3 py-2 rounded-lg flex-shrink-0" style={{ background: '#2383e2', color: '#fff' }}>+ New run</Link>
+        <Link href="/deals/new" data-tour="new-run" className="text-[12px] font-medium px-3 py-2 rounded-lg flex-shrink-0" style={{ background: '#2383e2', color: '#fff' }}>+ New run</Link>
       </div>
 
       {/* Stats */}
@@ -86,7 +86,7 @@ export default async function Dashboard() {
 
       {/* The committee */}
       <p className="text-[13px] font-semibold mb-3" style={{ color: '#9b9a97' }}>The committee</p>
-      <div className="grid grid-cols-5 gap-3 mb-8">
+      <div data-tour="committee" className="grid grid-cols-5 gap-3 mb-8">
         {AGENTS.map((a) => (
           <div key={a.code} className="rounded-xl p-4" style={card}>
             <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-bold mb-2" style={{ background: '#1a3a5c', color: '#2383e2' }}>{a.code}</div>
@@ -97,7 +97,7 @@ export default async function Dashboard() {
       </div>
 
       {/* How it works */}
-      <div className="grid grid-cols-3 gap-3 mb-8">
+      <div data-tour="how" className="grid grid-cols-3 gap-3 mb-8">
         {STEPS.map((s) => (
           <div key={s.n} className="rounded-xl p-4" style={card}>
             <p className="text-[10px] font-bold mb-2 uppercase tracking-widest" style={{ color: '#2383e2' }}>Step {s.n}</p>

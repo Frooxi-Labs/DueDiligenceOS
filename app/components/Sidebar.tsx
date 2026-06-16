@@ -79,6 +79,7 @@ export default function Sidebar() {
 
   return (
     <aside
+      data-tour="sidebar"
       className="flex-shrink-0 flex flex-col h-full py-[10px] transition-all duration-300"
       style={{ width: collapsed ? 52 : 240, paddingLeft: collapsed ? 6 : 10, paddingRight: collapsed ? 6 : 0, background: '#040404' }}
     >
