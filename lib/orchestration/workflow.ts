@@ -171,40 +171,6 @@ async function delegate<T>(
   return result;
 }
 
-/** Decide whether an Environmental specialist should be recruited, and why. */
-function needsEnvironmental(pf: PropertyFact, compliance: ComplianceReport, legal: LegalRisk): string | null {
-  // Genuine environmental signals only — concrete hazards, not the word "environment".
-  const env = /contaminat|phase\s*i\b|wetland|\bflood\b|\bfema\b|\bepa\b|superfund|asbestos|underground storage|\bust\b|petroleum|fuel dispens|service station|soil|groundwater|remediat|hazardous/i;
-  // Findings that belong to Legal/Regulatory, not Environmental — never recruit on these.
-  const notEnv = /easement|\btitle\b|zoning|\blien\b|estoppel|reps?\b|contingency/i;
-  if (pf.missing_documents.some((d) => /phase\s*i|environmental/i.test(d))) return 'Missing Phase I environmental assessment';
-  const flagged = [...compliance.findings, ...legal.findings].find(
-    (f) => env.test(`${f.title} ${f.detail}`) && !notEnv.test(f.title)
-  );
-  return flagged ? `Environmental concern flagged: ${flagged.title}` : null;
-}
-
-/** Recruit the CapEx specialist when the deal involves real construction scope. */
-function needsCapex(deal: DealRecord): string | null {
-  const t = `${deal.intended_use} ${deal.acquisition_type} ${deal.documents}`.toLowerCase();
-  if (/\bconvert|conversion|redevelop|renovat|reposition|value[\s-]?add|gut|rehab|build[\s-]?out|tenant improvement/.test(t)) {
-    return `the plan involves significant construction (${deal.intended_use})`;
-  }
-  if (deal.acquisition_type === 'development') return 'a development/repositioning scope';
-  return null;
-}
-
-/** Recruit the Insurance/Catastrophe specialist when the deal carries hazard exposure. */
-function needsInsurance(compliance: ComplianceReport, deal: DealRecord, pf: PropertyFact): string | null {
-  const fz = (compliance.flood_zone ?? '').toLowerCase();
-  if (fz && !/\b(no|none|not|n\/a|outside)\b/.test(fz)) return `the property sits in a flood zone (${compliance.flood_zone})`;
-  const t = `${deal.documents} ${pf.notable_conditions.join(' ')}`.toLowerCase();
-  if (/\bflood|fema\b|coastal|hurricane|seismic|earthquake|wildfire|storm surge/.test(t)) {
-    return 'catastrophe (flood/wind/seismic) exposure is flagged in the package';
-  }
-  return null;
-}
-
 /**
  * Drive a deal through the committee. Agents post to the Band room and hand off
  * via targeted @mentions; this orchestrator owns ordering, contradiction
@@ -368,10 +334,10 @@ export async function runWorkflow(dealId: string): Promise<void> {
       }
     }
 
-    // ── EMERGENT DISPATCH — recruit the specialists the AGENTS asked for ─────
-    // Primary: whatever Regulatory/Legal decided to request from the deal context.
-    // A deterministic safety net only fills gaps they didn't request, so the
-    // demo's cross-framework moment never silently misses. Bounded; best-effort.
+    // ── EMERGENT DISPATCH — recruit only the specialists the AGENTS asked for ──
+    // Regulatory and Legal decide, from the deal context, which quantitative
+    // specialists the room needs (requested_specialists). No heuristic fallback:
+    // if no agent asks, none is recruited. Deduped; bounded; best-effort.
     const specialistSummaries: { label: string; summary: string }[] = [];
     const SPEC_META: Record<SpecialistType, { display: string; ask: string }> = {
       environmental: { display: 'Environmental', ask: 'Could you assess contamination risk and whether a Phase I is warranted?' },
@@ -381,12 +347,6 @@ export async function runWorkflow(dealId: string): Promise<void> {
     const requested = new Map<SpecialistType, { reason: string; by: CoreAgentType }>();
     for (const r of compliance.requested_specialists) if (!requested.has(r.specialist)) requested.set(r.specialist, { reason: r.reason, by: 'regulatory' });
     for (const r of legalRisk.requested_specialists) if (!requested.has(r.specialist)) requested.set(r.specialist, { reason: r.reason, by: 'legal' });
-    const fallbacks: [SpecialistType, string | null][] = [
-      ['environmental', needsEnvironmental(propertyFact, compliance, legalRisk)],
-      ['capex', needsCapex(deal)],
-      ['insurance', needsInsurance(compliance, deal, propertyFact)],
-    ];
-    for (const [spec, reason] of fallbacks) if (reason && !requested.has(spec)) requested.set(spec, { reason, by: 'regulatory' });
 
     for (const [spec, { reason, by }] of requested) {
       if (!getAgentConfigs()[spec].agentId) { await logEvent(dealId, 'recruitment.skipped', { id: spec }); continue; }
