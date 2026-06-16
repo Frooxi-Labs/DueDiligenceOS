@@ -63,7 +63,7 @@ function PileAvatar({ agent, c, i, z }: { agent: AgentType; c: { status: string;
   return (
     <div
       title={`${LABELS[agent]} — ${working ? 'working…' : c.headline ?? c.status}`}
-      className={`rounded-[11px] ${working ? 'agent-pulse' : ''}`}
+      className={`rounded-[11px] ${working ? 'working-bob' : ''}`}
       style={{ marginLeft: i ? -9 : 0, padding: 2, background: '#141414', border: `1.6px solid ${working ? '#ffffff' : 'transparent'}`, position: 'relative', zIndex: z }}
     >
       <AgentAvatar type={agent} size={26} />

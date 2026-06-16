@@ -38,7 +38,7 @@ export default function RouteLoader() {
           style={{ border: '2px solid rgba(255,255,255,0.08)', borderTopColor: '#35d277', animationDuration: '0.85s' }}
         />
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/band-logo.svg" alt="" width={30} height={30} style={{ opacity: 0.95 }} />
+        <img src="/logo.svg" alt="" width={28} height={28} className="rounded-md" style={{ opacity: 0.95 }} />
       </div>
     </div>,
     document.body,

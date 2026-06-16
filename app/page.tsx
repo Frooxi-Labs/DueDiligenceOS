@@ -34,36 +34,60 @@ const conns = AGENTS.map((a) => {
   return { id: a.id, d: orth(sx, a.sy, ex, a.y, a.mx), pulse: PY.has(a.id) ? '#4ade80' : '#5e9bff' };
 });
 
+function Dots() {
+  return (
+    <span className="inline-flex items-center gap-1 align-middle" style={{ marginLeft: 1 }}>
+      <span className="typing-dot" /><span className="typing-dot" style={{ animationDelay: '0.15s' }} /><span className="typing-dot" style={{ animationDelay: '0.3s' }} />
+    </span>
+  );
+}
+
 export default function Landing() {
   const [sel, setSel] = useState<AgentType | null>(null);
   const [typed, setTyped] = useState(0);
+  const [thinking, setThinking] = useState(false);
   const hubRef = useRef<SVGSVGElement>(null);
-  const eyesRef = useRef<SVGGElement>(null);
+  const leftEye = useRef<SVGGElement>(null);
+  const rightEye = useRef<SVGGElement>(null);
   const active = AGENTS.find((a) => a.id === sel) ?? null;
 
-  // Typewriter for the selected agent's introduction.
+  // Typing: pause to "think" (dots), type half, pause again, type the rest.
   useEffect(() => {
     if (!sel) return;
     const text = AGENTS.find((a) => a.id === sel)!.intro;
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTyped(0);
-    let i = 0;
-    const id = setInterval(() => { i += 1; setTyped(i); if (i >= text.length) clearInterval(id); }, 20);
-    return () => clearInterval(id);
+    setTyped(0); setThinking(true);
+    let cancelled = false;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const wait = (ms: number) => new Promise<void>((r) => timers.push(setTimeout(r, ms)));
+    (async () => {
+      await wait(700); if (cancelled) return;
+      setThinking(false);
+      const mid = Math.floor(text.length * 0.5);
+      for (let i = 1; i <= text.length; i++) {
+        if (cancelled) return;
+        setTyped(i);
+        if (i === mid) { setThinking(true); await wait(480); if (cancelled) return; setThinking(false); }
+        await wait(18 + Math.random() * 30);
+      }
+    })();
+    return () => { cancelled = true; timers.forEach(clearTimeout); };
   }, [sel]);
 
-  // The Band mascot's eyes follow the cursor.
+  // Each eye tracks the cursor independently (real-eye feel): the offset shrinks
+  // as the cursor nears that eye, so the near eye barely moves and the far eye looks across.
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
-      const hub = hubRef.current, eyes = eyesRef.current;
-      if (!hub || !eyes) return;
-      const r = hub.getBoundingClientRect();
-      let dx = e.clientX - (r.left + r.width / 2);
-      let dy = e.clientY - (r.top + r.height / 2);
-      const d = Math.hypot(dx, dy) || 1;
-      const m = 13;
-      dx = (dx / d) * m; dy = (dy / d) * m;
-      eyes.setAttribute('transform', `translate(${dx.toFixed(1)} ${dy.toFixed(1)})`);
+      for (const ref of [leftEye, rightEye]) {
+        const g = ref.current; if (!g) continue;
+        const r = g.getBoundingClientRect();
+        let dx = e.clientX - (r.left + r.width / 2);
+        let dy = e.clientY - (r.top + r.height / 2);
+        const d = Math.hypot(dx, dy) || 1;
+        const scale = Math.min(1, d / 230) * 7;
+        dx = (dx / d) * scale; dy = (dy / d) * scale;
+        g.setAttribute('transform', `translate(${dx.toFixed(1)} ${dy.toFixed(1)})`);
+      }
     };
     window.addEventListener('mousemove', onMove);
     return () => window.removeEventListener('mousemove', onMove);
@@ -74,7 +98,6 @@ export default function Landing() {
       <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1.4px)', backgroundSize: '26px 26px', maskImage: 'radial-gradient(120% 85% at 50% 42%, #000 35%, transparent 82%)', WebkitMaskImage: 'radial-gradient(120% 85% at 50% 42%, #000 35%, transparent 82%)' }} />
       <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(80% 60% at 50% 55%, transparent 40%, rgba(0,0,0,0.55) 100%)' }} />
 
-      {/* hero text */}
       <div className="relative z-10 text-center" style={{ marginTop: '7vh' }}>
         <p className="text-[12.5px] font-semibold tracking-[0.22em] uppercase mb-5" style={{ color: '#3ee08a' }}>AI due diligence · by committee</p>
         <h1 className="font-semibold" style={{ fontSize: 56, lineHeight: 1.03, letterSpacing: '-0.035em', color: '#fafafa' }}>Eight minds. One verdict.</h1>
@@ -90,31 +113,26 @@ export default function Landing() {
         <p className="mt-4 text-[12px]" style={{ color: '#5b6068' }}>Click an agent to meet it.</p>
       </div>
 
-      {/* illustration */}
+      {/* illustration stage */}
       <div className="relative z-10 flex-1 w-full flex items-center justify-center min-h-0 mt-1">
-        <div className="w-full" style={{ maxWidth: 1120, aspectRatio: '1200 / 540' }}>
-          <svg viewBox="0 0 1200 540" preserveAspectRatio="xMidYMid meet" className="w-full h-full">
+        <div className="relative w-full" style={{ maxWidth: 1120, aspectRatio: '1200 / 540' }}>
+          <svg viewBox="0 0 1200 540" preserveAspectRatio="xMidYMid meet" className="absolute inset-0 w-full h-full">
             <defs>
               <radialGradient id="hubGlow" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#35d277" stopOpacity="0.5" />
-                <stop offset="38%" stopColor="#35d277" stopOpacity="0.12" />
-                <stop offset="100%" stopColor="#35d277" stopOpacity="0" />
+                <stop offset="0%" stopColor="#35d277" stopOpacity="0.5" /><stop offset="38%" stopColor="#35d277" stopOpacity="0.12" /><stop offset="100%" stopColor="#35d277" stopOpacity="0" />
               </radialGradient>
               <linearGradient id="band-body" x1="0.1" y1="0.05" x2="0.9" y2="1">
                 <stop offset="0" stopColor="#6BEC97" /><stop offset="0.55" stopColor="#33D277" /><stop offset="1" stopColor="#15B455" />
               </linearGradient>
             </defs>
 
-            {/* click-away */}
             <rect x="0" y="0" width="1200" height="540" fill="transparent" onClick={() => setSel(null)} />
 
-            {/* constellation */}
             <g opacity="0.45">
               {BG.map(([x, y], i) => { const [nx, ny] = BG[(i + 1) % BG.length]; return <line key={`l${i}`} x1={x} y1={y} x2={nx} y2={ny} stroke="#171717" strokeWidth="1" />; })}
               {BG.map(([x, y], i) => <rect key={`s${i}`} x={x - 3} y={y - 3} width="6" height="6" rx="1.5" fill="none" stroke="#262626" />)}
             </g>
 
-            {/* connectors + pulses (Band → agents) */}
             {conns.map((c, i) => <path key={`c${i}`} id={`conn-${i}`} d={c.d} fill="none" stroke="#272727" strokeWidth="1.4" />)}
             {conns.map((c, i) => {
               const dur = 2.6 + (i % 3) * 0.5;
@@ -126,47 +144,46 @@ export default function Landing() {
               );
             })}
 
-            {/* hub glow + Band mascot (eyes follow cursor) */}
             <circle cx={HUB.cx} cy={HUB.cy} r="190" fill="url(#hubGlow)"><animate attributeName="opacity" values="0.7;1;0.7" dur="4s" repeatCount="indefinite" /></circle>
             <svg ref={hubRef} x={HUB.cx - HUB.s / 2} y={HUB.cy - HUB.s / 2} width={HUB.s} height={HUB.s} viewBox="0 0 288 288">
               <ellipse cx="146" cy="262" rx="76" ry="11" fill="#0B1A26" opacity="0.5" />
               <circle cx="144" cy="134" r="128" fill="#0B1A26" />
               <circle cx="144" cy="134" r="119" fill="url(#band-body)" />
               <circle cx="148" cy="148" r="86" fill="#0B1A26" />
-              <g ref={eyesRef} style={{ transition: 'transform 0.12s ease-out' }}>
-                <ellipse cx="122" cy="132" rx="13.5" ry="24" fill="#3FE0FF" />
-                <ellipse cx="174" cy="132" rx="13.5" ry="24" fill="#3FE0FF" />
-              </g>
+              <g ref={leftEye} style={{ transition: 'transform 0.22s ease-out' }}><ellipse cx="122" cy="132" rx="13.5" ry="24" fill="#3FE0FF" /></g>
+              <g ref={rightEye} style={{ transition: 'transform 0.22s ease-out' }}><ellipse cx="174" cy="132" rx="13.5" ry="24" fill="#3FE0FF" /></g>
             </svg>
 
-            {/* agent tiles */}
             {AGENTS.map((a) => (
               <g key={a.id} onClick={(e) => { e.stopPropagation(); setSel((s) => (s === a.id ? null : a.id)); }} style={{ cursor: 'pointer' }}>
                 <rect x={a.x - 32} y={a.y - 32} width="64" height="64" rx="16" fill="#0b0b0c" stroke={sel === a.id ? '#ffffff' : '#242424'} strokeWidth={sel === a.id ? 1.8 : 1} />
-                <image href={agentAvatar(a.id)} x={a.x - 26} y={a.y - 26} width="52" height="52" preserveAspectRatio="xMidYMid meet" style={{ pointerEvents: 'none' }} />
+                <image href={agentAvatar(a.id)} x={a.x - 27} y={a.y - 27} width="54" height="54" preserveAspectRatio="xMidYMid meet" style={{ pointerEvents: 'none' }} />
               </g>
             ))}
-
-            {/* intro bubble (typewriter) */}
-            {active && (() => {
-              const below = active.y < 175;
-              const bw = 250, bh = 120;
-              const bx = Math.min(Math.max(active.x - bw / 2, 8), 1200 - bw - 8);
-              const by = below ? active.y + 44 : active.y - bh - 40;
-              return (
-                <foreignObject x={bx} y={by} width={bw} height={bh}>
-                  <div style={{ width: '100%', height: '100%', boxSizing: 'border-box', background: '#15161a', border: '1px solid #2a2c34', borderRadius: 14, padding: '11px 14px', boxShadow: '0 14px 34px rgba(0,0,0,0.55)' }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', color: PY.has(active.id) ? '#86efac' : '#93c5fd', marginBottom: 5 }}>{active.name.toUpperCase()}</div>
-                    <div style={{ fontSize: 13, lineHeight: 1.42, color: '#d6d8de' }}>{active.intro.slice(0, typed)}<span className="animate-pulse" style={{ color: '#86efac' }}>▌</span></div>
-                  </div>
-                </foreignObject>
-              );
-            })()}
           </svg>
+
+          {/* messenger-style intro bubble — HTML overlay, dynamic size, anchored to the agent corner */}
+          {active && (
+            <div
+              className="absolute"
+              style={
+                active.side === 'l'
+                  ? { left: `${((active.x + 22) / 1200) * 100}%`, top: `${((active.y - 24) / 540) * 100}%`, transform: 'translateY(-100%)' }
+                  : { left: `${((active.x - 22) / 1200) * 100}%`, top: `${((active.y - 24) / 540) * 100}%`, transform: 'translate(-100%, -100%)' }
+              }
+            >
+              <div style={{ width: 'fit-content', maxWidth: 244, background: '#171a1f', border: '1px solid #2a2e36', borderRadius: 18, padding: '11px 14px', boxShadow: '0 16px 38px rgba(0,0,0,0.6)' }}>
+                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.05em', color: PY.has(active.id) ? '#86efac' : '#93c5fd', marginBottom: typed > 0 || !thinking ? 5 : 2 }}>{active.name.toUpperCase()}</div>
+                <div style={{ fontSize: 13, lineHeight: 1.45, color: '#dadce2' }}>
+                  {active.intro.slice(0, typed)}
+                  {thinking && <Dots />}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* made by Frooxi */}
       <div className="relative z-10 mb-4 flex items-center gap-2 text-[12px]" style={{ color: '#5b6068' }}>
         made by
         {/* eslint-disable-next-line @next/next/no-img-element */}
