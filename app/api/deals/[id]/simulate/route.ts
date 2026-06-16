@@ -31,7 +31,7 @@ async function contextualPanel(dealId: string): Promise<AgentType[]> {
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const blocked = guard(req, { id, requireToken: true, rateKey: 'deals:simulate', limit: 12, windowMs: 60_000 });
+  const blocked = guard(req, { id, requireToken: true, csrf: true, maxBytes: 16_000, rateKey: 'deals:simulate', limit: 12, windowMs: 60_000 });
   if (blocked) return blocked;
 
   const parsed = Body.safeParse(await req.json().catch(() => ({})));

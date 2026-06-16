@@ -37,7 +37,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 /** Delete a deal (child rows cascade). */
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const blocked = guard(req, { id, requireToken: true });
+  const blocked = guard(req, { id, requireToken: true, csrf: true });
   if (blocked) return blocked;
 
   await db.delete(dealBriefs).where(eq(dealBriefs.id, id));

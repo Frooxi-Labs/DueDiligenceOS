@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 /** Create a deal and kick off the committee workflow. */
 export async function POST(req: Request) {
   // Mutating + expensive (spawns the LLM workflow): token-gated and rate-limited.
-  const blocked = guard(req, { requireToken: true, rateKey: 'deals:create', limit: 10, windowMs: 60_000 });
+  const blocked = guard(req, { requireToken: true, csrf: true, maxBytes: 1_000_000, rateKey: 'deals:create', limit: 10, windowMs: 60_000 });
   if (blocked) return blocked;
 
   let body: unknown;

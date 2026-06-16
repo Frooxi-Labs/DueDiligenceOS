@@ -88,11 +88,45 @@ export function rateLimit(
   return null;
 }
 
+/**
+ * Reject cross-origin state-changing requests (CSRF defence). A browser always
+ * attaches Origin (or at least Referer) to a cross-site POST/DELETE, so a
+ * mismatch against our own Host is rejected. Non-browser clients that send
+ * neither (curl, server-to-server) are allowed through here — they are covered
+ * by the bearer-token gate instead.
+ */
+export function sameOrigin(req: Request): NextResponse | null {
+  const src = req.headers.get('origin') || req.headers.get('referer');
+  if (!src) return null;
+  const host = req.headers.get('host');
+  try {
+    if (new URL(src).host !== host) {
+      return NextResponse.json({ error: 'Cross-origin request rejected' }, { status: 403 });
+    }
+  } catch {
+    return NextResponse.json({ error: 'Bad origin' }, { status: 403 });
+  }
+  return null;
+}
+
+/** Reject oversized bodies up front, before we buffer or parse them. */
+export function bodyLimit(req: Request, maxBytes: number): NextResponse | null {
+  const len = Number(req.headers.get('content-length') ?? '0');
+  if (len && len > maxBytes) {
+    return NextResponse.json({ error: 'Payload too large' }, { status: 413 });
+  }
+  return null;
+}
+
 export interface GuardOptions {
   /** Validate this path id as a UUID (400 on failure). */
   id?: string;
   /** Enforce APP_API_TOKEN when configured. */
   requireToken?: boolean;
+  /** Reject cross-origin requests (set on every state-changing route). */
+  csrf?: boolean;
+  /** Reject bodies larger than this many bytes via Content-Length. */
+  maxBytes?: number;
   /** Rate-limit bucket name; omit to skip rate limiting. */
   rateKey?: string;
   limit?: number;
@@ -100,16 +134,24 @@ export interface GuardOptions {
 }
 
 /**
- * Run the configured guards in order (token → uuid → rate limit). Returns the
- * first failing response, or null when the request may proceed.
+ * Run the configured guards in order (token → csrf → uuid → size → rate limit).
+ * Returns the first failing response, or null when the request may proceed.
  */
 export function guard(req: Request, opts: GuardOptions = {}): NextResponse | null {
   if (opts.requireToken) {
     const r = checkToken(req);
     if (r) return r;
   }
+  if (opts.csrf) {
+    const r = sameOrigin(req);
+    if (r) return r;
+  }
   if (opts.id !== undefined && !isUuid(opts.id)) {
     return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+  }
+  if (opts.maxBytes) {
+    const r = bodyLimit(req, opts.maxBytes);
+    if (r) return r;
   }
   if (opts.rateKey) {
     const r = rateLimit(req, opts.rateKey, opts.limit ?? 30, opts.windowMs ?? 60_000);

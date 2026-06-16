@@ -14,7 +14,7 @@ const DecisionSchema = z.object({
 /** Record the reviewer's final decision (closes the human-in-the-loop gate). */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const blocked = guard(req, { id, requireToken: true, rateKey: 'deals:decide', limit: 30, windowMs: 60_000 });
+  const blocked = guard(req, { id, requireToken: true, csrf: true, maxBytes: 64_000, rateKey: 'deals:decide', limit: 30, windowMs: 60_000 });
   if (blocked) return blocked;
 
   let body: unknown;

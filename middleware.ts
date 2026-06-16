@@ -13,6 +13,8 @@ export function middleware() {
   res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.headers.set('X-DNS-Prefetch-Control', 'off');
   res.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  // Force HTTPS for a year (incl. subdomains) once served over TLS.
+  res.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   res.headers.set(
     'Content-Security-Policy',
     "frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'",

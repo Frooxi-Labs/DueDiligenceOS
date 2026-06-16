@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { bandRooms } from '@/lib/db/schema';
 import { BandClient, getAgentConfigs } from '@/lib/band';
-import { isUuid } from '@/lib/security/guard';
+import { guard } from '@/lib/security/guard';
 import type { AgentType } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -15,9 +15,11 @@ export const dynamic = 'force-dynamic';
  * Band room is the canonical source of truth and that context survives independent
  * of our process (an agent can drop and rejoin without losing state).
  */
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  if (!isUuid(id)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+  // Fans out to the Band API across every agent identity — rate-limit it.
+  const blocked = guard(req, { id, rateKey: 'deals:band-context', limit: 20, windowMs: 60_000 });
+  if (blocked) return blocked;
   const [room] = await db.select({ rid: bandRooms.band_room_id }).from(bandRooms).where(eq(bandRooms.deal_id, id)).limit(1);
   if (!room?.rid) return NextResponse.json({ error: 'No Band room for this deal yet.' }, { status: 404 });
 
