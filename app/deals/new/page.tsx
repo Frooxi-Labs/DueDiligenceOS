@@ -12,8 +12,13 @@ const NEW_GUIDE: GuideStep[] = [
   },
   {
     target: 'composer',
-    title: 'Or bring your own deal',
-    body: 'Describe the deal here, or attach the documents (PDF / TXT / MD). Press Enter to convene the committee.',
+    title: 'Describe the deal',
+    body: 'Type the deal here — price, use, financing — then press Enter to convene the committee.',
+  },
+  {
+    target: 'attach',
+    title: 'Or attach the documents',
+    body: 'Upload the title deed, purchase contract, inspection and disclosures (PDF, TXT or MD) and the Archivist reads them for you.',
   },
 ];
 
@@ -201,7 +206,7 @@ export default function NewDealPage() {
               className="w-full resize-none bg-transparent text-[14px] leading-6 outline-none" style={{ maxHeight: 180, overflowY: 'auto', color: '#e8e8e6' }} />
             <div className="flex items-center justify-between mt-2">
               <div className="flex items-center gap-2">
-                <button type="button" onClick={() => fileRef.current?.click()} className="rounded-md p-1.5" style={{ color: '#787774' }} title="Attach documents">
+                <button type="button" data-tour="attach" onClick={() => fileRef.current?.click()} className="rounded-md p-1.5" style={{ color: '#787774' }} title="Attach documents">
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 10V12a1 1 0 001 1h8a1 1 0 001-1v-2M8 2v8M5 5l3-3 3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
                 </button>
                 <input ref={fileRef} type="file" multiple className="hidden" accept=".pdf,.txt,.md,.csv,text/*"

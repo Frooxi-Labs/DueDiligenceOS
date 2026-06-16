@@ -108,7 +108,7 @@ export default function Sidebar() {
       )}
 
       <div className={collapsed ? 'px-1 mb-3' : 'px-2 mb-4'}>
-        <Link href="/deals/new" title="New run" className="df-sidebar-btn flex items-center rounded-lg" style={{ gap: collapsed ? 0 : 8, padding: collapsed ? '8px' : '8px 12px', color: '#e8e8e6', justifyContent: collapsed ? 'center' : 'flex-start' }}>
+        <Link href="/deals/new" data-tour="sidebar-newrun" title="New run" className="df-sidebar-btn flex items-center rounded-lg" style={{ gap: collapsed ? 0 : 8, padding: collapsed ? '8px' : '8px 12px', color: '#e8e8e6', justifyContent: collapsed ? 'center' : 'flex-start' }}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}><path d="M7 1v12M1 7h12" stroke="#9b9a97" strokeWidth="1.5" strokeLinecap="round" /></svg>
           {!collapsed && <span className="text-[13px] font-medium">New run</span>}
         </Link>
@@ -123,12 +123,12 @@ export default function Sidebar() {
               <rect x="1" y="8" width="5" height="5" rx="1" fill="currentColor" opacity="0.7" />
               <rect x="8" y="8" width="5" height="5" rx="1" fill="currentColor" opacity="0.7" />
             </svg>
-            Dashboard
+            Home
           </Link>
         </nav>
       )}
 
-      <div className={`flex-1 overflow-y-auto df-scroll ${collapsed ? 'px-1' : 'px-2'}`}>
+      <div data-tour="sidebar-rooms" className={`flex-1 overflow-y-auto df-scroll ${collapsed ? 'px-1' : 'px-2'}`}>
         {!collapsed && deals.length > 0 && (
           <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#555' }}>Recent deals</p>
         )}

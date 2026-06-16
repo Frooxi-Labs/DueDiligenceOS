@@ -4,7 +4,6 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import Sidebar from './components/Sidebar';
 import PageTransition from './components/PageTransition';
-import Tour from './components/Tour';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -25,7 +24,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           <PageTransition>{children}</PageTransition>
         </main>
-        <Suspense fallback={null}><Tour /></Suspense>
       </body>
     </html>
   );

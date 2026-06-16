@@ -7,6 +7,26 @@ import Markdown from '@/app/components/Markdown';
 import Guide, { type GuideStep } from '@/app/components/Guide';
 import type { AgentType, ForkProjection, HumanDecision, SimBranch } from '@/types';
 
+// Shown once when a committee room first opens.
+const ROOM_GUIDE: GuideStep[] = [
+  {
+    target: 'roster',
+    title: 'The committee, live',
+    body: 'Each agent lights up as it works. Watch them hand off, reconcile contradictions, and recruit specialists in real time.',
+  },
+  {
+    target: 'right-panel',
+    title: 'The audit trail',
+    body: 'Every event the committee emits — thoughts, tool calls, contradictions, recruitments — streams here and is fully replayable.',
+  },
+  {
+    target: 'panel-tabs',
+    title: 'Activity & memo',
+    body: 'Switch between the live activity feed and the final deal memo from these tabs.',
+  },
+];
+
+// Shown once when the first verdict lands.
 const MEMO_GUIDE: GuideStep[] = [
   {
     target: 'memo-card',
@@ -17,6 +37,16 @@ const MEMO_GUIDE: GuideStep[] = [
     target: 'simulate-paths',
     title: 'Simulate before you decide',
     body: 'The memo is held for your call. Pick a path and the committee opens a side room to work through the outcome — compare proceed / remediate / renegotiate, then commit from there.',
+  },
+  {
+    target: 'sidebar-rooms',
+    title: 'Rooms live here',
+    body: 'This committee room — and any simulated branches you open — appear nested in the sidebar, so you can jump between the parent and child rooms.',
+  },
+  {
+    target: 'sidebar-newrun',
+    title: 'Start another run',
+    body: 'Kick off a fresh due-diligence run anytime from here.',
   },
 ];
 
@@ -196,7 +226,7 @@ export default function DealPage() {
         </header>
 
         {!inChildRoom && (
-        <div className="grid grid-cols-5 gap-3 px-6 mb-3 shrink-0">
+        <div data-tour="roster" className="grid grid-cols-5 gap-3 px-6 mb-3 shrink-0">
           {rosterAgents.map((a) => {
             const c = s.agents[a];
             return (
@@ -349,6 +379,14 @@ export default function DealPage() {
             </div>
           )}
 
+          {/* First-open room tour (while deliberating, before the memo guide). */}
+          <Guide
+            storageKey="ddos.room.v1"
+            steps={ROOM_GUIDE}
+            trigger={!inChildRoom && !s.recommendation && s.status !== 'failed'}
+            finalLabel="Got it"
+          />
+          {/* Memo → simulation → rooms tour, once the verdict lands. */}
           <Guide
             storageKey="ddos.sim.v1"
             steps={MEMO_GUIDE}
@@ -401,9 +439,9 @@ export default function DealPage() {
 
       {/* ── Right panel: Activity / Memo tabs ─────────────────────── */}
       {logsOpen ? (
-        <aside className="w-96 flex-shrink-0 border-l border-neutral-800 flex flex-col bg-neutral-900/20">
+        <aside data-tour="right-panel" className="w-96 flex-shrink-0 border-l border-neutral-800 flex flex-col bg-neutral-900/20">
           <div className="flex items-center justify-between px-4 h-12 border-b border-neutral-800">
-            <div className="flex items-center gap-3 text-sm">
+            <div data-tour="panel-tabs" className="flex items-center gap-3 text-sm">
               <button onClick={() => setRightTab('activity')} className={rightTab === 'activity' ? 'text-white font-medium' : 'text-neutral-500 hover:text-neutral-300'}>Activity {activityCount > 0 && <span className="text-neutral-600">· {activityCount}</span>}</button>
               {s.recommendation && <button onClick={() => setRightTab('memo')} className={rightTab === 'memo' ? 'text-white font-medium' : 'text-neutral-500 hover:text-neutral-300'}>Memo</button>}
             </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 /**
  * Reusable spotlight guide. Dependency-free: a dimmed overlay with a moving
@@ -60,7 +61,13 @@ export default function Guide({
   const [i, setI] = useState(0);
   const [rect, setRect] = useState<Rect | null>(null);
   const [card, setCard] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [mounted, setMounted] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
+
+  // Portal target — body has no transformed ancestor, so the fixed overlay is
+  // measured against the viewport and the spotlight lines up with the target.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => setMounted(true), []);
 
   const step = steps[i];
 
@@ -89,12 +96,13 @@ export default function Guide({
       document.querySelector(`[data-tour="${step.target}"]`)?.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
     }
     measure();
-    const t1 = setTimeout(measure, 130);
-    const t2 = setTimeout(measure, 380);
+    // Re-measure a few times as panels open / fonts settle, so the spotlight
+    // tracks the element's final position instead of a stale one.
+    const timers = [120, 360, 700].map((ms) => setTimeout(measure, ms));
     window.addEventListener('resize', measure);
     window.addEventListener('scroll', measure, true);
     return () => {
-      clearTimeout(t1); clearTimeout(t2);
+      timers.forEach(clearTimeout);
       window.removeEventListener('resize', measure);
       window.removeEventListener('scroll', measure, true);
     };
@@ -146,24 +154,29 @@ export default function Guide({
 
   const start = () => { setI(0); setActive(true); };
 
+  if (!mounted) return null;
+
   if (!active) {
-    return replay ? (
-      <button
-        onClick={start}
-        aria-label={replayLabel}
-        className="fixed bottom-5 right-5 z-[9998] flex items-center gap-2 rounded-full px-4 py-2.5 text-[12px] font-medium shadow-lg transition-transform hover:scale-105"
-        style={{ background: '#1c1c1c', border: '1px solid #2d2d2d', color: '#e8e8e6' }}
-      >
-        <span className="flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold" style={{ background: ACCENT, color: '#fff' }}>?</span>
-        {replayLabel}
-      </button>
-    ) : null;
+    return replay
+      ? createPortal(
+          <button
+            onClick={start}
+            aria-label={replayLabel}
+            className="fixed bottom-5 right-5 z-[9998] flex items-center gap-2 rounded-full px-4 py-2.5 text-[12px] font-medium shadow-lg transition-transform hover:scale-105"
+            style={{ background: '#1c1c1c', border: '1px solid #2d2d2d', color: '#e8e8e6' }}
+          >
+            <span className="flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold" style={{ background: ACCENT, color: '#fff' }}>?</span>
+            {replayLabel}
+          </button>,
+          document.body,
+        )
+      : null;
   }
 
   const pad = 8;
   const spot = rect ? { top: rect.top - pad, left: rect.left - pad, width: rect.width + pad * 2, height: rect.height + pad * 2 } : null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[9999]" style={{ fontFamily: 'var(--font-inter), system-ui, sans-serif' }}>
       <div className="absolute inset-0" style={{ background: spot ? 'transparent' : 'rgba(2,2,2,0.74)', transition: 'background 0.2s' }} onClick={finish} />
 
@@ -209,6 +222,7 @@ export default function Guide({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
