@@ -5,6 +5,7 @@ import { db } from '@/lib/db';
 import { dealBriefs, agentEvaluations, workflowEvents } from '@/lib/db/schema';
 import { simulateBranch } from '@/lib/orchestration/forking';
 import { broadcast } from '@/lib/realtime';
+import { guard } from '@/lib/security/guard';
 import type { AgentType, DealRecord, ForkProjection, SimBranch } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -30,6 +31,9 @@ async function contextualPanel(dealId: string): Promise<AgentType[]> {
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const blocked = guard(req, { id, requireToken: true, rateKey: 'deals:simulate', limit: 12, windowMs: 60_000 });
+  if (blocked) return blocked;
+
   const parsed = Body.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) return NextResponse.json({ error: 'branch required' }, { status: 422 });
   const branch = parsed.data.branch as SimBranch;

@@ -9,12 +9,15 @@ import {
   negotiationRounds,
   finalDecisions,
 } from '@/lib/db/schema';
+import { guard } from '@/lib/security/guard';
 
 export const dynamic = 'force-dynamic';
 
 /** Full deal state — used to hydrate the UI on load and on SSE reconnect. */
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const blocked = guard(req, { id });
+  if (blocked) return blocked;
 
   const [deal] = await db.select().from(dealBriefs).where(eq(dealBriefs.id, id)).limit(1);
   if (!deal) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -32,8 +35,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 }
 
 /** Delete a deal (child rows cascade). */
-export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const blocked = guard(req, { id, requireToken: true });
+  if (blocked) return blocked;
+
   await db.delete(dealBriefs).where(eq(dealBriefs.id, id));
   return NextResponse.json({ ok: true });
 }

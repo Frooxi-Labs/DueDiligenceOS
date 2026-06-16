@@ -4,11 +4,16 @@ import { db } from '@/lib/db';
 import { dealBriefs } from '@/lib/db/schema';
 import { DealInputSchema } from '@/lib/deals';
 import { runWorkflow } from '@/lib/orchestration';
+import { guard } from '@/lib/security/guard';
 
 export const dynamic = 'force-dynamic';
 
 /** Create a deal and kick off the committee workflow. */
 export async function POST(req: Request) {
+  // Mutating + expensive (spawns the LLM workflow): token-gated and rate-limited.
+  const blocked = guard(req, { requireToken: true, rateKey: 'deals:create', limit: 10, windowMs: 60_000 });
+  if (blocked) return blocked;
+
   let body: unknown;
   try {
     body = await req.json();

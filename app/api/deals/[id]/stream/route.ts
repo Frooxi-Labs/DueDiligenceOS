@@ -1,4 +1,5 @@
 import { subscribe } from '@/lib/realtime';
+import { isUuid } from '@/lib/security/guard';
 import type { DealEvent } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -6,6 +7,7 @@ export const dynamic = 'force-dynamic';
 /** Server-Sent Events stream of the committee's live deliberation. */
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  if (!isUuid(id)) return new Response('Invalid id', { status: 400 });
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({

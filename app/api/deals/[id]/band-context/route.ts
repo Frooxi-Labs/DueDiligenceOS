@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { bandRooms } from '@/lib/db/schema';
 import { BandClient, getAgentConfigs } from '@/lib/band';
+import { isUuid } from '@/lib/security/guard';
 import type { AgentType } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -16,6 +17,7 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  if (!isUuid(id)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
   const [room] = await db.select({ rid: bandRooms.band_room_id }).from(bandRooms).where(eq(bandRooms.deal_id, id)).limit(1);
   if (!room?.rid) return NextResponse.json({ error: 'No Band room for this deal yet.' }, { status: 404 });
 

@@ -1,6 +1,8 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
+// Standalone deck build script (run with node, outside the Next app).
 const path = require('path');
 const fs = require('fs');
-const pptxgen = require('/tmp/ddos-deck/node_modules/pptxgenjs');
+const pptxgen = require('pptxgenjs');
 
 const dir = '/tmp/ddos-deck-v2';
 const pptx = new pptxgen();

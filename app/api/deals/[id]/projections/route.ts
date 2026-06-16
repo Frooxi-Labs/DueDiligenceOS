@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { workflowEvents } from '@/lib/db/schema';
+import { isUuid } from '@/lib/security/guard';
 import type { ForkProjection } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -9,6 +10,7 @@ export const dynamic = 'force-dynamic';
 /** The latest simulated decision branches (child rooms) for a deal, if any. */
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  if (!isUuid(id)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
   const rows = await db
     .select({ type: workflowEvents.event_type, payload: workflowEvents.payload })
     .from(workflowEvents)

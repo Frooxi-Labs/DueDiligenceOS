@@ -44,14 +44,23 @@ async function reportError(dealId: string, roomId: string, agent: AgentType, con
   try { await new BandClient(agent).postEvent(roomId, content, 'error'); } catch { /* best-effort */ }
 }
 
-/** Role-aware one-liner an agent "thinks" before it reasons over the room. */
-const THINKING: Record<CoreAgentType, string> = {
-  archivist: 'Extracting property facts, encumbrances, and the missing-document checklist from the package.',
-  regulatory: 'Cross-checking zoning, permits, flood, and environmental flags against the property facts in the room.',
-  legal: "Reviewing title, contract terms, and easements against the Archivist's facts in the room.",
-  financial: "Underwriting NOI, DSCR, and IRR from the room's facts and compliance findings.",
-  synthesis: 'Reading the whole room to weigh every agent’s findings into the memo.',
-};
+/** The pre-reasoning "thought" each agent posts — derived from THIS deal's terms,
+ *  not a fixed template, so it reflects what the agent is actually about to do. */
+function thinkingLine(agent: CoreAgentType, deal: DealRecord): string {
+  const use = deal.intended_use;
+  switch (agent) {
+    case 'archivist':
+      return `Extracting facts and encumbrances from the ${deal.acquisition_type} package for "${use}".`;
+    case 'regulatory':
+      return `Checking zoning for "${use}", plus permits and flood, against the Archivist's facts in the room.`;
+    case 'legal':
+      return "Reviewing title and the contract's easement and lien terms against the recorded facts in the room.";
+    case 'financial':
+      return `Underwriting NOI, DSCR and IRR at ${deal.financing_ltv}% LTV / ${deal.financing_rate}% over ${deal.hold_period_years}y.`;
+    case 'synthesis':
+      return `Weighing every agent's findings in the room into the deal memo for "${use}".`;
+  }
+}
 
 async function logEvent(dealId: string, eventType: string, payload: Record<string, unknown> = {}, agent?: AgentType) {
   await db.insert(workflowEvents).values({ deal_id: dealId, event_type: eventType, agent_type: agent, triggered_by: 'orchestrator', payload });
@@ -219,7 +228,7 @@ export async function runWorkflow(dealId: string): Promise<void> {
     const run = async (agent: CoreAgentType, ctx: Parameters<typeof runAgent>[1], mentionTargets: AgentType[]) => {
       emit(dealId, { type: 'agent.processing', agent });
       // 1) Think out loud, then 2) READ the shared Band room, then 3) reason over it.
-      await think(dealId, roomId, agent, THINKING[agent]);
+      await think(dealId, roomId, agent, thinkingLine(agent, deal));
       const roomContext = await readRoom(dealId, roomId, agent);
       let result;
       try {

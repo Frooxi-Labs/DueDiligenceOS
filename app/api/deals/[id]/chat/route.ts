@@ -5,11 +5,12 @@ import { db } from '@/lib/db';
 import { dealBriefs, agentEvaluations, bandRooms, workflowEvents } from '@/lib/db/schema';
 import { callText } from '@/lib/providers';
 import { BandClient, getAgentConfigs } from '@/lib/band';
+import { guard } from '@/lib/security/guard';
 import type { AgentType } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
-const ChatSchema = z.object({ message: z.string().min(1) });
+const ChatSchema = z.object({ message: z.string().min(1).max(4000) });
 
 const PERSONA: Record<AgentType, string> = {
   archivist: 'the Archivist (document intelligence) — you extracted the property facts',
@@ -35,6 +36,9 @@ function detectAgent(msg: string): AgentType {
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const blocked = guard(req, { id, requireToken: true, rateKey: 'deals:chat', limit: 20, windowMs: 60_000 });
+  if (blocked) return blocked;
+
   let body: unknown;
   try {
     body = await req.json();
