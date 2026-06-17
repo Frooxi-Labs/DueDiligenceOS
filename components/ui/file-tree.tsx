@@ -88,7 +88,7 @@ const Folder = forwardRef<HTMLButtonElement, FolderProps>(
             onSelect?.();
           }}
         >
-          {icon ?? (open ? <FolderOpenIcon className="size-4 shrink-0 text-blue-400" /> : <FolderIcon className="size-4 shrink-0 text-blue-400" />)}
+          {icon ?? (open ? <FolderOpenIcon className="size-4 shrink-0 text-emerald-400" /> : <FolderIcon className="size-4 shrink-0 text-emerald-400" />)}
           <span className="truncate">{element}</span>
         </AccordionPrimitive.Trigger>
         <AccordionPrimitive.Content className="relative overflow-hidden text-sm data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">

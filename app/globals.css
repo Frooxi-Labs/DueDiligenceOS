@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* When the sidebar is collapsed, slide the main card right so the floating
+   reopen button sits in the gutter instead of overlapping the header. */
+body > main { transition: margin-left 0.3s ease; }
+body[data-sidebar="collapsed"] > main { margin-left: 52px; }
+
 html, body {
   height: 100%;
   background: #040404;
@@ -36,7 +41,7 @@ html, body {
   border-radius: 8px;
 }
 .df-input::placeholder { color: #444; }
-.df-input:focus { border-color: #2383e2; outline: none; }
+.df-input:focus { border-color: #35d277; outline: none; }
 
 /* Message / card fade-in */
 @keyframes fade-up {
@@ -63,7 +68,7 @@ html, body {
 .md li { margin: 0.25em 0; }
 .md h1, .md h2, .md h3 { font-weight: 600; color: #f3f3f1; margin: 0.6em 0 0.3em; font-size: 1em; }
 .md code { background: #2a2a2a; padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.9em; }
-.md a { color: #6bb3f2; text-decoration: underline; }
+.md a { color: #6be0a0; text-decoration: underline; }
 
 /* Thinking dots */
 @keyframes thinking-dot {

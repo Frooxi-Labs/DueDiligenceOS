@@ -13,7 +13,7 @@ import { createPortal } from 'react-dom';
  * deal page. Each just supplies its own steps, key, and a `trigger`.
  */
 
-const ACCENT = '#2383e2';
+const ACCENT = '#35d277';
 
 export interface GuideStep {
   /** data-tour attribute of the element to highlight; omit for a centered step. */

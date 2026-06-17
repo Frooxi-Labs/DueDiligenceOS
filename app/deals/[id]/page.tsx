@@ -581,7 +581,7 @@ export default function DealPage() {
               {s.recruited.length > 0 && (
                 <Section label="Recruited specialists">
                   {s.recruited.map((r, i) => (
-                    <div key={`r-${i}`} className="flex items-start gap-2.5 rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-xs">
+                    <div key={`r-${i}`} className="flex items-start gap-2.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs">
                       <AgentAvatar type={r.agent} size={26} />
                       <div className="min-w-0">
                         <p className="text-neutral-200 font-medium">{LABELS[r.agent]}</p>

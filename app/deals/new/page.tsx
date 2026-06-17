@@ -156,7 +156,7 @@ export default function NewDealPage() {
   return (
     <div className="flex flex-col h-full overflow-hidden relative">
       <div className="flex items-center gap-3 h-12 px-5 flex-shrink-0">
-        <div className="w-6 h-6 rounded-md flex items-center justify-center text-[11px] font-bold" style={{ background: '#1a3a5c', color: '#2383e2' }}>DD</div>
+        <div className="w-6 h-6 rounded-md flex items-center justify-center text-[11px] font-bold" style={{ background: '#0f3a28', color: '#35d277' }}>DD</div>
         <span className="text-[13px] font-medium" style={{ color: '#9b9a97' }}>New due-diligence run</span>
       </div>
 
@@ -178,12 +178,12 @@ export default function NewDealPage() {
                 <div className="flex flex-col gap-1.5">
                   {undecided.slice(0, 4).map((d) => (
                     <button key={d.id} onClick={() => router.push(`/deals/${d.id}`)} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:brightness-110" style={{ background: '#1a1a1a', border: '1px solid #2a2a2a' }}>
-                      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: d.status === 'awaiting_human' ? '#f59e0b' : '#2383e2' }} />
+                      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: d.status === 'awaiting_human' ? '#f59e0b' : '#35d277' }} />
                       <span className="min-w-0 flex-1">
                         <span className="block text-[13px] font-medium truncate" style={{ color: '#e8e8e6' }}>{d.title}</span>
                         <span className="block text-[11px] truncate" style={{ color: '#787774' }}>{d.status === 'awaiting_human' ? 'Needs your decision' : 'In progress'} · {d.intended_use}</span>
                       </span>
-                      <span className="text-[11px] flex-shrink-0" style={{ color: '#2383e2' }}>Open →</span>
+                      <span className="text-[11px] flex-shrink-0" style={{ color: '#35d277' }}>Open →</span>
                     </button>
                   ))}
                 </div>

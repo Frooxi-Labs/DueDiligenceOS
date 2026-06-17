@@ -36,6 +36,14 @@ export default function Sidebar() {
       .catch(() => {});
   }, [pathname]);
 
+  // Reserve a left gutter in the main content for the floating reopen button
+  // whenever the sidebar is collapsed (off on the full-bleed landing page).
+  useEffect(() => {
+    const collapsedNow = collapsed && pathname !== '/';
+    document.body.dataset.sidebar = collapsedNow ? 'collapsed' : 'open';
+    return () => { delete document.body.dataset.sidebar; };
+  }, [collapsed, pathname]);
+
   // Load the simulated branch rooms for the active deal (nested under it in the tree).
   useEffect(() => {
     let cancelled = false;
