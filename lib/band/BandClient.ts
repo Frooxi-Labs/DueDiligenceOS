@@ -34,27 +34,19 @@ export function getAgentConfigs(): Record<AgentType, BandAgentConfig> {
     handle: process.env[`${prefix}_HANDLE`] ?? displayName.replace(/\s+/g, ''),
     displayName,
   });
-  const environmental = mk('environmental', 'BAND_ENVIRONMENTAL', 'Environmental');
-  // Recruited Python specialists. If a deal hasn't been given its own Band agent
-  // identity, fall back to the Environmental identity so it still posts into the
-  // room (it's still a distinct agent in our app); set BAND_CAPEX_*/BAND_INSURANCE_*
-  // to make it a distinct Band participant.
-  const specialist = (type: AgentType, prefix: string, displayName: string): BandAgentConfig => {
-    const c = mk(type, prefix, displayName);
-    // A real, distinct Band agent as soon as it has its own ID (TS uses the ID to
-    // add it as a participant and @mention it; the Python service posts as it
-    // using its own API key). Falls back to the Environmental identity otherwise.
-    return c.agentId ? c : { ...environmental, agentType: type, displayName };
-  };
+  // Every agent — including the three recruited specialists — is its own Band
+  // identity (its own agent ID + API key). No specialist borrows another's
+  // identity: environmental, capex, and insurance are each a distinct Band
+  // participant, provisioned via BAND_ENVIRONMENTAL_* / BAND_CAPEX_* / BAND_INSURANCE_*.
   return {
     archivist: mk('archivist', 'BAND_ARCHIVIST', 'Archivist'),
     regulatory: mk('regulatory', 'BAND_REGULATORY', 'Regulatory'),
     legal: mk('legal', 'BAND_LEGAL', 'Legal'),
     financial: mk('financial', 'BAND_FINANCIAL', 'Financial'),
     synthesis: mk('synthesis', 'BAND_SYNTHESIS', 'Synthesis'),
-    environmental,
-    capex: specialist('capex', 'BAND_CAPEX', 'CapEx'),
-    insurance: specialist('insurance', 'BAND_INSURANCE', 'Insurance'),
+    environmental: mk('environmental', 'BAND_ENVIRONMENTAL', 'Environmental'),
+    capex: mk('capex', 'BAND_CAPEX', 'CapEx'),
+    insurance: mk('insurance', 'BAND_INSURANCE', 'Insurance'),
   };
 }
 

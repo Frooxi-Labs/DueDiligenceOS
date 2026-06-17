@@ -14,22 +14,17 @@ load_dotenv()
 
 from typing import Optional  # noqa: E402
 
-from fastapi import FastAPI  # noqa: E402
+from fastapi import FastAPI, HTTPException  # noqa: E402
 from pydantic import BaseModel, Field  # noqa: E402
 
-from graph import GRAPH as ENVIRONMENTAL_GRAPH, MODEL  # noqa: E402
-from specialists import GRAPHS as SPECIALIST_GRAPHS  # noqa: E402
+from agents import GRAPHS, MODELS  # noqa: E402  (environmental, capex, insurance)
 
-# All recruitable specialists, keyed by type.
-GRAPHS = {"environmental": ENVIRONMENTAL_GRAPH, **SPECIALIST_GRAPHS}
-
-# Each specialist posts to Band under its OWN identity (api key → handle). Falls
-# back to the Environmental identity if a distinct key isn't provisioned.
-_ENV_KEY = os.getenv("BAND_ENVIRONMENTAL_API_KEY", "")
+# Each specialist posts to Band under its OWN identity (api key → handle). No
+# fallback: every specialist is a distinct Band participant with its own key.
 BAND_KEYS = {
-    "environmental": _ENV_KEY,
-    "capex": os.getenv("BAND_CAPEX_API_KEY") or _ENV_KEY,
-    "insurance": os.getenv("BAND_INSURANCE_API_KEY") or _ENV_KEY,
+    "environmental": os.getenv("BAND_ENVIRONMENTAL_API_KEY", ""),
+    "capex": os.getenv("BAND_CAPEX_API_KEY", ""),
+    "insurance": os.getenv("BAND_INSURANCE_API_KEY", ""),
 }
 
 app = FastAPI(title="DueDiligenceOS — Quantitative Specialists (LangGraph)")
@@ -46,12 +41,14 @@ class AssessRequest(BaseModel):
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "framework": "langgraph", "model": MODEL, "specialists": sorted(GRAPHS.keys())}
+    return {"status": "ok", "framework": "langgraph", "specialists": sorted(GRAPHS.keys()), "models": MODELS}
 
 
 @app.post("/assess")
 def assess(req: AssessRequest) -> dict:
-    graph = GRAPHS.get(req.type) or GRAPHS["environmental"]
+    graph = GRAPHS.get(req.type)
+    if graph is None:
+        raise HTTPException(status_code=400, detail=f"unknown specialist type: {req.type}")
     state = graph.invoke(
         {
             "deal": req.deal,
@@ -59,7 +56,7 @@ def assess(req: AssessRequest) -> dict:
             "compliance": req.compliance,
             "room_id": req.room_id or "",
             "mention_ids": req.mention_ids,
-            "band_key": BAND_KEYS.get(req.type, _ENV_KEY),
+            "band_key": BAND_KEYS.get(req.type, ""),
         }
     )
     report = state.get("report", {})

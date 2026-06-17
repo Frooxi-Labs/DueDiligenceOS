@@ -1,7 +1,7 @@
 import type { AgentType, DealRecord } from '@/types';
 import type { PropertyFact, ComplianceReport } from './schemas';
 
-const SERVICE_URL = process.env.ENVIRONMENTAL_AGENT_URL ?? 'http://127.0.0.1:8000';
+const SERVICE_URL = process.env.SPECIALISTS_URL ?? 'http://127.0.0.1:8000';
 const TIMEOUT_MS = 60_000;
 
 export interface SpecialistAssessment {

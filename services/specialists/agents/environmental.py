@@ -24,21 +24,17 @@ from __future__ import annotations
 
 import json
 import os
-import re
 from typing import Literal, TypedDict
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 from pydantic import BaseModel, Field
 
 import band
-from model import RiskFactors, score_environment, simulate_remediation_cost, usd
+from models import RiskFactors, score_environment, simulate_remediation_cost, usd
+from framework import _llm, _extract_json, _event
 
-AIML_BASE_URL = os.getenv("AIML_BASE_URL", "https://api.aimlapi.com/v1")
-AIML_API_KEY = os.getenv("AIML_API_KEY", "")
-MODEL = os.getenv("MODEL_ENVIRONMENTAL", "gpt-4o-mini")
-BAND_KEY_PRESENT = bool(os.getenv("BAND_ENVIRONMENTAL_API_KEY"))
+MODEL = os.getenv("MODEL_ENVIRONMENTAL") or "gpt-4o-mini"
 
 
 class Finding(BaseModel):
@@ -71,29 +67,6 @@ class AssessState(TypedDict, total=False):
     report: dict
     band_message: str
     posted_to_band: bool
-
-
-def _llm() -> ChatOpenAI:
-    if not AIML_API_KEY:
-        raise RuntimeError("AIML_API_KEY is not set")
-    return ChatOpenAI(model=MODEL, base_url=AIML_BASE_URL, api_key=AIML_API_KEY, temperature=0)
-
-
-def _extract_json(text: str) -> dict:
-    text = re.sub(r"^```(?:json)?|```$", "", text.strip(), flags=re.MULTILINE).strip()
-    s, e = text.find("{"), text.rfind("}")
-    if s != -1 and e != -1:
-        text = text[s : e + 1]
-    return json.loads(text)
-
-
-def _event(state: AssessState, kind: str, content: str) -> None:
-    room_id, key = state.get("room_id"), state.get("band_key")
-    if room_id and key:
-        try:
-            band.post_event(room_id, content, kind, api_key=key)
-        except Exception:  # noqa: BLE001
-            pass
 
 
 # ── Node 1: gather — READ the shared Band room ────────────────────────────────
@@ -131,7 +104,7 @@ Return ONLY JSON:
 "ust_removed":true|false,"flood_zone":true|false,"building_year":<int|null>,"phase_i_done":true|false,\
 "adjacent_risk":true|false}}"""
     try:
-        resp = _llm().invoke(
+        resp = _llm(MODEL).invoke(
             [SystemMessage(content="Extract facts as strict JSON only."), HumanMessage(content=prompt)]
         )
         factors = _extract_json(resp.content)
@@ -174,7 +147,7 @@ def scope_phase_ii(state: AssessState) -> AssessState:
     prompt = f"""Risk for {deal.get('title','the property')} computed at {risk.get('score')}/100 ({risk.get('band')}). \
 Drivers: {'; '.join(risk.get('drivers', []))}. In 1-2 sentences, scope a Phase II ESA (what to sample/test). Plain text."""
     try:
-        plan = _llm().invoke([HumanMessage(content=prompt)]).content.strip()
+        plan = _llm(MODEL).invoke([HumanMessage(content=prompt)]).content.strip()
     except Exception:  # noqa: BLE001
         plan = "Phase II: soil and groundwater sampling near the former use; vapor intrusion screening."
     return {"phase_ii_plan": plan}

@@ -12,7 +12,12 @@ TIMEOUT = 12.0
 
 
 def _headers(api_key: str | None = None) -> dict:
-    return {"X-API-Key": api_key or API_KEY, "Content-Type": "application/json"}
+    # Use exactly the key the caller passes. Only fall back to the module default
+    # when no key is given at all (api_key is None). An explicit empty string is
+    # NOT replaced, so a misconfigured specialist fails loudly instead of posting
+    # under another agent's identity.
+    key = API_KEY if api_key is None else api_key
+    return {"X-API-Key": key, "Content-Type": "application/json"}
 
 
 def post_message(room_id: str, content: str, mention_ids: list[str], api_key: str | None = None) -> str:

@@ -1,11 +1,13 @@
-"""Recruitable quantitative specialists, each a LangGraph graph that READS the
-Band room, has the LLM extract facts, then runs a deterministic Python /
-Monte-Carlo model and posts an auditable result.
+"""Shared LangGraph framework for the specialist agents.
 
-Same shape as the Environmental agent (gather → extract → quantify → finalize →
-announce, with an optional elaborate branch) but parameterized by a `Spec`, so
-adding a specialist is data, not new graph code. The *value* is the Python math
-(numpy Monte Carlo) — the framework just orchestrates it.
+Every specialist is the same shape: gather (read the Band room) -> extract (LLM
+pulls facts) -> quantify (Python/numpy model) -> [elaborate] -> finalize ->
+announce (post back to the room), parameterized by a `Spec`. Defining a new
+specialist is data (a `Spec` in agents/<name>.py), not new graph code. The value
+is the Python math; this module only orchestrates it.
+
+Used by agents/capex.py and agents/insurance.py. The Environmental agent
+(agents/environmental.py) has a bespoke graph but reuses the helpers here.
 """
 from __future__ import annotations
 
@@ -20,19 +22,17 @@ from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 
 import band
-import model
-from model import usd
+from models import usd
 
 AIML_BASE_URL = os.getenv("AIML_BASE_URL", "https://api.aimlapi.com/v1")
 AIML_API_KEY = os.getenv("AIML_API_KEY", "")
-MODEL = os.getenv("MODEL_ENVIRONMENTAL", "gpt-4o-mini")
-BAND_KEY_PRESENT = bool(os.getenv("BAND_ENVIRONMENTAL_API_KEY"))
+DEFAULT_MODEL = "gpt-4o-mini"
 
 
-def _llm() -> ChatOpenAI:
+def _llm(model: str) -> ChatOpenAI:
     if not AIML_API_KEY:
         raise RuntimeError("AIML_API_KEY is not set")
-    return ChatOpenAI(model=MODEL, base_url=AIML_BASE_URL, api_key=AIML_API_KEY, temperature=0)
+    return ChatOpenAI(model=model, base_url=AIML_BASE_URL, api_key=AIML_API_KEY, temperature=0)
 
 
 def _extract_json(text: str) -> dict:
@@ -70,6 +70,7 @@ class Spec:
     quantify: Callable[[dict, int], dict]  # (factors, purchase_price) -> metrics
     summarize: Callable[[dict], str]  # metrics -> one-paragraph summary
     headline: Callable[[dict], str]
+    model: str = DEFAULT_MODEL  # each specialist sets its own (MODEL_CAPEX / MODEL_INSURANCE)
     needs_elaboration: Optional[Callable[[dict], bool]] = None
     elaborate_instruction: Optional[str] = None
 
@@ -117,7 +118,7 @@ COMPLIANCE: {json.dumps(state.get('compliance', {}).get('findings', []))[:600]}
 {spec.extract_instruction}
 Return ONLY that JSON."""
         try:
-            resp = _llm().invoke([SystemMessage(content="Extract facts as strict JSON only."), HumanMessage(content=prompt)])
+            resp = _llm(spec.model).invoke([SystemMessage(content="Extract facts as strict JSON only."), HumanMessage(content=prompt)])
             factors = _extract_json(resp.content)
         except Exception:  # noqa: BLE001
             factors = {}
@@ -135,7 +136,7 @@ Return ONLY that JSON."""
     def elaborate(state: SpecState) -> SpecState:
         _event(state, "thought", "Material risk — drafting a mitigation note.")
         try:
-            text = _llm().invoke([HumanMessage(content=f"{spec.elaborate_instruction}\nMetrics: {json.dumps(state.get('metrics', {}))[:600]}")]).content.strip()
+            text = _llm(spec.model).invoke([HumanMessage(content=f"{spec.elaborate_instruction}\nMetrics: {json.dumps(state.get('metrics', {}))[:600]}")]).content.strip()
         except Exception:  # noqa: BLE001
             text = ""
         return {"elaboration": text}
@@ -179,38 +180,3 @@ Return ONLY that JSON."""
     return g.compile()
 
 
-# ── CapEx / construction specialist ───────────────────────────────────────────
-CAPEX = Spec(
-    name="capex",
-    display="CapEx / Construction",
-    thought="Sizing the renovation/conversion scope and modeling cost + schedule risk.",
-    extract_instruction='Return {"scope":"cosmetic|moderate|heavy|conversion","gross_sqft":<int|null>,"conversion":true|false,"budget":<int|null>}.',
-    tool_label="simulate_capex() — Monte Carlo cost + schedule (numpy, 20k runs)",
-    quantify=lambda f, price: model.simulate_capex(f, price),
-    summarize=lambda m: (
-        f"Renovation/conversion ({m['scope']}, ~{m['sqft']:,} sf): Monte-Carlo cost P50 {usd(m['p50'])}, P90 {usd(m['p90'])}; "
-        f"schedule P50 {m['schedule_p50_months']}mo (P90 {m['schedule_p90_months']}mo)."
-        + (f" {int(m['prob_over_budget'] * 100)}% chance over the {usd(m['budget'])} budget." if m.get("budget") else "")
-    ),
-    headline=lambda m: f"CapEx P50 {usd(m['p50'])} · {m['schedule_p50_months']}mo",
-    needs_elaboration=lambda m: m["p90"] > m["p50"] * 1.5 or m["schedule_p90_months"] >= 24,
-    elaborate_instruction="Given the cost/schedule spread, suggest 1-2 concrete value-engineering or phasing moves to de-risk the budget. 1-2 sentences, plain text.",
-)
-
-# ── Insurance / catastrophe specialist ────────────────────────────────────────
-INSURANCE = Spec(
-    name="insurance",
-    display="Insurance / Catastrophe",
-    thought="Modeling flood/wind/quake exposure and expected annual loss.",
-    extract_instruction='Return {"flood_zone":true|false,"coastal_wind":true|false,"seismic":true|false,"replacement_value":<int|null>}.',
-    tool_label="simulate_catastrophe() — Monte Carlo expected loss (numpy, 20k runs)",
-    quantify=lambda f, price: model.simulate_catastrophe(f, price),
-    summarize=lambda m: (
-        f"Catastrophe exposure on ~{usd(m['replacement_value'])} replacement value: expected annual loss {usd(m['expected_annual_loss'])}, "
-        f"1-in-100-year loss {usd(m['p99_year_loss'])}; est. annual premium {usd(m['annual_premium_est'])}. "
-        + "; ".join(m.get("drivers", []))
-    ),
-    headline=lambda m: f"EAL {usd(m['expected_annual_loss'])} · premium {usd(m['annual_premium_est'])}/yr",
-)
-
-GRAPHS = {"capex": make_graph(CAPEX), "insurance": make_graph(INSURANCE)}

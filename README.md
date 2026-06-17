@@ -87,7 +87,7 @@ The reasoning agents live in TypeScript next to the product. The specialists are
 **Python because they do real numerical work** — seeded numpy Monte-Carlo over
 LangGraph state machines (10k trials, P50/P90), which an LLM can't fake. Band makes
 the framework boundary disappear: they join the *same* room as first-class agents.
-See [`services/environmental-agent`](services/environmental-agent).
+See [`services/specialists`](services/specialists).
 
 ## Tech stack
 
@@ -112,16 +112,17 @@ cp .env.example .env.local      # add DB, Band agent credentials, AI/ML key
 npm run db:push                 # create the schema in Neon
 npm run dev                     # http://localhost:3000
 
-# 2. Python specialist service (optional — recruited live when a deal needs it)
-cd services/environmental-agent
+# 2. Python specialists service (required — hosts environmental, capex, insurance)
+cd services/specialists
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn app:app --port 8000
 ```
 
 All credentials are read from the environment — see [`.env.example`](.env.example).
-If the specialist service or a specialist's Band identity isn't configured,
-recruitment of that specialist is skipped gracefully.
+Each specialist (environmental, capex, insurance) is its own Band identity; none
+shares or falls back to another. If a specialist's Band credentials are missing,
+it can't post to the room rather than posting as another agent.
 
 ## Project structure
 
@@ -134,7 +135,11 @@ lib/
   finance/            deterministic DSCR / IRR underwriting
   security/           request guard (auth, CSRF, rate limit, validation)
 services/
-  environmental-agent/  Python · FastAPI · LangGraph specialists (Monte-Carlo)
+  specialists/          Python · FastAPI · LangGraph quant specialists (Monte-Carlo)
+    framework.py        shared LangGraph builder (gather→extract→quantify→…→announce)
+    models.py           numpy models (environmental / capex / insurance + usd helper)
+    band.py             Band REST client (each specialist posts as its own identity)
+    agents/             one file per specialist: environmental.py · capex.py · insurance.py
 tests/                vitest suites (underwriting, validation, contradiction, security)
 middleware.ts         security headers
 ```

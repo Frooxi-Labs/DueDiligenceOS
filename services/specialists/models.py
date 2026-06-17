@@ -1,11 +1,16 @@
-"""Deterministic environmental risk + remediation-cost model.
+"""Quantitative models for all three specialists — the numeric core, in Python.
 
-This is *why* the Environmental specialist is in Python: regulated due diligence
-needs an auditable, reproducible risk score — not an LLM guessing "medium". The
-LLM only EXTRACTS the facts; this rules-based model turns them into a score, a
-risk band, a Phase-I determination, and an order-of-magnitude remediation cost,
-with an itemized rationale. Same inputs → same numbers, every time. Pure and
-unit-testable (no LLM, no I/O)."""
+This is *why* the specialists are in Python: regulated due diligence needs
+auditable, reproducible numbers, not an LLM guessing. Each agent's LLM only
+EXTRACTS facts; the functions here do the math. Pure and unit-testable (no LLM,
+no I/O). Same inputs -> same numbers, every time (seeded).
+
+Which function belongs to which agent:
+  - Environmental -> score_environment() + simulate_remediation_cost()
+  - CapEx         -> simulate_capex()
+  - Insurance     -> simulate_catastrophe()
+  - Shared        -> usd() formatting helper
+"""
 from __future__ import annotations
 
 from typing import TypedDict
