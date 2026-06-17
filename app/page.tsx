@@ -181,7 +181,7 @@ export default function Landing() {
                 : { left: `${(((active as Agent).x + 26) / 1200) * 100}%`, top: `${(((active as Agent).y - 22) / 540) * 100}%`, transform: 'translateY(-100%)' };
             return (
               <div className="absolute" style={pos}>
-                <div style={{ width: 'fit-content', maxWidth: 244, background: '#171a1f', border: '1px solid #2a2e36', borderRadius: 18, padding: '11px 14px', boxShadow: '0 16px 38px rgba(0,0,0,0.6)' }}>
+                <div style={{ width: 'max-content', minWidth: 180, maxWidth: 244, background: '#171a1f', border: '1px solid #2a2e36', borderRadius: 18, padding: '11px 14px', boxShadow: '0 16px 38px rgba(0,0,0,0.6)' }}>
                   <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.05em', color: accent, marginBottom: 5 }}>{active.name.toUpperCase()}</div>
                   <div style={{ fontSize: 13, lineHeight: 1.45, color: '#dadce2' }}>
                     {introOf(sel!).slice(0, typed)}
