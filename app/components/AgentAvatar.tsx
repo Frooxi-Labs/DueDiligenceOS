@@ -1,13 +1,14 @@
-import { agentAvatar } from '@/lib/agents/avatars';
+import { agentAvatar, agentAvatarLive } from '@/lib/agents/avatars';
 import type { AgentType } from '@/types';
 
-/** One consistent agent avatar, used across the room and roster. */
-export default function AgentAvatar({ type, size = 28, className = '' }: { type: AgentType | null | undefined; size?: number; className?: string }) {
+/** One consistent agent avatar, used across the room and roster.
+ *  `live` swaps to the animated variant (eyes blink + glance) while working. */
+export default function AgentAvatar({ type, size = 28, className = '', live = false }: { type: AgentType | null | undefined; size?: number; className?: string; live?: boolean }) {
   const t = type ?? 'synthesis';
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={agentAvatar(t)}
+      src={live ? agentAvatarLive(t) : agentAvatar(t)}
       alt=""
       width={size}
       height={size}

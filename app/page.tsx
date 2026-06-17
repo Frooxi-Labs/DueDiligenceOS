@@ -34,6 +34,12 @@ const conns = AGENTS.map((a) => {
   return { id: a.id, d: orth(sx, a.sy, ex, a.y, a.mx), pulse: PY.has(a.id) ? '#4ade80' : '#5e9bff' };
 });
 
+const BAND = { id: 'band' as const, name: 'Band', intro: 'I’m Band — the shared room every agent works in. I carry their messages, hand-offs, tasks and events, so eight separate agents act as one committee.' };
+type Selection = AgentType | 'band' | null;
+function introOf(id: Exclude<Selection, null>): string {
+  return id === 'band' ? BAND.intro : AGENTS.find((a) => a.id === id)?.intro ?? '';
+}
+
 function Dots() {
   return (
     <span className="inline-flex items-center gap-1 align-middle" style={{ marginLeft: 1 }}>
@@ -43,18 +49,18 @@ function Dots() {
 }
 
 export default function Landing() {
-  const [sel, setSel] = useState<AgentType | null>(null);
+  const [sel, setSel] = useState<Selection>(null);
   const [typed, setTyped] = useState(0);
   const [thinking, setThinking] = useState(false);
   const hubRef = useRef<SVGSVGElement>(null);
   const leftEye = useRef<SVGGElement>(null);
   const rightEye = useRef<SVGGElement>(null);
-  const active = AGENTS.find((a) => a.id === sel) ?? null;
+  const active = sel === 'band' ? BAND : AGENTS.find((a) => a.id === sel) ?? null;
 
   // Typing: pause to "think" (dots), type half, pause again, type the rest.
   useEffect(() => {
     if (!sel) return;
-    const text = AGENTS.find((a) => a.id === sel)!.intro;
+    const text = introOf(sel);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setTyped(0); setThinking(true);
     let cancelled = false;
@@ -145,7 +151,7 @@ export default function Landing() {
             })}
 
             <circle cx={HUB.cx} cy={HUB.cy} r="190" fill="url(#hubGlow)"><animate attributeName="opacity" values="0.7;1;0.7" dur="4s" repeatCount="indefinite" /></circle>
-            <svg ref={hubRef} x={HUB.cx - HUB.s / 2} y={HUB.cy - HUB.s / 2} width={HUB.s} height={HUB.s} viewBox="0 0 288 288">
+            <svg ref={hubRef} onClick={(e) => { e.stopPropagation(); setSel((s) => (s === 'band' ? null : 'band')); }} style={{ cursor: 'pointer' }} x={HUB.cx - HUB.s / 2} y={HUB.cy - HUB.s / 2} width={HUB.s} height={HUB.s} viewBox="0 0 288 288">
               <ellipse cx="146" cy="262" rx="76" ry="11" fill="#0B1A26" opacity="0.5" />
               <circle cx="144" cy="134" r="128" fill="#0B1A26" />
               <circle cx="144" cy="134" r="119" fill="url(#band-body)" />
@@ -162,25 +168,29 @@ export default function Landing() {
             ))}
           </svg>
 
-          {/* messenger-style intro bubble — HTML overlay, dynamic size, anchored to the agent corner */}
-          {active && (
-            <div
-              className="absolute"
-              style={
-                active.side === 'l'
-                  ? { left: `${((active.x + 22) / 1200) * 100}%`, top: `${((active.y - 24) / 540) * 100}%`, transform: 'translateY(-100%)' }
-                  : { left: `${((active.x - 22) / 1200) * 100}%`, top: `${((active.y - 24) / 540) * 100}%`, transform: 'translate(-100%, -100%)' }
-              }
-            >
-              <div style={{ width: 'fit-content', maxWidth: 244, background: '#171a1f', border: '1px solid #2a2e36', borderRadius: 18, padding: '11px 14px', boxShadow: '0 16px 38px rgba(0,0,0,0.6)' }}>
-                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.05em', color: PY.has(active.id) ? '#86efac' : '#93c5fd', marginBottom: typed > 0 || !thinking ? 5 : 2 }}>{active.name.toUpperCase()}</div>
-                <div style={{ fontSize: 13, lineHeight: 1.45, color: '#dadce2' }}>
-                  {active.intro.slice(0, typed)}
-                  {thinking && <Dots />}
+          {/* messenger-style intro bubble — HTML overlay, dynamic size, anchored to the agent's outer top corner */}
+          {active && (() => {
+            const isBand = active.id === 'band';
+            const accent = isBand ? '#3FE0FF' : PY.has(active.id as AgentType) ? '#86efac' : '#93c5fd';
+            const pos = isBand
+              ? { left: '50%', top: `${((HUB.cy - HUB.s / 2 - 14) / 540) * 100}%`, transform: 'translate(-50%, -100%)' }
+              : (active as Agent).side === 'l'
+                // left-side agents: anchor the bubble's top-right corner, grow LEFT
+                ? { left: `${(((active as Agent).x - 26) / 1200) * 100}%`, top: `${(((active as Agent).y - 22) / 540) * 100}%`, transform: 'translate(-100%, -100%)' }
+                // right-side agents: anchor the bubble's top-left corner, grow RIGHT
+                : { left: `${(((active as Agent).x + 26) / 1200) * 100}%`, top: `${(((active as Agent).y - 22) / 540) * 100}%`, transform: 'translateY(-100%)' };
+            return (
+              <div className="absolute" style={pos}>
+                <div style={{ width: 'fit-content', maxWidth: 244, background: '#171a1f', border: '1px solid #2a2e36', borderRadius: 18, padding: '11px 14px', boxShadow: '0 16px 38px rgba(0,0,0,0.6)' }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.05em', color: accent, marginBottom: 5 }}>{active.name.toUpperCase()}</div>
+                  <div style={{ fontSize: 13, lineHeight: 1.45, color: '#dadce2' }}>
+                    {introOf(sel!).slice(0, typed)}
+                    {thinking && <Dots />}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       </div>
 

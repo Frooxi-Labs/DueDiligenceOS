@@ -64,9 +64,9 @@ function PileAvatar({ agent, c, i, z }: { agent: AgentType; c: { status: string;
     <div
       title={`${LABELS[agent]} — ${working ? 'working…' : c.headline ?? c.status}`}
       className={`rounded-[11px] ${working ? 'working-bob' : ''}`}
-      style={{ marginLeft: i ? -9 : 0, padding: 2, background: '#141414', border: `1.6px solid ${working ? '#ffffff' : 'transparent'}`, position: 'relative', zIndex: z }}
+      style={{ marginLeft: i ? -9 : 0, padding: 2, background: '#141414', border: `1.6px solid ${working ? '#ffffff' : 'transparent'}`, position: 'relative', zIndex: working ? 60 : z }}
     >
-      <AgentAvatar type={agent} size={26} />
+      <AgentAvatar type={agent} size={26} live={working} />
     </div>
   );
 }
@@ -297,7 +297,7 @@ export default function DealPage() {
               )}
               {live?.thinking && (
                 <div className="fade-up flex gap-3 items-center">
-                  <AgentAvatar type={live.thinking} />
+                  <AgentAvatar type={live.thinking} live />
                   <div className="flex items-center gap-1 px-1 py-1"><span className="text-xs text-neutral-500 mr-1">{LABELS[live.thinking]} is analysing</span>{[0, 1, 2].map((d) => <span key={d} className="w-1.5 h-1.5 rounded-full bg-neutral-500 thinking-dot" style={{ animationDelay: `${d * 0.15}s` }} />)}</div>
                 </div>
               )}
@@ -334,7 +334,7 @@ export default function DealPage() {
           ))}
           {rosterAgents.filter((a) => s.agents[a].status === 'processing').map((a) => (
             <div key={`t-${a}`} className="fade-up flex gap-3 items-center">
-              <AgentAvatar type={a} />
+              <AgentAvatar type={a} live />
               <div className="flex items-center gap-1 px-1 py-1"><span className="text-xs text-neutral-500 mr-1">{LABELS[a]} is analysing</span>{[0, 1, 2].map((d) => <span key={d} className="w-1.5 h-1.5 rounded-full bg-neutral-500 thinking-dot" style={{ animationDelay: `${d * 0.15}s` }} />)}</div>
             </div>
           ))}
