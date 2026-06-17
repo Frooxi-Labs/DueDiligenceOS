@@ -4,7 +4,7 @@ import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { dealBriefs, agentEvaluations, bandRooms, workflowEvents } from '@/lib/db/schema';
 import { callText } from '@/lib/providers';
-import { BandClient, getAgentConfigs } from '@/lib/band';
+import { BandClient } from '@/lib/band';
 import { guard } from '@/lib/security/guard';
 import type { AgentType } from '@/types';
 
@@ -85,8 +85,9 @@ REVIEWER: ${parsed.data.message}`;
   try {
     const [room] = await db.select({ id: bandRooms.band_room_id }).from(bandRooms).where(eq(bandRooms.deal_id, id)).limit(1);
     if (room?.id) {
-      const others = (Object.keys(getAgentConfigs()) as AgentType[]).filter((a) => a !== agent);
-      await new BandClient(agent).postMessage(room.id, `Reviewer asked: "${parsed.data.message}"\n\n${answer}`, others);
+      // Default mention set (core committee, always in the room) — avoids 422s
+      // from @mentioning specialists that weren't recruited into this room.
+      await new BandClient(agent).postMessage(room.id, `Reviewer asked: "${parsed.data.message}"\n\n${answer}`);
     }
   } catch {
     /* best-effort */

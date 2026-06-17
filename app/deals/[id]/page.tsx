@@ -66,9 +66,23 @@ function PileAvatar({ agent, c, i, z }: { agent: AgentType; c: { status: string;
       className={`rounded-[11px] ${working ? 'working-bob' : ''}`}
       style={{ marginLeft: i ? -9 : 0, padding: 2, background: '#141414', border: `1.6px solid ${working ? '#ffffff' : 'transparent'}`, position: 'relative', zIndex: working ? 60 : z }}
     >
-      <AgentAvatar type={agent} size={26} live={working} />
+      <AgentAvatar type={agent} size={30} live={working} />
     </div>
   );
+}
+
+/** Re-order the timeline so an agent's thought / tool events render BELOW its
+ *  message bubble (they're emitted before the message, so they arrive above it). */
+function eventsBelow<T extends { event?: string; system?: boolean; agent?: AgentType | null }>(msgs: T[]): T[] {
+  const out: T[] = [];
+  let buf: T[] = [];
+  for (const m of msgs) {
+    if (m.event) { buf.push(m); continue; }
+    if (m.system || !m.agent) { out.push(...buf, m); buf = []; continue; }
+    out.push(m, ...buf); buf = [];
+  }
+  out.push(...buf);
+  return out;
 }
 
 /** A labelled group in the Activity panel. */
@@ -310,7 +324,7 @@ export default function DealPage() {
           ) : (
           <div className="max-w-3xl mx-auto w-full space-y-3">
           {s.messages.length === 0 && <p className="text-sm text-neutral-600">Waiting for the committee to convene…</p>}
-          {s.messages.map((m, i) => (
+          {eventsBelow(s.messages).map((m, i) => (
             m.event ? (
               <div key={i} className="fade-up flex gap-2 items-center pl-10 opacity-70">
                 <span className="text-[11px] text-neutral-500">
@@ -458,12 +472,12 @@ export default function DealPage() {
           <div className="flex items-center justify-between px-4 h-12 border-b border-neutral-800">
             <div data-tour="panel-tabs" className="flex items-center gap-3 text-sm">
               <button onClick={() => setRightTab('activity')} className={rightTab === 'activity' ? 'text-white font-medium' : 'text-neutral-500 hover:text-neutral-300'}>Activity {activityCount > 0 && <span className="text-neutral-600">· {activityCount}</span>}</button>
-              {s.recommendation && <button onClick={() => setRightTab('memo')} className={rightTab === 'memo' ? 'text-white font-medium' : 'text-neutral-500 hover:text-neutral-300'}>Memo</button>}
+              <button onClick={() => setRightTab('memo')} className={rightTab === 'memo' ? 'text-white font-medium' : 'text-neutral-500 hover:text-neutral-300'}>Memo</button>
             </div>
             <button onClick={() => setLogsOpen(false)} title="Collapse" className="text-neutral-500 hover:text-white text-sm">→</button>
           </div>
 
-          {rightTab === 'memo' && s.recommendation ? (
+          {rightTab === 'memo' ? (s.recommendation ? (
             <div className="flex-1 overflow-auto df-scroll">
               <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800" style={{ background: s.signal === 'green' ? '#0e2a1a' : s.signal === 'yellow' ? '#2a230e' : '#2a0e0e' }}>
                 <div><p className="text-[10px] uppercase tracking-widest text-neutral-500">Deal memo</p><p className={`text-lg font-semibold ${s.signal ? signalColor[s.signal] : ''}`}>{s.signal?.toUpperCase()}</p></div>
@@ -513,6 +527,8 @@ export default function DealPage() {
               </div>
             </div>
           ) : (
+            <div className="flex-1 flex items-center justify-center p-8"><p className="text-xs text-neutral-600 text-center leading-relaxed">No memo yet. The committee&apos;s verdict appears here once it finishes deliberating.</p></div>
+          )) : (
             <div className="flex-1 overflow-auto df-scroll p-4 space-y-5">
               {s.contradictions.length > 0 && (
                 <Section label="Contradictions resolved">
@@ -550,7 +566,7 @@ export default function DealPage() {
                 <Section label="Recruited specialists">
                   {s.recruited.map((r, i) => (
                     <div key={`r-${i}`} className="flex items-start gap-2.5 rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-xs">
-                      <AgentAvatar type={r.agent} size={22} />
+                      <AgentAvatar type={r.agent} size={26} />
                       <div className="min-w-0">
                         <p className="text-neutral-200 font-medium">{LABELS[r.agent]}</p>
                         <p className="text-neutral-400">{LABELS[r.by]} pulled it in — {r.reason}</p>

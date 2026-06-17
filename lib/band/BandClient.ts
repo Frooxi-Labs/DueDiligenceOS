@@ -127,17 +127,21 @@ export class BandClient {
    * omit to address every other agent in the room.
    */
   async postMessage(roomId: string, content: string, mentionTargets?: AgentType[]): Promise<string> {
-    let targets = (Object.values(this.allConfigs) as BandAgentConfig[]).filter((c) =>
-      mentionTargets ? mentionTargets.includes(c.agentType) : c.agentType !== this.agentType
-    );
-    // Band requires at least one mention per message; if none were specified
-    // (e.g. the final Synthesis post), address the rest of the committee.
+    // The five core agents are always in the room (added at creation). Specialists
+    // join only when recruited, so the default "address the committee" must never
+    // @mention them — Band 422s on a mention of a participant not in the room.
+    const core: AgentType[] = ['archivist', 'regulatory', 'legal', 'financial', 'synthesis'];
+    const all = Object.values(this.allConfigs) as BandAgentConfig[];
+    let targets = mentionTargets && mentionTargets.length > 0
+      ? all.filter((c) => mentionTargets.includes(c.agentType))            // explicit (caller guarantees in-room)
+      : all.filter((c) => core.includes(c.agentType) && c.agentType !== this.agentType); // default → core only
+    // Only mention agents that actually have a Band id.
+    targets = targets.filter((c) => c.agentId);
     if (targets.length === 0) {
-      targets = (Object.values(this.allConfigs) as BandAgentConfig[]).filter((c) => c.agentType !== this.agentType);
+      targets = all.filter((c) => core.includes(c.agentType) && c.agentType !== this.agentType && c.agentId);
     }
 
     // Send mentions ONLY as the structured array — Band renders these as chips.
-    // (Putting @handles in the content too would double every mention.)
     const mentions = targets.map((c) => ({ id: c.agentId }));
 
     const data = await this.request<{ id?: string }>(

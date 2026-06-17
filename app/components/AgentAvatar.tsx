@@ -3,7 +3,7 @@ import type { AgentType } from '@/types';
 
 /** One consistent agent avatar, used across the room and roster.
  *  `live` swaps to the animated variant (eyes blink + glance) while working. */
-export default function AgentAvatar({ type, size = 28, className = '', live = false }: { type: AgentType | null | undefined; size?: number; className?: string; live?: boolean }) {
+export default function AgentAvatar({ type, size = 32, className = '', live = false }: { type: AgentType | null | undefined; size?: number; className?: string; live?: boolean }) {
   const t = type ?? 'synthesis';
   return (
     // eslint-disable-next-line @next/next/no-img-element

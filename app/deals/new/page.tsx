@@ -80,6 +80,13 @@ export default function NewDealPage() {
   const [step, setStep] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const [deals, setDeals] = useState<{ id: string; title: string; status: string; intended_use: string }[]>([]);
+
+  // Surface runs that still need attention so the user can resume them.
+  useEffect(() => {
+    fetch('/api/deals').then((r) => r.json()).then((d) => setDeals(Array.isArray(d) ? d : d.deals ?? [])).catch(() => {});
+  }, []);
+  const undecided = deals.filter((d) => ['awaiting_human', 'intake', 'analysis', 'financial', 'synthesis', 'escalated'].includes(d.status));
 
   // Grow the textarea to fit its content on any input change (typed OR set
   // programmatically, e.g. "Load sample"), capped at 180px.
@@ -157,13 +164,31 @@ export default function NewDealPage() {
         {busy && step ? (
           <StackedPills current={step} />
         ) : msgs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full gap-3" style={{ color: '#3a3a3a' }}>
+          <div className="flex flex-col items-center justify-center h-full gap-3" style={{ color: '#8a8b8f' }}>
             <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-              <rect x="4" y="4" width="24" height="24" rx="6" stroke="#2d2d2d" strokeWidth="1.5" />
-              <path d="M10 16h12M10 11h12M10 21h7" stroke="#2d2d2d" strokeWidth="1.5" strokeLinecap="round" />
+              <rect x="4" y="4" width="24" height="24" rx="6" stroke="#4a4a4a" strokeWidth="1.5" />
+              <path d="M10 16h12M10 11h12M10 21h7" stroke="#4a4a4a" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
-            <p className="text-[13px]">Describe the deal or attach the documents to begin</p>
-            <button data-tour="load-sample" onClick={() => setInput(SAMPLE_TEXT)} className="text-[12px] border border-neutral-800 rounded-md px-3 py-1.5 hover:text-white">Load sample</button>
+            <p className="text-[13.5px]" style={{ color: '#c4c5c9' }}>Describe the deal or attach the documents to begin</p>
+            <button data-tour="load-sample" onClick={() => setInput(SAMPLE_TEXT)} className="text-[12.5px] font-medium rounded-lg px-3.5 py-2 transition-colors" style={{ color: '#e8e8e6', border: '1px solid #3a3a3a', background: '#1c1c1c' }}>Load sample</button>
+
+            {undecided.length > 0 && (
+              <div className="mt-7 w-full" style={{ maxWidth: 420 }}>
+                <p className="text-[10px] font-semibold uppercase tracking-widest mb-2 text-center" style={{ color: '#5b5f68' }}>Pick up where you left off</p>
+                <div className="flex flex-col gap-1.5">
+                  {undecided.slice(0, 4).map((d) => (
+                    <button key={d.id} onClick={() => router.push(`/deals/${d.id}`)} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:brightness-110" style={{ background: '#1a1a1a', border: '1px solid #2a2a2a' }}>
+                      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: d.status === 'awaiting_human' ? '#f59e0b' : '#2383e2' }} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[13px] font-medium truncate" style={{ color: '#e8e8e6' }}>{d.title}</span>
+                        <span className="block text-[11px] truncate" style={{ color: '#787774' }}>{d.status === 'awaiting_human' ? 'Needs your decision' : 'In progress'} · {d.intended_use}</span>
+                      </span>
+                      <span className="text-[11px] flex-shrink-0" style={{ color: '#2383e2' }}>Open →</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="absolute inset-0 overflow-y-auto df-scroll">

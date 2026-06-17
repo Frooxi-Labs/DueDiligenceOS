@@ -2,9 +2,9 @@ import { and, desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { dealBriefs, bandRooms, agentEvaluations, finalDecisions, workflowEvents } from '@/lib/db/schema';
 import { broadcast } from '@/lib/realtime';
-import { BandClient, getAgentConfigs } from '@/lib/band';
+import { BandClient } from '@/lib/band';
 import { callText } from '@/lib/providers';
-import type { AgentType, HumanDecision } from '@/types';
+import type { HumanDecision } from '@/types';
 
 export interface HumanDecisionInput {
   decision: HumanDecision; // proceed | remediate | renegotiate
@@ -50,8 +50,7 @@ async function gateConditions(dealId: string, fallback: string[]): Promise<strin
 async function postAsSynthesis(rid: string | null, content: string) {
   if (!rid) return;
   try {
-    const others = (Object.keys(getAgentConfigs()) as AgentType[]).filter((a) => a !== 'synthesis');
-    await new BandClient('synthesis').postMessage(rid, content, others);
+    await new BandClient('synthesis').postMessage(rid, content);
   } catch {
     /* best-effort */
   }
