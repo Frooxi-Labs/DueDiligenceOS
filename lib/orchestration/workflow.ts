@@ -242,17 +242,23 @@ export async function runWorkflow(dealId: string): Promise<void> {
       ask: string
     ): Promise<{ label: string; summary: string } | null> => {
       const configs = getAgentConfigs();
-      await say(dealId, roomId, recruiter, `I've hit something outside my lane — ${reason}. I'm pulling in a ${displayName} specialist.`, ['synthesis']);
+      // Add the specialist FIRST so we can @mention it without a 422, then a
+      // single, specialist-specific line (not a generic before/after pair).
       try {
         await new BandClient(recruiter).addParticipant(roomId, configs[id].agentId);
       } catch {
         /* best-effort */
       }
-      await systemSay(dealId, `${displayName} specialist joined the room — running on LangGraph (Python)`);
+      await systemSay(dealId, `${displayName} joined the room — LangGraph specialist (Python)`);
       emit(dealId, { type: 'agent.recruited', by: recruiter, agent: id, reason });
       await logEvent(dealId, 'agent.recruited', { by: recruiter, agent: id, reason }, recruiter);
       await recordMention(dealId, recruiter, id, reason);
-      await say(dealId, roomId, recruiter, `Thanks for joining. ${ask}`, [id]);
+      const opener =
+        id === 'environmental' ? `This one needs an environmental read — ${reason}.`
+        : id === 'capex' ? `I need real construction numbers here — ${reason}.`
+        : id === 'insurance' ? `There's catastrophe exposure to price — ${reason}.`
+        : `This is outside my lane — ${reason}.`;
+      await say(dealId, roomId, recruiter, `${opener} ${ask}`, [id]);
       emit(dealId, { type: 'agent.processing', agent: id });
       try {
         const a = await assessSpecialist(id, { deal, propertyFact, compliance }, roomId, [configs[recruiter].agentId, configs.synthesis.agentId]);

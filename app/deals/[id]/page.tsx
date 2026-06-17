@@ -71,18 +71,40 @@ function PileAvatar({ agent, c, i, z }: { agent: AgentType; c: { status: string;
   );
 }
 
-/** Re-order the timeline so an agent's thought / tool events render BELOW its
- *  message bubble (they're emitted before the message, so they arrive above it). */
-function eventsBelow<T extends { event?: string; system?: boolean; agent?: AgentType | null }>(msgs: T[]): T[] {
-  const out: T[] = [];
+/** Split the timeline so each agent's thought/tool events render BELOW its
+ *  message (they're emitted before it). `trailing` = events for an agent that is
+ *  still working (no message yet) — rendered under its "is analysing" row. */
+function splitMessages<T extends { event?: string; system?: boolean; agent?: AgentType | null }>(msgs: T[]): { ordered: T[]; trailing: T[] } {
+  const ordered: T[] = [];
   let buf: T[] = [];
   for (const m of msgs) {
     if (m.event) { buf.push(m); continue; }
-    if (m.system || !m.agent) { out.push(...buf, m); buf = []; continue; }
-    out.push(m, ...buf); buf = [];
+    if (m.system || !m.agent) { ordered.push(...buf, m); buf = []; continue; }
+    ordered.push(m, ...buf); buf = [];
   }
-  out.push(...buf);
-  return out;
+  return { ordered, trailing: buf };
+}
+
+/** A thought / tool-call / error line with a small icon (no emoji). */
+function EventRow({ m }: { m: { event?: string; agent?: AgentType | null; content: string } }) {
+  const isErr = m.event === 'error';
+  return (
+    <div className="fade-up flex gap-2 items-start pl-10 opacity-70">
+      <span className={`mt-[2px] flex-shrink-0 ${isErr ? 'text-red-400/80' : 'text-neutral-500'}`}>
+        {m.event === 'thought' ? (
+          <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1.2l1.5 4.1 4.3.2-3.4 2.6 1.2 4.1L8 9.9 4.4 12.2l1.2-4.1L2.2 5.5l4.3-.2z" /></svg>
+        ) : isErr ? (
+          <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"><path d="M8 2.5l5.5 10H2.5z" /><path d="M8 6.5v3.2" strokeLinecap="round" /></svg>
+        ) : (
+          <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 4L2 8l3 4M11 4l3 4-3 4" /></svg>
+        )}
+      </span>
+      <span className="text-[11px] text-neutral-500">
+        <span className="text-neutral-400">{m.agent ? LABELS[m.agent] : ''}</span>
+        <span className={`ml-1 ${isErr ? 'text-red-400/80' : 'italic'}`}>{m.event === 'tool_call' ? `reads the Band room · ${m.content}` : m.content}</span>
+      </span>
+    </div>
+  );
 }
 
 /** A labelled group in the Activity panel. */
@@ -154,6 +176,7 @@ export default function DealPage() {
   const ns = shownDecision ? nextStep(shownDecision, s) : null;
   const deliberating = !['awaiting_human', 'decided', 'failed'].includes(s.status);
   const rosterAgents = [...ORDER, ...s.recruited.map((r) => r.agent).filter((a) => !ORDER.includes(a))];
+  const { ordered: orderedMsgs, trailing: trailingEvents } = splitMessages(s.messages);
 
   useEffect(() => { if (id) fetch(`/api/deals/${id}`).then((r) => r.json()).then((d) => setDeal(d.deal ?? null)).catch(() => {}); }, [id]);
   useEffect(() => { if (id) fetch(`/api/deals/${id}/audit`).then((r) => r.json()).then((d) => setAudit(d.events ?? [])).catch(() => {}); }, [id, s.status, s.messages.length]);
@@ -293,12 +316,7 @@ export default function DealPage() {
               )}
               {(live ? live.messages : (activeProjection?.transcript ?? []).map((t) => ({ ...t, event: undefined as undefined | 'thought' | 'tool_call' | 'error' }))).map((t, i) =>
                 t.event ? (
-                  <div key={i} className="fade-up flex gap-2 items-center pl-10 opacity-70">
-                    <span className="text-[11px] text-neutral-500">
-                      {t.event === 'thought' ? '💭' : t.event === 'error' ? '⚠️' : '🔧'} <span className="text-neutral-400">{t.agent ? LABELS[t.agent] : ''}</span>
-                      <span className={`ml-1 ${t.event === 'error' ? 'text-red-400/80' : 'italic'}`}>{t.event === 'tool_call' ? `reads the room · ${t.content}` : t.content}</span>
-                    </span>
-                  </div>
+                  <EventRow key={i} m={t} />
                 ) : (
                   <div key={i} className="fade-up flex gap-3">
                     <AgentAvatar type={t.agent} />
@@ -324,14 +342,9 @@ export default function DealPage() {
           ) : (
           <div className="max-w-3xl mx-auto w-full space-y-3">
           {s.messages.length === 0 && <p className="text-sm text-neutral-600">Waiting for the committee to convene…</p>}
-          {eventsBelow(s.messages).map((m, i) => (
+          {orderedMsgs.map((m, i) => (
             m.event ? (
-              <div key={i} className="fade-up flex gap-2 items-center pl-10 opacity-70">
-                <span className="text-[11px] text-neutral-500">
-                  {m.event === 'thought' ? '💭' : m.event === 'error' ? '⚠️' : '🔧'} <span className="text-neutral-400">{m.agent ? LABELS[m.agent] : ''}</span>
-                  <span className={`ml-1 ${m.event === 'error' ? 'text-red-400/80' : 'italic'}`}>{m.event === 'tool_call' ? `reads the Band room · ${m.content}` : m.content}</span>
-                </span>
-              </div>
+              <EventRow key={i} m={m} />
             ) : m.system || !m.agent ? (
               <div key={i} className="fade-up flex justify-center py-1">
                 <span className="text-[11px] text-neutral-500 bg-neutral-800/40 rounded-full px-3 py-1">{m.content}</span>
@@ -347,9 +360,12 @@ export default function DealPage() {
             )
           ))}
           {rosterAgents.filter((a) => s.agents[a].status === 'processing').map((a) => (
-            <div key={`t-${a}`} className="fade-up flex gap-3 items-center">
-              <AgentAvatar type={a} live />
-              <div className="flex items-center gap-1 px-1 py-1"><span className="text-xs text-neutral-500 mr-1">{LABELS[a]} is analysing</span>{[0, 1, 2].map((d) => <span key={d} className="w-1.5 h-1.5 rounded-full bg-neutral-500 thinking-dot" style={{ animationDelay: `${d * 0.15}s` }} />)}</div>
+            <div key={`t-${a}`} className="space-y-2">
+              <div className="fade-up flex gap-3 items-center">
+                <AgentAvatar type={a} live />
+                <div className="flex items-center gap-1 px-1 py-1"><span className="text-xs text-neutral-500 mr-1">{LABELS[a]} is analysing</span>{[0, 1, 2].map((d) => <span key={d} className="w-1.5 h-1.5 rounded-full bg-neutral-500 thinking-dot" style={{ animationDelay: `${d * 0.15}s` }} />)}</div>
+              </div>
+              {trailingEvents.filter((e) => e.agent === a).map((e, j) => <EventRow key={`te-${a}-${j}`} m={e} />)}
             </div>
           ))}
 
