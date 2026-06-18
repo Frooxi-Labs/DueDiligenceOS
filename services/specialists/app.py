@@ -66,7 +66,7 @@ def assess(req: AssessRequest) -> dict:
         "report": report,
         "band_message": state.get("band_message", ""),
         "headline": headline,
-        "model": MODEL,
+        "model": MODELS.get(req.type, ""),
         "framework": "langgraph",
         "specialist": req.type,
         "posted_to_band": state.get("posted_to_band", False),

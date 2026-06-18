@@ -242,8 +242,16 @@ export async function runWorkflow(dealId: string): Promise<void> {
       ask: string
     ): Promise<{ label: string; summary: string } | null> => {
       const configs = getAgentConfigs();
-      // Add the specialist FIRST so we can @mention it without a 422, then a
-      // single, specialist-specific line (not a generic before/after pair).
+      // 1) The recruiter announces, in the room, that it's bringing in a specialist
+      //    and why — before the add, so this reads as a deliberate decision.
+      const intro =
+        id === 'environmental' ? `This one needs an environmental read — ${reason}. Bringing in the Environmental specialist.`
+        : id === 'capex' ? `I need real construction numbers here — ${reason}. Bringing in the CapEx specialist.`
+        : id === 'insurance' ? `There's catastrophe exposure to price — ${reason}. Bringing in the Insurance specialist.`
+        : `This is outside my lane — ${reason}. Bringing in a specialist.`;
+      await say(dealId, roomId, recruiter, intro, []);
+
+      // 2) Add the specialist as a participant, then announce the join.
       try {
         await new BandClient(recruiter).addParticipant(roomId, configs[id].agentId);
       } catch {
@@ -253,12 +261,9 @@ export async function runWorkflow(dealId: string): Promise<void> {
       emit(dealId, { type: 'agent.recruited', by: recruiter, agent: id, reason });
       await logEvent(dealId, 'agent.recruited', { by: recruiter, agent: id, reason }, recruiter);
       await recordMention(dealId, recruiter, id, reason);
-      const opener =
-        id === 'environmental' ? `This one needs an environmental read — ${reason}.`
-        : id === 'capex' ? `I need real construction numbers here — ${reason}.`
-        : id === 'insurance' ? `There's catastrophe exposure to price — ${reason}.`
-        : `This is outside my lane — ${reason}.`;
-      await say(dealId, roomId, recruiter, `${opener} ${ask}`, [id]);
+
+      // 3) Now brief the specialist directly on the task (it's a participant → @mention works).
+      await say(dealId, roomId, recruiter, ask, [id]);
       emit(dealId, { type: 'agent.processing', agent: id });
       try {
         const a = await assessSpecialist(id, { deal, propertyFact, compliance }, roomId, [configs[recruiter].agentId, configs.synthesis.agentId]);
