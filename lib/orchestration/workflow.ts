@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { dealBriefs, bandRooms, agentEvaluations, mentions as mentionsTable, workflowEvents } from '@/lib/db/schema';
 import { BandClient, getAgentConfigs } from '@/lib/band';
 import { runAgent, assessSpecialist, type PropertyFact, type ComplianceReport, type LegalRisk, type FinancialModel, type DealMemo } from '@/lib/agents';
+import { callText } from '@/lib/providers';
 import { broadcast } from '@/lib/realtime';
 import { computeUnderwriting } from '@/lib/finance/underwrite';
 import { detectContradictions, discoverContradictions, cascadeFromCompliance, compositeRiskScore } from './contradiction';
@@ -88,6 +89,43 @@ async function persistEval(dealId: string, agent: AgentType, result: { headline:
 async function recordMention(dealId: string, from: AgentType, to: AgentType, reason: string) {
   await db.insert(mentionsTable).values({ deal_id: dealId, from_agent: from, to_agent: to, reason });
   emit(dealId, { type: 'agent.mentioned', from, to, reason });
+}
+
+const SPECIALIST_DESC: Record<SpecialistType, string> = {
+  environmental: 'environmental contamination & remediation-cost specialist',
+  capex: 'construction cost & schedule (CapEx) specialist',
+  insurance: 'catastrophe & insurance specialist',
+};
+
+/**
+ * The recruiting agent writes its own two lines — the announcement to the room
+ * and the direct ask to the specialist — instead of a canned template. Uses a
+ * fast model (short utility turn) and strips em dashes / filler so it reads like
+ * a person. Falls back to the static ask if generation fails.
+ */
+async function recruitLines(
+  recruiter: CoreAgentType,
+  specialist: SpecialistType,
+  displayName: string,
+  reason: string,
+  fallbackBrief: string,
+): Promise<{ intro: string; brief: string }> {
+  const clean = (s: string) => s.replace(/\s*[—–]\s*/g, ', ').replace(/^["'\s]+|["'\s]+$/g, '').trim();
+  try {
+    const prompt = `You are the ${recruiter} agent on a real-estate due-diligence committee, speaking to your colleagues in a shared room. You've decided to bring in the ${SPECIALIST_DESC[specialist]}. Your reason: ${reason}
+
+Write exactly two lines, separated by one newline:
+1) To the room: one sentence saying you're bringing in the ${displayName} specialist and the specific reason, grounded in this deal.
+2) To the ${displayName} specialist: one sentence asking for exactly what you need.
+
+Speak like a real analyst: first person, plain, concrete. No em dashes, no buzzwords, no "I hope", no greeting, no labels or numbering. Each line under 28 words. Output only the two lines.`;
+    const raw = await callText(recruiter, prompt, { model: 'gpt-4o-mini', maxTokens: 160, temperature: 0.5 });
+    const lines = raw.split('\n').map((l) => clean(l.replace(/^\s*\d+[).\]]?\s*/, ''))).filter(Boolean);
+    if (lines.length >= 2) return { intro: lines[0], brief: lines[1] };
+  } catch {
+    /* fall through to the static fallback */
+  }
+  return { intro: `This needs the ${displayName} specialist. ${reason}`, brief: fallbackBrief };
 }
 
 async function initBandRoom(deal: DealRecord): Promise<string> {
@@ -242,14 +280,12 @@ export async function runWorkflow(dealId: string): Promise<void> {
       ask: string
     ): Promise<{ label: string; summary: string } | null> => {
       const configs = getAgentConfigs();
-      // 1) The recruiter announces, in the room, that it's bringing in a specialist
-      //    and why — before the add, so this reads as a deliberate decision.
-      const intro =
-        id === 'environmental' ? `This one needs an environmental read — ${reason}. Bringing in the Environmental specialist.`
-        : id === 'capex' ? `I need real construction numbers here — ${reason}. Bringing in the CapEx specialist.`
-        : id === 'insurance' ? `There's catastrophe exposure to price — ${reason}. Bringing in the Insurance specialist.`
-        : `This is outside my lane — ${reason}. Bringing in a specialist.`;
-      await say(dealId, roomId, recruiter, intro, []);
+      // The recruiter writes its own announcement + ask (not a canned template).
+      const lines = await recruitLines(recruiter, id as SpecialistType, displayName, reason, ask);
+
+      // 1) Announce, in the room, that it's bringing in a specialist and why
+      //    (before the add, so this reads as a deliberate decision).
+      await say(dealId, roomId, recruiter, lines.intro, []);
 
       // 2) Add the specialist as a participant, then announce the join.
       try {
@@ -263,7 +299,7 @@ export async function runWorkflow(dealId: string): Promise<void> {
       await recordMention(dealId, recruiter, id, reason);
 
       // 3) Now brief the specialist directly on the task (it's a participant → @mention works).
-      await say(dealId, roomId, recruiter, ask, [id]);
+      await say(dealId, roomId, recruiter, lines.brief, [id]);
       emit(dealId, { type: 'agent.processing', agent: id });
       try {
         const a = await assessSpecialist(id, { deal, propertyFact, compliance }, roomId, [configs[recruiter].agentId, configs.synthesis.agentId]);

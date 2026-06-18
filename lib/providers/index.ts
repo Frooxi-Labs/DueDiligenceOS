@@ -58,6 +58,8 @@ interface CallOpts {
   temperature?: number;
   maxTokens?: number;
   system?: string;
+  /** Override the agent's model (e.g. a fast model for a short utility line). */
+  model?: string;
   /** Force JSON-object output (default true). Set false for free-text turns. */
   json?: boolean;
 }
@@ -114,7 +116,7 @@ export async function extractWithAI(text: string, systemPrompt: string): Promise
 
 /** Free-text (non-JSON) call on an agent's model — used for negotiation turns. */
 export async function callText(agentType: AgentType, prompt: string, opts: CallOpts = {}): Promise<string> {
-  const model = modelFor(agentType);
+  const model = opts.model ?? modelFor(agentType);
   return callModel(model, [{ role: 'user', content: prompt }], { temperature: 0.4, maxTokens: 500, ...opts, json: false });
 }
 
