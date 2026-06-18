@@ -26,3 +26,6 @@ __pycache__/
 *.pyc
 services/**/.venv/
 .venv/
+
+# Local presentation working dir (deck + video script) — not part of the app
+.deckbuild/
