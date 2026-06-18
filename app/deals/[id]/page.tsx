@@ -605,7 +605,7 @@ export default function DealPage() {
                       <button onClick={verifyBand} disabled={bandBusy} className="text-[11px] text-indigo-300 hover:text-indigo-200 disabled:opacity-50">{bandBusy ? 'checking…' : '↻ verify live'}</button>
                     </div>
                     {bandCheck ? (
-                      <p className="text-neutral-500 mt-1"><span className="text-neutral-300">{bandCheck.message_count} messages</span> across {bandCheck.participants_polled} participants — survives restarts &amp; rejoins.</p>
+                      <p className="text-neutral-500 mt-1"><span className="text-neutral-300">{bandCheck.message_count} messages &amp; events</span> across {bandCheck.participants_polled} participants — survives restarts &amp; rejoins.</p>
                     ) : (
                       <p className="text-neutral-600 mt-1">Reconstruct this room straight from Band to confirm it&apos;s the source of truth.</p>
                     )}
