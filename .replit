@@ -1,0 +1,20 @@
+modules = ["nodejs-20", "python-3.11"]
+
+# Workspace "Run" button: starts the Python specialists service + the Next.js dev
+# server together (and installs deps on first run).
+run = "bash start-dev.sh"
+
+[env]
+# The specialists service runs internally on 8000; the app talks to it here.
+SPECIALISTS_URL = "http://127.0.0.1:8000"
+
+# Public webview / deployment maps the Next.js port to the outside world.
+[[ports]]
+localPort = 3000
+externalPort = 80
+
+# Always-on published deployment (Reserved VM): build once, then run both services.
+[deployment]
+deploymentTarget = "vm"
+build = ["bash", "-lc", "npm install && npm run build && python3 -m venv services/specialists/.venv && services/specialists/.venv/bin/pip install -r services/specialists/requirements.txt"]
+run = ["bash", "start.sh"]
