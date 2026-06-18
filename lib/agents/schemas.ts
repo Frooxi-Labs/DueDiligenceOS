@@ -29,7 +29,7 @@ export const PropertyFactSchema = z.object({
   no_easements_recorded: z.boolean(),
   /** Required-but-absent documents; non-empty => escalate to the human. */
   missing_documents: z.array(z.string()).default([]),
-  summary: z.string().min(20).max(400),
+  summary: z.string().min(20).transform((s) => s.trim().slice(0, 1000)),
 });
 
 // A task an agent decides — from context — to hand to another committee agent.
@@ -55,7 +55,7 @@ export const ComplianceReportSchema = z.object({
   delegations: z.array(DelegationRequestSchema).default([]),
   /** Emergent: specialists this agent decides the deal needs. */
   requested_specialists: z.array(SpecialistRequestSchema).default([]),
-  summary: z.string().min(20).max(400),
+  summary: z.string().min(20).transform((s) => s.trim().slice(0, 1000)),
 });
 
 // ── Financial: underwriting model (two-phase: baseline | revised) ────────────
@@ -72,7 +72,7 @@ export const FinancialModelSchema = z.object({
   /** Set on the revised phase: what assumption changed and who triggered it. */
   triggered_by: z.string().nullable().default(null),
   assumption_delta: z.string().nullable().default(null),
-  summary: z.string().min(20).max(400),
+  summary: z.string().min(20).transform((s) => s.trim().slice(0, 1000)),
 });
 
 // ── Legal: contract & title review ───────────────────────────────────────────
@@ -86,7 +86,7 @@ export const LegalRiskSchema = z.object({
   delegations: z.array(DelegationRequestSchema).default([]),
   /** Emergent: specialists this agent decides the deal needs. */
   requested_specialists: z.array(SpecialistRequestSchema).default([]),
-  summary: z.string().min(20).max(400),
+  summary: z.string().min(20).transform((s) => s.trim().slice(0, 1000)),
 });
 
 // Environmental, CapEx, and Insurance are Python/LangGraph specialists — they
@@ -98,7 +98,7 @@ export const DealMemoSchema = z.object({
   signal: Signal,
   top_findings: z.array(z.object({ title: z.string(), detail: z.string(), severity: Severity })).max(5).default([]),
   conditions_precedent: z.array(z.string()).default([]),
-  recommendation: z.string().min(20).max(600),
+  recommendation: z.string().min(20).transform((s) => s.trim().slice(0, 1400)),
 });
 
 export type Finding = z.infer<typeof FindingSchema>;
