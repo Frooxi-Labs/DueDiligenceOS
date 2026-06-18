@@ -1,4 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
+
+/** Anonymous per-browser id. Scopes deals to the visitor who created them so demo
+ *  sessions don't see each other's deals. Not a real auth boundary. */
+export const OWNER_COOKIE = 'ddos_uid';
 
 /**
  * Baseline security headers on every response. These are framework-safe
@@ -6,8 +10,15 @@ import { NextResponse } from 'next/server';
  * common clickjacking, MIME-sniffing, and referrer-leak vectors, and forbid the
  * page from being framed or loading plugins.
  */
-export function middleware() {
+export function middleware(req: NextRequest) {
   const res = NextResponse.next();
+
+  // Issue an anonymous visitor id once, so each browser only sees its own deals.
+  if (!req.cookies.get(OWNER_COOKIE)) {
+    res.cookies.set(OWNER_COOKIE, crypto.randomUUID(), {
+      httpOnly: true, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 24 * 365,
+    });
+  }
   res.headers.set('X-Content-Type-Options', 'nosniff');
   res.headers.set('X-Frame-Options', 'DENY');
   res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');

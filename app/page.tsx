@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Bricolage_Grotesque } from 'next/font/google';
-import { agentAvatar } from '@/lib/agents/avatars';
+import { agentAvatar, agentAvatarLive } from '@/lib/agents/avatars';
 import type { AgentType } from '@/types';
 
 const brico = Bricolage_Grotesque({ subsets: ['latin'], weight: ['400', '500', '600', '700'] });
@@ -116,7 +116,7 @@ export default function Landing() {
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 6h8.5M6 1.5L10 6l-4 4.5" stroke="#56e58b" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
           </span>
         </Link>
-        <p className="mt-4 text-[12px]" style={{ color: '#5b6068' }}>Click an agent to meet it.</p>
+        <p className="mt-4 text-[12px]" style={{ color: '#5b6068' }}>Hover an agent to meet it.</p>
       </div>
 
       {/* illustration stage */}
@@ -151,7 +151,7 @@ export default function Landing() {
             })}
 
             <circle cx={HUB.cx} cy={HUB.cy} r="190" fill="url(#hubGlow)"><animate attributeName="opacity" values="0.7;1;0.7" dur="4s" repeatCount="indefinite" /></circle>
-            <svg ref={hubRef} onClick={(e) => { e.stopPropagation(); setSel((s) => (s === 'band' ? null : 'band')); }} style={{ cursor: 'pointer' }} x={HUB.cx - HUB.s / 2} y={HUB.cy - HUB.s / 2} width={HUB.s} height={HUB.s} viewBox="0 0 288 288">
+            <svg ref={hubRef} onMouseEnter={() => setSel('band')} onClick={(e) => { e.stopPropagation(); setSel(null); }} style={{ cursor: 'pointer' }} x={HUB.cx - HUB.s / 2} y={HUB.cy - HUB.s / 2} width={HUB.s} height={HUB.s} viewBox="0 0 288 288">
               <ellipse cx="146" cy="262" rx="76" ry="11" fill="#0B1A26" opacity="0.5" />
               <circle cx="144" cy="134" r="128" fill="#0B1A26" />
               <circle cx="144" cy="134" r="119" fill="url(#band-body)" />
@@ -161,9 +161,10 @@ export default function Landing() {
             </svg>
 
             {AGENTS.map((a) => (
-              <g key={a.id} onClick={(e) => { e.stopPropagation(); setSel((s) => (s === a.id ? null : a.id)); }} style={{ cursor: 'pointer' }}>
+              <g key={a.id} onMouseEnter={() => setSel(a.id)} onClick={(e) => { e.stopPropagation(); setSel(null); }} style={{ cursor: 'pointer' }}>
                 <rect x={a.x - 32} y={a.y - 32} width="64" height="64" rx="16" fill="#0b0b0c" stroke={sel === a.id ? '#ffffff' : '#242424'} strokeWidth={sel === a.id ? 1.8 : 1} />
-                <image href={agentAvatar(a.id)} x={a.x - 27} y={a.y - 27} width="54" height="54" preserveAspectRatio="xMidYMid meet" style={{ pointerEvents: 'none' }} />
+                {/* live (blinking / glancing) avatar while this agent is the active one, like the new-deal page */}
+                <image href={sel === a.id ? agentAvatarLive(a.id) : agentAvatar(a.id)} x={a.x - 27} y={a.y - 27} width="54" height="54" preserveAspectRatio="xMidYMid meet" style={{ pointerEvents: 'none' }} />
               </g>
             ))}
           </svg>

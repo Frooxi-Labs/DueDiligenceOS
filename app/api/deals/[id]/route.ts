@@ -10,6 +10,7 @@ import {
   finalDecisions,
 } from '@/lib/db/schema';
 import { guard } from '@/lib/security/guard';
+import { ownerToken, SHARED_OWNER } from '@/lib/security/owner';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +22,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   const [deal] = await db.select().from(dealBriefs).where(eq(dealBriefs.id, id)).limit(1);
   if (!deal) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  // Only the visitor who created the deal (or anyone, for shared seed deals) may open it.
+  const uid = await ownerToken();
+  if (deal.submitter_id !== SHARED_OWNER && deal.submitter_id !== uid) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
 
   const [room] = await db.select().from(bandRooms).where(eq(bandRooms.deal_id, id)).limit(1);
   const evaluations = await db

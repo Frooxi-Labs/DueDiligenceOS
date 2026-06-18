@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
-import { desc } from 'drizzle-orm';
+import { desc, eq, or } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { dealBriefs } from '@/lib/db/schema';
 import { DealInputSchema } from '@/lib/deals';
 import { runWorkflow } from '@/lib/orchestration';
 import { guard } from '@/lib/security/guard';
+import { ownerToken, SHARED_OWNER } from '@/lib/security/owner';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +31,9 @@ export async function POST(req: Request) {
   }
   const d = parsed.data;
 
+  // Tag the deal with the visitor's anonymous id so only they see it later.
+  const uid = (await ownerToken()) ?? SHARED_OWNER;
+
   const [deal] = await db
     .insert(dealBriefs)
     .values({
@@ -41,6 +45,7 @@ export async function POST(req: Request) {
       financing_rate: String(d.financing_rate),
       hold_period_years: d.hold_period_years,
       documents: d.documents,
+      submitter_id: uid,
       status: 'pending',
     })
     .returning({ id: dealBriefs.id });
@@ -52,8 +57,14 @@ export async function POST(req: Request) {
   return NextResponse.json({ id: deal.id }, { status: 201 });
 }
 
-/** List recent deals. */
+/** List the visitor's own deals (plus the shared seed deals). */
 export async function GET() {
-  const rows = await db.select().from(dealBriefs).orderBy(desc(dealBriefs.created_at)).limit(50);
+  const uid = await ownerToken();
+  const rows = await db
+    .select()
+    .from(dealBriefs)
+    .where(or(eq(dealBriefs.submitter_id, SHARED_OWNER), eq(dealBriefs.submitter_id, uid ?? SHARED_OWNER)))
+    .orderBy(desc(dealBriefs.created_at))
+    .limit(50);
   return NextResponse.json({ deals: rows });
 }
