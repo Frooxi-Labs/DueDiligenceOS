@@ -269,8 +269,10 @@ export async function runWorkflow(dealId: string): Promise<void> {
         return { label: displayName, summary: a.summary };
       } catch (err) {
         // No in-process fallback — specialists live in the Python service. If it's
-        // down the committee proceeds without that specialist (best-effort).
+        // unreachable (or too slow), say so in the room instead of failing silently,
+        // so it's clear the specialist didn't return rather than was never asked.
         await logEvent(dealId, 'specialist.unavailable', { id, reason: (err as Error).message }, id);
+        await systemSay(dealId, `${displayName} couldn't return its analysis — the specialist service was unreachable or too slow.`);
         emit(dealId, { type: 'agent.completed', agent: id, headline: 'unavailable' });
         return null;
       }
@@ -374,7 +376,16 @@ export async function runWorkflow(dealId: string): Promise<void> {
     ];
     const cascade = cascadeFromCompliance(compliance);
     if (cascade && !delegations.some((d) => d.to === 'financial')) {
-      delegations.push({ from: cascade.from as CoreAgentType, to: 'financial', intent: `Re-underwrite the deal — ${cascade.trigger}.`, authority: `remove the affected assumption (${cascade.delta})` });
+      // Attribute the re-underwrite to whichever finding actually drives it: a
+      // material title / easement / lien issue is Legal's call to hand off;
+      // otherwise it's the regulatory trigger. Keeps delegation from always
+      // looking like a Regulatory-only act.
+      const legalDriven =
+        !legalRisk.title_clean ||
+        legalRisk.easement_found_in_contract ||
+        legalRisk.findings.some((f) => f.severity !== 'minor' && /easement|title|lien|encumbrance/i.test(`${f.title} ${f.detail}`));
+      const from: CoreAgentType = legalDriven ? 'legal' : (cascade.from as CoreAgentType);
+      delegations.push({ from, to: 'financial', intent: `Re-underwrite the deal — ${cascade.trigger}.`, authority: `remove the affected assumption (${cascade.delta})` });
     }
 
     for (const d of delegations.slice(0, 4)) {
