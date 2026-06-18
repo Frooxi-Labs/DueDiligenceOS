@@ -2,7 +2,11 @@ import type { AgentType, DealRecord } from '@/types';
 import type { PropertyFact, ComplianceReport } from './schemas';
 
 const SERVICE_URL = process.env.SPECIALISTS_URL ?? 'http://127.0.0.1:8000';
-const TIMEOUT_MS = 60_000;
+// Generous on purpose: a cold-starting / free-tier specialist service can take a
+// while to wake, and the graph itself makes an LLM call. If the client aborts
+// too early, Python still finishes and posts to Band, but the result never makes
+// it back into the app. Tunable via env for slower hosts.
+const TIMEOUT_MS = Number(process.env.SPECIALIST_TIMEOUT_MS) || 180_000;
 
 export interface SpecialistAssessment {
   headline: string;
