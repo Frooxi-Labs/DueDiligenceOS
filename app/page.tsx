@@ -104,7 +104,7 @@ export default function Landing() {
       <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1.4px)', backgroundSize: '26px 26px', maskImage: 'radial-gradient(120% 85% at 50% 42%, #000 35%, transparent 82%)', WebkitMaskImage: 'radial-gradient(120% 85% at 50% 42%, #000 35%, transparent 82%)' }} />
       <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(80% 60% at 50% 55%, transparent 40%, rgba(0,0,0,0.55) 100%)' }} />
 
-      <div className="relative z-10 text-center" style={{ marginTop: '7vh' }}>
+      <div className="relative z-20 text-center" style={{ marginTop: '7vh' }}>
         <p className="text-[12.5px] font-semibold tracking-[0.22em] uppercase mb-5" style={{ color: '#3ee08a' }}>AI due diligence · by committee</p>
         <h1 className="font-semibold" style={{ fontSize: 56, lineHeight: 1.03, letterSpacing: '-0.035em', color: '#fafafa' }}>Eight minds. One verdict.</h1>
         <p className="mt-5 mx-auto text-[16.5px] leading-relaxed" style={{ color: '#9aa0aa', maxWidth: 560 }}>
@@ -121,8 +121,8 @@ export default function Landing() {
 
       {/* illustration stage */}
       <div className="relative z-10 flex-1 w-full flex items-center justify-center min-h-0 mt-1">
-        <div className="relative w-full" style={{ maxWidth: 1120, aspectRatio: '1200 / 540' }}>
-          <svg viewBox="0 0 1200 540" preserveAspectRatio="xMidYMid meet" className="absolute inset-0 w-full h-full">
+        <div className="relative" style={{ width: 'min(1120px, 94vw, 98vh)', aspectRatio: '1200 / 540' }}>
+          <svg viewBox="0 0 1200 540" preserveAspectRatio="xMidYMid meet" className="absolute inset-0 w-full h-full" style={{ pointerEvents: 'none' }}>
             <defs>
               <radialGradient id="hubGlow" cx="50%" cy="50%" r="50%">
                 <stop offset="0%" stopColor="#35d277" stopOpacity="0.5" /><stop offset="38%" stopColor="#35d277" stopOpacity="0.12" /><stop offset="100%" stopColor="#35d277" stopOpacity="0" />
@@ -151,7 +151,7 @@ export default function Landing() {
             })}
 
             <circle cx={HUB.cx} cy={HUB.cy} r="190" fill="url(#hubGlow)"><animate attributeName="opacity" values="0.7;1;0.7" dur="4s" repeatCount="indefinite" /></circle>
-            <svg ref={hubRef} onMouseEnter={() => setSel('band')} onClick={(e) => { e.stopPropagation(); setSel(null); }} style={{ cursor: 'pointer' }} x={HUB.cx - HUB.s / 2} y={HUB.cy - HUB.s / 2} width={HUB.s} height={HUB.s} viewBox="0 0 288 288">
+            <svg ref={hubRef} onMouseEnter={() => setSel('band')} onClick={(e) => { e.stopPropagation(); setSel(null); }} style={{ cursor: 'pointer', pointerEvents: 'auto' }} x={HUB.cx - HUB.s / 2} y={HUB.cy - HUB.s / 2} width={HUB.s} height={HUB.s} viewBox="0 0 288 288">
               <ellipse cx="146" cy="262" rx="76" ry="11" fill="#0B1A26" opacity="0.5" />
               <circle cx="144" cy="134" r="128" fill="#0B1A26" />
               <circle cx="144" cy="134" r="119" fill="url(#band-body)" />
@@ -161,7 +161,7 @@ export default function Landing() {
             </svg>
 
             {AGENTS.map((a) => (
-              <g key={a.id} onMouseEnter={() => setSel(a.id)} onClick={(e) => { e.stopPropagation(); setSel(null); }} style={{ cursor: 'pointer' }}>
+              <g key={a.id} onMouseEnter={() => setSel(a.id)} onClick={(e) => { e.stopPropagation(); setSel(null); }} style={{ cursor: 'pointer', pointerEvents: 'auto' }}>
                 <rect x={a.x - 32} y={a.y - 32} width="64" height="64" rx="16" fill="#0b0b0c" stroke={sel === a.id ? '#ffffff' : '#242424'} strokeWidth={sel === a.id ? 1.8 : 1} />
                 {/* live (blinking / glancing) avatar while this agent is the active one, like the new-deal page */}
                 <image href={sel === a.id ? agentAvatarLive(a.id) : agentAvatar(a.id)} x={a.x - 27} y={a.y - 27} width="54" height="54" preserveAspectRatio="xMidYMid meet" style={{ pointerEvents: 'none' }} />
